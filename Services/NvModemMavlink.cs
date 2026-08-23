@@ -13,6 +13,8 @@ internal static class NvModemMessageIds {
   internal const uint Nv5RtspConfig = 53014;
   internal const uint Nv5RtspConfigAck = 53015;
   internal const uint NvModemInfo = 53016;
+  internal const uint NvEncryptionKeysSet = 53017;
+  internal const uint NvEncryptionKeysAck = 53018;
 }
 
 internal static class NvModemInfoFlags {
@@ -22,6 +24,7 @@ internal static class NvModemInfoFlags {
 
 internal static class NvModemCapabilities {
   internal const ulong Rtsp = 1UL << 8;
+  internal const ulong AtomicEncryptionKeys = 1UL << 12;
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 28)]
@@ -115,6 +118,38 @@ internal struct NvModemInfoMessage {
   internal byte Channel2RadioChip;
 }
 
+[StructLayout(LayoutKind.Sequential, Pack = 1, Size = 40)]
+internal struct NvEncryptionKeysSetMessage {
+  internal uint TransactionId;
+  internal byte TargetSystem;
+  internal byte TargetComponent;
+  internal byte SchemaVersion;
+  internal byte ChannelMask;
+
+  [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
+  internal byte[] Channel1Key;
+
+  [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
+  internal byte[] Channel2Key;
+}
+
+[StructLayout(LayoutKind.Sequential, Pack = 1, Size = 19)]
+internal struct NvEncryptionKeysAckMessage {
+  internal uint TransactionId;
+  internal uint Channel1Fingerprint;
+  internal uint Channel2Fingerprint;
+  internal ushort Detail;
+  internal byte TargetSystem;
+  internal byte TargetComponent;
+  internal byte SchemaVersion;
+  internal byte ChannelMask;
+  internal byte Result;
+}
+
+internal static class NvEncryptionKeysResults {
+  internal const byte Applied = 0;
+}
+
 /// <summary>
 /// Registers the SkyComm messages used by NV5Settings with Mission Planner's generated MAVLink
 /// parser. The upstream MAVLink table is public and mutable, which lets the port add a private
@@ -146,6 +181,10 @@ internal static class NvModemMavlinkDialect {
         typeof(Nv5RtspConfigAckMessage)),
     new(NvModemMessageIds.NvModemInfo, "NV_MODEM_INFO", 207, 53, 53,
         typeof(NvModemInfoMessage)),
+    new(NvModemMessageIds.NvEncryptionKeysSet, "NV_ENCRYPTION_KEYS_SET", 129, 40, 40,
+        typeof(NvEncryptionKeysSetMessage)),
+    new(NvModemMessageIds.NvEncryptionKeysAck, "NV_ENCRYPTION_KEYS_ACK", 61, 19, 19,
+        typeof(NvEncryptionKeysAckMessage)),
   ];
 }
 
@@ -295,6 +334,7 @@ internal sealed class NvModemMavlinkTransport : INvModemMavlinkTransport {
         NvModemMessageIds.Nv5LinkStatus,
         NvModemMessageIds.Nv5RtspConfig,
         NvModemMessageIds.Nv5RtspConfigAck,
+        NvModemMessageIds.NvEncryptionKeysAck,
         NvModemMessageIds.NvRxStat,
         (uint)MAVLink.MAVLINK_MSG_ID.UAVCAN_NODE_INFO,
         (uint)MAVLink.MAVLINK_MSG_ID.PARAM_VALUE,

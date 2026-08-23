@@ -2,7 +2,7 @@
 
 Setup > NV Modem is the Avalonia port of the `NV5Settings` widget from the local AgroSky GTU tree.
 The implementation was compared with the current GTU `master` at commit
-`6c1aa5998078672f788fc37b6df89d20d6b94172`. The relevant source specification is
+`5771e7b0c68f09b64c2407ad46bf5466ba275aee`. The relevant source specification is
 `hermes-gui/include/nv5settings.h` plus `hermes-gui/src/nv5settings.cpp`.
 
 ## Connection and device identity
@@ -43,9 +43,11 @@ The page includes:
 - live NV4 or per-radio NV5 link status;
 - LR2021/LoRa/FLRC, FHSS, FEC and role presets, staged locally until **Save**;
 - channel-settings copy from another completely read NV5 modem;
-- NV4 32-byte and NV5 16-byte printable encryption keys, key generation and fingerprints;
-- protected NV5 key acknowledgements, where firmware returns `-1` without losing the locally known
-  value;
+- NV4 32-byte and NV5 16-byte encryption keys, printable or hexadecimal (with an optional `hex:`
+  prefix), with generation and fingerprints;
+- UINT32 representation for individual NV5 key-byte parameters plus atomic persistence of the
+  complete selected one- or two-channel key snapshot through `NV_ENCRYPTION_KEYS_SET` (`53017`),
+  with idempotent retries and final `NV_ENCRYPTION_KEYS_ACK` (`53018`) fingerprints;
 - RTSP path get/set and transport presets for supported LR2021 configurations;
 - transmitter enable/suppress diagnostics and standard MAVLink reboot;
 - Mission Planner-compatible `.param` import/export. Exports carry a sensitive-data warning because
@@ -60,7 +62,7 @@ selector is locked. A target/link change during confirmation prevents the operat
 ## Acceptance boundary
 
 The shared Mission Planner parser, custom CRC/layouts, multi-link target isolation, NV4 apply
-transaction, protected NV5 keys, RTSP dirty-state handling, preset staging, parameter-file roundtrip
+transaction, atomic NV5 keys, RTSP dirty-state handling, preset staging, parameter-file roundtrip
 and silent-device timeout are covered by automated tests. A representative physical NV4 and NV5
 modem on UDP/TCP/UART still require an operator acceptance run, including reboot/reappearance and
 real RF/RTSP behavior.

@@ -19,6 +19,8 @@ public class NvModemTests {
     Assert.Equal(103, Marshal.SizeOf<Nv5RtspConfigMessage>());
     Assert.Equal(9, Marshal.SizeOf<Nv5RtspConfigAckMessage>());
     Assert.Equal(53, Marshal.SizeOf<NvModemInfoMessage>());
+    Assert.Equal(40, Marshal.SizeOf<NvEncryptionKeysSetMessage>());
+    Assert.Equal(19, Marshal.SizeOf<NvEncryptionKeysAckMessage>());
     AssertMessage(NvModemMessageIds.NvRxStat, 49, 28, 28, typeof(NvRxStatMessage));
     AssertMessage(NvModemMessageIds.Nv5LinkStatus, 165, 77, 78,
         typeof(Nv5LinkStatusMessage));
@@ -28,6 +30,10 @@ public class NvModemTests {
         typeof(Nv5RtspConfigAckMessage));
     AssertMessage(NvModemMessageIds.NvModemInfo, 207, 53, 53,
         typeof(NvModemInfoMessage));
+    AssertMessage(NvModemMessageIds.NvEncryptionKeysSet, 129, 40, 40,
+        typeof(NvEncryptionKeysSetMessage));
+    AssertMessage(NvModemMessageIds.NvEncryptionKeysAck, 61, 19, 19,
+        typeof(NvEncryptionKeysAckMessage));
   }
 
   [Fact]
@@ -77,6 +83,32 @@ public class NvModemTests {
     Assert.Equal(2, actual.RadioCount);
     Assert.Equal(2, actual.Channel2Role);
     Assert.Equal(3, actual.Channel2RadioChip);
+  }
+
+  [Fact]
+  public void Parses_atomic_nv5_encryption_key_wire_layout() {
+    byte[] channel1 = Convert.FromHexString("00112233445566778899aabbccddeeff");
+    byte[] channel2 = Convert.FromHexString("ffeeddccbbaa99887766554433221100");
+    var expected = new NvEncryptionKeysSetMessage {
+      TransactionId = 0x12345678,
+      TargetSystem = 249,
+      TargetComponent = 253,
+      SchemaVersion = 1,
+      ChannelMask = 3,
+      Channel1Key = channel1,
+      Channel2Key = channel2,
+    };
+
+    MAVLink.MAVLinkMessage packet = Packet(
+        NvModemMessageIds.NvEncryptionKeysSet, expected, 1, 1);
+    NvEncryptionKeysSetMessage actual = packet.ToStructure<NvEncryptionKeysSetMessage>();
+
+    Assert.Equal(expected.TransactionId, actual.TransactionId);
+    Assert.Equal(249, actual.TargetSystem);
+    Assert.Equal(253, actual.TargetComponent);
+    Assert.Equal(3, actual.ChannelMask);
+    Assert.Equal(channel1, actual.Channel1Key);
+    Assert.Equal(channel2, actual.Channel2Key);
   }
 
   [Theory]
@@ -291,7 +323,7 @@ public class NvModemTests {
   }
 
   [Fact]
-  public void Nv5_key_write_accepts_protected_minus_one_ack_and_stays_on_discovery_link() {
+  public void Nv5_key_write_is_one_atomic_transaction_and_stays_on_discovery_link() {
     var transport = new FakeTransport();
     using var viewModel = new NvModemViewModel(transport, () => DateTime.UtcNow,
         startTimer: false);
@@ -303,24 +335,94 @@ public class NvModemTests {
     viewModel.HandlePacket(source, ParameterPacket("CH1_MOD", 1, 5, count, 9, 68));
     for (int index = 0; index < 16; index++) {
       viewModel.HandlePacket(source, ParameterPacket($"CH1_KEY{index:00}",
-          65 + index, 6, count, 9, 68));
+          65 + index, 5, count, 9, 68));
     }
     transport.Sent.Clear();
     viewModel.KeyText = "ABCDEFGHIJKLMNOP";
 
     viewModel.SetKeyCommand.Execute(null);
-    for (int index = 0; index < 16; index++) {
-      FakeTransport.SentPacket sent = transport.Sent[^1];
-      var write = Assert.IsType<MAVLink.mavlink_param_set_t>(sent.Packet);
-      Assert.Same(source, sent.Link);
-      Assert.Equal($"CH1_KEY{index:00}", NvModemParameterCodec.Name(write.param_id));
-      viewModel.HandlePacket(source, ParameterPacket($"CH1_KEY{index:00}", -1, 6,
-          count, 9, 68));
+    FakeTransport.SentPacket sent = Assert.Single(transport.Sent);
+    var write = Assert.IsType<NvEncryptionKeysSetMessage>(sent.Packet);
+    Assert.Same(source, sent.Link);
+    Assert.Equal(9, write.TargetSystem);
+    Assert.Equal(68, write.TargetComponent);
+    Assert.Equal(1, write.SchemaVersion);
+    Assert.Equal(0x01, write.ChannelMask);
+    Assert.Equal(Encoding.ASCII.GetBytes("ABCDEFGHIJKLMNOP"), write.Channel1Key);
+    Assert.Equal(new byte[16], write.Channel2Key);
+    Assert.DoesNotContain(transport.Sent,
+        packet => packet.Packet is MAVLink.mavlink_param_set_t);
+    foreach (NvModemParameterRow row in viewModel.Parameters.Where(row =>
+                 row.Name.StartsWith("CH1_KEY", StringComparison.Ordinal)
+                 && !row.Name.EndsWith("_HASH", StringComparison.Ordinal))) {
+      Assert.Equal((byte)MAVLink.MAV_PARAM_TYPE.UINT32, row.Type);
     }
+
+    viewModel.HandlePacket(source, Packet(NvModemMessageIds.NvEncryptionKeysAck,
+        new NvEncryptionKeysAckMessage {
+          TransactionId = write.TransactionId,
+          Channel1Fingerprint = 654321,
+          TargetSystem = 1,
+          TargetComponent = 1,
+          SchemaVersion = 1,
+          ChannelMask = 0x01,
+          Result = NvEncryptionKeysResults.Applied,
+        }, 9, 68));
 
     Assert.False(viewModel.IsBusy);
     Assert.Equal("ABCDEFGHIJKLMNOP", viewModel.KeyText);
-    Assert.Equal(16, transport.Sent.Count(sent => sent.Packet is MAVLink.mavlink_param_set_t));
+    Assert.Contains("stored atomically", viewModel.Status, StringComparison.OrdinalIgnoreCase);
+  }
+
+  [Fact]
+  public void Nv5_binary_key_uses_hex_text_and_atomic_bytes() {
+    var transport = new FakeTransport();
+    using var viewModel = new NvModemViewModel(transport, () => DateTime.UtcNow,
+        startTimer: false);
+    var source = new NvModemLink(new MAVLinkInterface(), "TCP NV5");
+    viewModel.HandlePacket(source, Packet(NvModemMessageIds.Nv5LinkStatus,
+        new Nv5LinkStatusMessage { Channel = 1, RadioChip = 0, Role = 1 }, 7, 68));
+    for (int index = 0; index < 16; index++) {
+      viewModel.HandlePacket(source, ParameterPacket($"CH1_KEY{index:00}",
+          index, 5, 16, 7, 68));
+    }
+
+    Assert.Equal("hex:000102030405060708090a0b0c0d0e0f", viewModel.KeyText);
+    transport.Sent.Clear();
+    // Match GTU: the hex: prefix is accepted but is optional for an
+    // unambiguous 32-digit NV5 key.
+    viewModel.KeyText = "ffeeddccbbaa99887766554433221100";
+    viewModel.SetKeyCommand.Execute(null);
+
+    var write = Assert.IsType<NvEncryptionKeysSetMessage>(Assert.Single(transport.Sent).Packet);
+    Assert.Equal(Convert.FromHexString("ffeeddccbbaa99887766554433221100"),
+        write.Channel1Key);
+  }
+
+  [Fact]
+  public void Nv5_atomic_key_retry_reuses_the_idempotency_transaction_id() {
+    var transport = new FakeTransport();
+    DateTime now = DateTime.UtcNow;
+    using var viewModel = new NvModemViewModel(transport, () => now, startTimer: false);
+    var source = new NvModemLink(new MAVLinkInterface(), "UDP NV5");
+    viewModel.HandlePacket(source, Packet(NvModemMessageIds.Nv5LinkStatus,
+        new Nv5LinkStatusMessage { Channel = 1, RadioChip = 0, Role = 1 }, 8, 68));
+    for (int index = 0; index < 16; index++) {
+      viewModel.HandlePacket(source, ParameterPacket($"CH1_KEY{index:00}",
+          65 + index, 5, 16, 8, 68));
+    }
+    transport.Sent.Clear();
+    viewModel.KeyText = "ABCDEFGHIJKLMNOP";
+    viewModel.SetKeyCommand.Execute(null);
+    var first = Assert.IsType<NvEncryptionKeysSetMessage>(Assert.Single(transport.Sent).Packet);
+
+    now += TimeSpan.FromMilliseconds(1300);
+    viewModel.ServiceTransactions();
+
+    var retry = Assert.IsType<NvEncryptionKeysSetMessage>(transport.Sent[^1].Packet);
+    Assert.Equal(2, transport.Sent.Count);
+    Assert.Equal(first.TransactionId, retry.TransactionId);
+    Assert.Equal(first.Channel1Key, retry.Channel1Key);
   }
 
   [Fact]
@@ -357,6 +459,8 @@ public class NvModemTests {
             ((MAVLink.mavlink_param_set_t)sent.Packet).param_id))];
     Assert.Equal("REFRESH_SETTING", writtenNames[^1]);
     Assert.DoesNotContain("REFRESH_SETTINGS", writtenNames);
+    var refresh = Assert.IsType<MAVLink.mavlink_param_set_t>(transport.Sent[^1].Packet);
+    Assert.Equal((byte)MAVLink.MAV_PARAM_TYPE.UINT32, refresh.param_type);
     Assert.False(viewModel.IsBusy);
   }
 

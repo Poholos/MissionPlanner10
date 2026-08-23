@@ -231,7 +231,9 @@ internal static class NvModemCatalog {
     }
 
     if (name.Contains("_KEY", StringComparison.Ordinal)) {
-      return "AES-128 key byte: 0..255 replaces the byte; -1 means the modem did not disclose it. KEY00 through KEY15 must match on linked radios.";
+      return "AES-128 key byte represented as MAVLink UINT32 in the 0..255 range. "
+          + "KEY00 through KEY15 are persisted together by one atomic transaction and must "
+          + "match on linked radios.";
     }
 
     if (name.EndsWith("_RADIO_CRC", StringComparison.Ordinal)) {
