@@ -1,0 +1,709 @@
+source_path	planned_native_path	action	notes
+.editorconfig	.editorconfig	merge	Merge by meaning; never overwrite native repository policy, licensing or workflows mechanically.
+.gitattributes	.gitattributes	merge	Merge by meaning; never overwrite native repository policy, licensing or workflows mechanically.
+.github/codeql/codeql-config.yml	.github/codeql/codeql-config.yml	merge	Merge by meaning; never overwrite native repository policy, licensing or workflows mechanically.
+.github/dependabot.yml	.github/dependabot.yml	merge	Merge by meaning; never overwrite native repository policy, licensing or workflows mechanically.
+.github/workflows/ci.yml	.github/workflows/ci.yml	merge	Merge by meaning; never overwrite native repository policy, licensing or workflows mechanically.
+.github/workflows/codeql.yml	.github/workflows/codeql.yml	merge	Merge by meaning; never overwrite native repository policy, licensing or workflows mechanically.
+.github/workflows/release.yml	.github/workflows/release.yml	merge	Merge by meaning; never overwrite native repository policy, licensing or workflows mechanically.
+.gitignore	.gitignore	merge	Merge by meaning; never overwrite native repository policy, licensing or workflows mechanically.
+.gitmodules	.gitmodules	merge	Do not overwrite the native ExtLibs/mono submodule declaration.
+Directory.Build.props	Directory.Build.props	merge	Merge by meaning; never overwrite native repository policy, licensing or workflows mechanically.
+Directory.Build.targets	Directory.Build.targets	merge	Merge by meaning; never overwrite native repository policy, licensing or workflows mechanically.
+Directory.Packages.props	Directory.Packages.props	merge	Merge by meaning; never overwrite native repository policy, licensing or workflows mechanically.
+LICENSE	LICENSE	merge	Merge by meaning; never overwrite native repository policy, licensing or workflows mechanically.
+LICENSES/Apache-2.0.txt	LICENSES/Apache-2.0.txt	import	Retain third-party notices for shipped native components.
+LICENSES/MIT-Tmds.DBus.txt	LICENSES/MIT-Tmds.DBus.txt	import	Retain third-party notices for shipped native components.
+LICENSES/SimpleBLE-0.7.3-NOTICE.txt	LICENSES/SimpleBLE-0.7.3-NOTICE.txt	import	Retain third-party notices for shipped native components.
+LICENSES/VLC-3.0.23-NOTICE.txt	LICENSES/VLC-3.0.23-NOTICE.txt	import	Retain third-party notices for shipped native components.
+Makefile	Makefile	merge	Merge by meaning; never overwrite native repository policy, licensing or workflows mechanically.
+MissionPlannerAvalonia.slnx	MissionPlanner.slnx	merge	Create the cross-platform solution graph with direct root ExtLib references.
+NOTICE.md	NOTICE.md	merge	Merge by meaning; never overwrite native repository policy, licensing or workflows mechanically.
+README.md	README.md	merge	Merge by meaning; never overwrite native repository policy, licensing or workflows mechanically.
+SITL-TESTING.md	SITL-TESTING.md	merge	Merge by meaning; never overwrite native repository policy, licensing or workflows mechanically.
+build/gen-manifest.py	build/gen-manifest.py	import	Cross-platform build/package/runtime support.
+build/icon/AppIcon.png	build/icon/AppIcon.png	import	Cross-platform build/package/runtime support.
+build/icon/AppIcon.svg	build/icon/AppIcon.svg	import	Cross-platform build/package/runtime support.
+build/icon/generate.sh	build/icon/generate.sh	import	Cross-platform build/package/runtime support.
+build/linux/debian/control.in	build/linux/debian/control.in	import	Cross-platform build/package/runtime support.
+build/linux/debian/copyright	build/linux/debian/copyright	import	Cross-platform build/package/runtime support.
+build/linux/debian/lintian-overrides	build/linux/debian/lintian-overrides	import	Cross-platform build/package/runtime support.
+build/linux/debian/missionplanner-avalonia	build/linux/debian/missionplanner-avalonia	import	Cross-platform build/package/runtime support.
+build/linux/debian/missionplanner-avalonia.1	build/linux/debian/missionplanner-avalonia.1	import	Cross-platform build/package/runtime support.
+build/linux/debian/missionplanner-avalonia.desktop	build/linux/debian/missionplanner-avalonia.desktop	import	Cross-platform build/package/runtime support.
+build/linux/debian/postinst	build/linux/debian/postinst	import	Cross-platform build/package/runtime support.
+build/linux/debian/postrm	build/linux/debian/postrm	import	Cross-platform build/package/runtime support.
+build/linux/install.sh	build/linux/install.sh	import	Cross-platform build/package/runtime support.
+build/linux/missionplanner-avalonia.desktop	build/linux/missionplanner-avalonia.desktop	import	Cross-platform build/package/runtime support.
+build/linux/missionplanner-avalonia.png	build/linux/missionplanner-avalonia.png	import	Cross-platform build/package/runtime support.
+build/linux/package.sh	build/linux/package.sh	import	Cross-platform build/package/runtime support.
+build/macos/AppIcon.icns	build/macos/AppIcon.icns	import	Cross-platform build/package/runtime support.
+build/macos/Info.plist	build/macos/Info.plist	import	Cross-platform build/package/runtime support.
+build/macos/entitlements.plist	build/macos/entitlements.plist	import	Cross-platform build/package/runtime support.
+build/macos/make-app.sh	build/macos/make-app.sh	import	Cross-platform build/package/runtime support.
+build/make-update-bundle.py	build/make-update-bundle.py	import	Cross-platform build/package/runtime support.
+build/simpleble/fetch-macos.sh	build/simpleble/fetch-macos.sh	import	Cross-platform build/package/runtime support.
+build/version.sh	build/version.sh	import	Cross-platform build/package/runtime support.
+build/vlc/fetch-macos.sh	build/vlc/fetch-macos.sh	import	Cross-platform build/package/runtime support.
+docs/CODEQL_TRIAGE.md	Porting/Reference/CODEQL_TRIAGE.md	import	Historical/reference documentation; reconcile current facts into native docs/README later.
+docs/NV_MODEM.md	Porting/Reference/NV_MODEM.md	import	Historical/reference documentation; reconcile current facts into native docs/README later.
+docs/PLUGINS.md	Porting/Reference/PLUGINS.md	import	Historical/reference documentation; reconcile current facts into native docs/README later.
+docs/PORT_STATUS.md	Porting/Reference/PORT_STATUS.md	import	Historical/reference documentation; reconcile current facts into native docs/README later.
+docs/TEMP_HANDLER_AUDIT.md	Porting/Reference/TEMP_HANDLER_AUDIT.md	import	Historical/reference documentation; reconcile current facts into native docs/README later.
+docs/theme-proposals.html	Porting/Reference/theme-proposals.html	import	Historical/reference documentation; reconcile current facts into native docs/README later.
+external/Directory.Build.props		remove	Old submodule shielding is unnecessary in the in-place layout; scope root build policy explicitly instead.
+external/Directory.Packages.props		remove	Old submodule shielding is unnecessary in the in-place layout; scope root build policy explicitly instead.
+external/MissionPlanner		remove	Never import the old Mission Planner gitlink; native source already is the repository root.
+global.json	global.json	merge	Merge by meaning; never overwrite native repository policy, licensing or workflows mechanically.
+src/MissionPlannerAvalonia.LegacyPluginApi/MainV2Compatibility.cs	Plugin/LegacyCompatibility/MainV2Compatibility.cs	merge	Merge compatibility types into main MissionPlanner assembly; do not emit a second MissionPlanner.dll.
+src/MissionPlannerAvalonia.LegacyPluginApi/MissionPlannerAvalonia.LegacyPluginApi.csproj	Plugin/LegacyCompatibility/MissionPlannerAvalonia.LegacyPluginApi.csproj	merge	Merge compatibility types into main MissionPlanner assembly; do not emit a second MissionPlanner.dll.
+src/MissionPlannerAvalonia.LegacyPluginApi/PluginCompatibility.cs	Plugin/LegacyCompatibility/PluginCompatibility.cs	merge	Merge compatibility types into main MissionPlanner assembly; do not emit a second MissionPlanner.dll.
+src/MissionPlannerAvalonia.PluginApi/MissionPlannerAvalonia.PluginApi.csproj	Plugin/PortableApi/MissionPlannerAvalonia.PluginApi.csproj	import	Keep a distinct portable contract identity; rename project and references deliberately.
+src/MissionPlannerAvalonia.PluginApi/Plugin.cs	Plugin/PortableApi/Plugin.cs	import	Keep a distinct portable contract identity; rename project and references deliberately.
+src/MissionPlannerAvalonia.PluginApi/PluginHost.cs	Plugin/PortableApi/PluginHost.cs	import	Keep a distinct portable contract identity; rename project and references deliberately.
+src/MissionPlannerAvalonia/App.axaml	App.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/App.axaml.cs	App.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/AppState.cs	AppState.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Assets/Frames/class_heli.png	Assets/Frames/class_heli.png	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Assets/Frames/class_hexa.png	Assets/Frames/class_hexa.png	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Assets/Frames/class_octa.png	Assets/Frames/class_octa.png	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Assets/Frames/class_octaquad.png	Assets/Frames/class_octaquad.png	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Assets/Frames/class_quad.png	Assets/Frames/class_quad.png	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Assets/Frames/class_tri.png	Assets/Frames/class_tri.png	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Assets/Frames/class_y6.png	Assets/Frames/class_y6.png	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Assets/Frames/type_h.png	Assets/Frames/type_h.png	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Assets/Frames/type_plus.png	Assets/Frames/type_plus.png	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Assets/Frames/type_v.png	Assets/Frames/type_v.png	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Assets/Frames/type_x.png	Assets/Frames/type_x.png	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Assets/Frames/type_y6b.png	Assets/Frames/type_y6b.png	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Assets/appicon.ico	Assets/appicon.ico	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/AirportOverlayController.cs	Controls/AirportOverlayController.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/AnsiTerminalView.cs	Controls/AnsiTerminalView.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/FaceMapPreviewMap.cs	Controls/FaceMapPreviewMap.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/FaceMapProfileControl.cs	Controls/FaceMapProfileControl.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/FlightPlannerMap.cs	Controls/FlightPlannerMap.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/FormField.cs	Controls/FormField.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/FormationGridControl.cs	Controls/FormationGridControl.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/Gauge.cs	Controls/Gauge.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/GimbalVideoOverlay.cs	Controls/GimbalVideoOverlay.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/HeliCollectivePlot.cs	Controls/HeliCollectivePlot.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/Hsi.cs	Controls/Hsi.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/HudControl.cs	Controls/HudControl.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/ImportedMapOverlayRenderer.cs	Controls/ImportedMapOverlayRenderer.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/LivePlot.cs	Controls/LivePlot.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/MapView.cs	Controls/MapView.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/MavMarker.cs	Controls/MavMarker.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/OverlapCoverageBuilder.cs	Controls/OverlapCoverageBuilder.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/ParamFieldsView.axaml	Controls/ParamFieldsView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/ParamFieldsView.axaml.cs	Controls/ParamFieldsView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/PropagationOverlayController.cs	Controls/PropagationOverlayController.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/ProximityRadarControl.cs	Controls/ProximityRadarControl.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/QuickView.cs	Controls/QuickView.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/SequenceLayoutControl.cs	Controls/SequenceLayoutControl.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/SurveyGridPreviewMap.cs	Controls/SurveyGridPreviewMap.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/VideoControl.cs	Controls/VideoControl.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Controls/WaypointLeaderProfileControl.cs	Controls/WaypointLeaderProfileControl.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Converters.cs	Converters.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/MissionPlannerAvalonia.csproj	MissionPlanner.csproj	merge	Root project replacement; rename main assembly/product to MissionPlanner and use direct native paths.
+src/MissionPlannerAvalonia/Program.cs	Program.cs	replace	Root Avalonia entry point.
+src/MissionPlannerAvalonia/Services/AirportService.cs	Services/AirportService.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/AnsiTerminalBuffer.cs	Services/AnsiTerminalBuffer.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/AntennaTrackerOutputs.cs	Services/AntennaTrackerOutputs.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/AppPaths.cs	Services/AppPaths.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/AppVersion.cs	Services/AppVersion.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/AudioVario.cs	Services/AudioVario.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/BatteryEstimator.cs	Services/BatteryEstimator.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/CotEventSerializer.cs	Services/CotEventSerializer.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/DataFlashExpressionEvaluator.cs	Services/DataFlashExpressionEvaluator.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/DataFlashLog.cs	Services/DataFlashLog.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/DeveloperToolParsers.cs	Services/DeveloperToolParsers.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/Dialogs.cs	Services/Dialogs.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/DisplayViewService.cs	Services/DisplayViewService.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/ElevationSourceService.cs	Services/ElevationSourceService.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/ExternalAdsbReceiver.cs	Services/ExternalAdsbReceiver.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/FaceMapSupport.cs	Services/FaceMapSupport.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/FirmwareArchiveService.cs	Services/FirmwareArchiveService.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/FlightCommandShortcuts.cs	Services/FlightCommandShortcuts.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/FlightModeNames.cs	Services/FlightModeNames.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/FormationFlight.cs	Services/FormationFlight.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/FrameDefaultCatalogService.cs	Services/FrameDefaultCatalogService.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/Geo.cs	Services/Geo.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/GeoPackageOverlayReader.cs	Services/GeoPackageOverlayReader.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/GimbalVideoInteraction.cs	Services/GimbalVideoInteraction.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/GraphPresets.cs	Services/GraphPresets.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/HeliVisualization.cs	Services/HeliVisualization.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/HongKongNoFlyService.cs	Services/HongKongNoFlyService.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/HudFrameRecorder.cs	Services/HudFrameRecorder.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/ImportedOverlayStore.cs	Services/ImportedOverlayStore.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/JoystickControl.cs	Services/JoystickControl.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/JoystickInput.cs	Services/JoystickInput.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/KIndexService.cs	Services/KIndexService.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/KmlGroundOverlayProcessor.cs	Services/KmlGroundOverlayProcessor.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/KmlMissionReader.cs	Services/KmlMissionReader.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/LatestOperationController.cs	Services/LatestOperationController.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/LibVlcBootstrap.cs	Services/LibVlcBootstrap.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/LinuxBleSerial.cs	Services/LinuxBleSerial.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/LogAnalyzer.cs	Services/LogAnalyzer.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/LogIndexService.cs	Services/LogIndexService.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/LogOrganizer.cs	Services/LogOrganizer.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/LuaScriptHost.cs	Services/LuaScriptHost.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/MacHidJoystick.cs	Services/MacHidJoystick.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/MapCacheManager.cs	Services/MapCacheManager.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/MapTileImporter.cs	Services/MapTileImporter.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/MapTileSourceFactory.cs	Services/MapTileSourceFactory.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/MavCmdInfo.cs	Services/MavCmdInfo.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/MavLinkConnectionManager.cs	Services/MavLinkConnectionManager.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/MavLinkTransportRelease.cs	Services/MavLinkTransportRelease.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/MavlinkSerialTcpBridge.cs	Services/MavlinkSerialTcpBridge.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/MavlinkVideoStreams.cs	Services/MavlinkVideoStreams.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/MicrodroneDownlinkEncoder.cs	Services/MicrodroneDownlinkEncoder.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/MissionCommandCatalog.cs	Services/MissionCommandCatalog.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/MissionRoute.cs	Services/MissionRoute.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/NativeGdalApi.cs	Services/NativeGdalApi.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/NativeGdalMapService.cs	Services/NativeGdalMapService.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/NativeSimpleBleSerial.cs	Services/NativeSimpleBleSerial.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/NmeaGgaParser.cs	Services/NmeaGgaParser.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/NmeaVehicleSession.cs	Services/NmeaVehicleSession.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/NoFlyOverlay.cs	Services/NoFlyOverlay.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/NoFlyOverlayCoordinator.cs	Services/NoFlyOverlayCoordinator.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/NvModemCatalog.cs	Services/NvModemCatalog.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/NvModemMavlink.cs	Services/NvModemMavlink.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/OfflineMagFitService.cs	Services/OfflineMagFitService.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/OgcMapProvider.cs	Services/OgcMapProvider.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/OpenDroneIdMessageFactory.cs	Services/OpenDroneIdMessageFactory.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/OsdVideoOverlay.cs	Services/OsdVideoOverlay.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/ParameterRecoveryWorkflow.cs	Services/ParameterRecoveryWorkflow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/PlannerGeometry.cs	Services/PlannerGeometry.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/PlannerMapImportService.cs	Services/PlannerMapImportService.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/PlannerTextGeometry.cs	Services/PlannerTextGeometry.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/PluginRuntime.cs	Services/PluginRuntime.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/PluginService.cs	Services/PluginService.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/PoiStore.cs	Services/PoiStore.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/PortableWebSocketSerial.cs	Services/PortableWebSocketSerial.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/PreflightChecklist.cs	Services/PreflightChecklist.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/ProgressDialogs.cs	Services/ProgressDialogs.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/PropagationService.cs	Services/PropagationService.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/Px4FlowReceiver.cs	Services/Px4FlowReceiver.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/ResxTranslationService.cs	Services/ResxTranslationService.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/SftpLogDownloadSupport.cs	Services/SftpLogDownloadSupport.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/SftpLogSession.cs	Services/SftpLogSession.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/SitlLauncher.cs	Services/SitlLauncher.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/Speech.cs	Services/Speech.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/SpeechAnnouncer.cs	Services/SpeechAnnouncer.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/SshHostKeyPrompt.cs	Services/SshHostKeyPrompt.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/SshTerminalSession.cs	Services/SshTerminalSession.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/SurveyGridSupport.cs	Services/SurveyGridSupport.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/SwarmFollowLeader.cs	Services/SwarmFollowLeader.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/SwarmFollowPath.cs	Services/SwarmFollowPath.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/SwarmSequence.cs	Services/SwarmSequence.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/SwarmWaypointLeader.cs	Services/SwarmWaypointLeader.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/TerminalKeyEncoder.cs	Services/TerminalKeyEncoder.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/Terrain3D.cs	Services/Terrain3D.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/TerrainDataService.cs	Services/TerrainDataService.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/ThemeService.cs	Services/ThemeService.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/TlogExportService.cs	Services/TlogExportService.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/TlogPlayer.cs	Services/TlogPlayer.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/TrackerHomeNmeaService.cs	Services/TrackerHomeNmeaService.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/TrafficService.cs	Services/TrafficService.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/Updater.cs	Services/Updater.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/VehicleFirmwarePolicy.cs	Services/VehicleFirmwarePolicy.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/VehicleParameterLoadCoordinator.cs	Services/VehicleParameterLoadCoordinator.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Services/VideoSourceResolver.cs	Services/VideoSourceResolver.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Theme/MpTheme.axaml	Theme/MpTheme.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Theme/Palettes/Classic.axaml	Theme/Palettes/Classic.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Theme/Palettes/DeepForest.axaml	Theme/Palettes/DeepForest.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Theme/Palettes/Emerald.axaml	Theme/Palettes/Emerald.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Theme/Palettes/LimeRefined.axaml	Theme/Palettes/LimeRefined.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Theme/Palettes/PaletteResources.cs	Theme/Palettes/PaletteResources.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewLocator.cs	ViewLocator.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/ActionPageViewModel.cs	ViewModels/ActionPageViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/AntennaTrackerUIViewModel.cs	ViewModels/AntennaTrackerUIViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/BackstageViewModel.cs	ViewModels/BackstageViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/ConfigViewModel.cs	ViewModels/ConfigViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/ConnectionOptionsViewModel.cs	ViewModels/ConnectionOptionsViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/ConnectionViewModel.cs	ViewModels/ConnectionViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/DeviceOperationsViewModel.cs	ViewModels/DeviceOperationsViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/DroneCANInspectorViewModel.cs	ViewModels/DroneCANInspectorViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/DroneCanBridge.cs	ViewModels/DroneCanBridge.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/FaceMapMissionBuilder.cs	ViewModels/FaceMapMissionBuilder.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/FaceMapViewModel.cs	ViewModels/FaceMapViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/FlightDataViewModel.cs	ViewModels/FlightDataViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/FlightPlannerViewModel.cs	ViewModels/FlightPlannerViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/FollowMeViewModel.cs	ViewModels/FollowMeViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/FormationControlViewModel.cs	ViewModels/FormationControlViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigAC_FenceViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigAC_FenceViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigADSBViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigADSBViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigAdvancedViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigAdvancedViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigAirspeedViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigAirspeedViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigAntennaTrackerParamViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigAntennaTrackerParamViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigAntennaTrackerViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigAntennaTrackerViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigArduplaneViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigArduplaneViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigArduroverViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigArduroverViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigBasicTuningViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigBasicTuningViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigBatteryMonitoring2ViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigBatteryMonitoring2ViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigBatteryMonitoringViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigBatteryMonitoringViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigCalibrationPages.cs	ViewModels/GCSViews/ConfigurationView/ConfigCalibrationPages.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigCompassLegacyViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigCompassLegacyViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigCompassMotViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigCompassMotViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigCubeIDViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigCubeIDViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigDefaultSettingsViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigDefaultSettingsViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigDeveloperToolsViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigDeveloperToolsViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigDroneCanViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigDroneCanViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigElevationSourcesViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigElevationSourcesViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigExtendedTuningViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigExtendedTuningViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigFFTViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigFFTViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigFailSafeViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigFailSafeViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigFirmwareLegacyViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigFirmwareLegacyViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigFlightModesViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigFlightModesViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigFrameClassTypeViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigFrameClassTypeViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigFrameTypeViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigFrameTypeViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigFriendlyParamsViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigFriendlyParamsViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigGPSOrderViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigGPSOrderViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigGpsInjectViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigGpsInjectViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigHWBTViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigHWBTViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigHWCANViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigHWCANViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigHWESP8266ViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigHWESP8266ViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigHWIDViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigHWIDViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigHWOSDViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigHWOSDViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigInitialParamsViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigInitialParamsViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigJoystickViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigJoystickViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigMavCommandViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigMavCommandViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigMountViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigMountViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigOSDViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigOSDViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigOnboardReplViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigOnboardReplViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigOptFlowViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigOptFlowViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigPX4FlowViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigPX4FlowViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigParachuteViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigParachuteViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigParamLoadingViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigParamLoadingViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigPlannerAdvViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigPlannerAdvViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigPlannerViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigPlannerViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigRadioInputViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigRadioInputViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigRadioOutputViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigRadioOutputViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigRangeFinderViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigRangeFinderViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigScriptReplViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigScriptReplViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigSecureApViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigSecureApViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigSecureViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigSecureViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigSerialViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigSerialViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigTerminalViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigTerminalViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigTradHeli4ViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigTradHeli4ViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigTradHeliViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigTradHeliViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ConfigUserDefinedViewModel.cs	ViewModels/GCSViews/ConfigurationView/ConfigUserDefinedViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/DroneCanMulticastTransport.cs	ViewModels/GCSViews/ConfigurationView/DroneCanMulticastTransport.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/MavFTPUIViewModel.cs	ViewModels/GCSViews/ConfigurationView/MavFTPUIViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ParamField.cs	ViewModels/GCSViews/ConfigurationView/ParamField.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/ParamPageBase.cs	ViewModels/GCSViews/ConfigurationView/ParamPageBase.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/WarningManagerViewModel.cs	ViewModels/GCSViews/ConfigurationView/WarningManagerViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GeoRefViewModel.cs	ViewModels/GeoRefViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/GridUIViewModel.cs	ViewModels/GridUIViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/HelpViewModel.cs	ViewModels/HelpViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/IParameterComparisonRow.cs	ViewModels/IParameterComparisonRow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/InfoPageViewModel.cs	ViewModels/InfoPageViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/LinkStatsViewModel.cs	ViewModels/LinkStatsViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/LogBrowseViewModel.cs	ViewModels/LogBrowseViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/LogDownloadViewModel.cs	ViewModels/LogDownloadViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/LogIndexViewModel.cs	ViewModels/LogIndexViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/MAVLinkInspectorViewModel.cs	ViewModels/MAVLinkInspectorViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/MainWindowViewModel.cs	ViewModels/MainWindowViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/MapCacheViewModel.cs	ViewModels/MapCacheViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/MavlinkLogConvertViewModel.cs	ViewModels/MavlinkLogConvertViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/MavlinkSerialTcpBridgeViewModel.cs	ViewModels/MavlinkSerialTcpBridgeViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/MicrodroneDownlinkViewModel.cs	ViewModels/MicrodroneDownlinkViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/MovingBaseViewModel.cs	ViewModels/MovingBaseViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/OfflineMagFitViewModel.cs	ViewModels/OfflineMagFitViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/OpenDroneIdViewModel.cs	ViewModels/OpenDroneIdViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/OsdVideoOverlayViewModel.cs	ViewModels/OsdVideoOverlayViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/PluginManagerViewModel.cs	ViewModels/PluginManagerViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/RawParamsViewModel.cs	ViewModels/RawParamsViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/SerialOutputCotViewModel.cs	ViewModels/SerialOutputCotViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/SerialOutputNMEAViewModel.cs	ViewModels/SerialOutputNMEAViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/SerialPassThroughViewModel.cs	ViewModels/SerialPassThroughViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/Setup/InstallFirmwareViewModel.cs	ViewModels/Setup/InstallFirmwareViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/Setup/NvModemViewModel.cs	ViewModels/Setup/NvModemViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/Setup/SetupActionPages.cs	ViewModels/Setup/SetupActionPages.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/SetupViewModel.cs	ViewModels/SetupViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/SftpLogDownloadViewModel.cs	ViewModels/SftpLogDownloadViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/SimulationViewModel.cs	ViewModels/SimulationViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/SurveyMissionBuilder.cs	ViewModels/SurveyMissionBuilder.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/SwarmFollowLeaderViewModel.cs	ViewModels/SwarmFollowLeaderViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/SwarmFollowPathViewModel.cs	ViewModels/SwarmFollowPathViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/SwarmSequenceViewModel.cs	ViewModels/SwarmSequenceViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/SwarmWaypointLeaderViewModel.cs	ViewModels/SwarmWaypointLeaderViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/Terrain3DViewModel.cs	ViewModels/Terrain3DViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/TerrainMakerViewModel.cs	ViewModels/TerrainMakerViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/TrackerHomeModuleViewModel.cs	ViewModels/TrackerHomeModuleViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/TranslationEditorViewModel.cs	ViewModels/TranslationEditorViewModel.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/ViewModels/ViewModelBase.cs	ViewModels/ViewModelBase.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/ActionPageView.axaml	Views/ActionPageView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/ActionPageView.axaml.cs	Views/ActionPageView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/AntennaTrackerUIView.axaml	Views/AntennaTrackerUIView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/AntennaTrackerUIView.axaml.cs	Views/AntennaTrackerUIView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/AvaloniaOsdVideoFrameRenderer.cs	Views/AvaloniaOsdVideoFrameRenderer.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/BackstageView.axaml	Views/BackstageView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/BackstageView.axaml.cs	Views/BackstageView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/ConfigFFTWindow.cs	Views/ConfigFFTWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/ConfigView.axaml	Views/ConfigView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/ConfigView.axaml.cs	Views/ConfigView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/ConnectDialog.cs	Views/ConnectDialog.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/ConnectionOptionsWindow.axaml	Views/ConnectionOptionsWindow.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/ConnectionOptionsWindow.axaml.cs	Views/ConnectionOptionsWindow.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/DeviceOperationsView.axaml	Views/DeviceOperationsView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/DeviceOperationsView.axaml.cs	Views/DeviceOperationsView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/DeviceOperationsWindow.cs	Views/DeviceOperationsWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/DroneCANInspectorView.axaml	Views/DroneCANInspectorView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/DroneCANInspectorView.axaml.cs	Views/DroneCANInspectorView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/DroneCANInspectorWindow.cs	Views/DroneCANInspectorWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/ElevationGraphWindow.cs	Views/ElevationGraphWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/FaceMapView.axaml	Views/FaceMapView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/FaceMapView.axaml.cs	Views/FaceMapView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/FaceMapWindow.cs	Views/FaceMapWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/FlightDataDialogs.cs	Views/FlightDataDialogs.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/FlightDataView.axaml	GCSViews/FlightDataView.axaml	import	Top-level operational view placed in the native GCSViews tree.
+src/MissionPlannerAvalonia/Views/FlightDataView.axaml.cs	GCSViews/FlightDataView.axaml.cs	import	Top-level operational view placed in the native GCSViews tree.
+src/MissionPlannerAvalonia/Views/FlightPlannerView.axaml	GCSViews/FlightPlannerView.axaml	import	Top-level operational view placed in the native GCSViews tree.
+src/MissionPlannerAvalonia/Views/FlightPlannerView.axaml.cs	GCSViews/FlightPlannerView.axaml.cs	import	Top-level operational view placed in the native GCSViews tree.
+src/MissionPlannerAvalonia/Views/FollowMeView.axaml	Views/FollowMeView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/FollowMeView.axaml.cs	Views/FollowMeView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/FollowMeWindow.cs	Views/FollowMeWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/FormationControlWindow.axaml	Views/FormationControlWindow.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/FormationControlWindow.axaml.cs	Views/FormationControlWindow.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigAC_FenceView.axaml	GCSViews/ConfigurationView/ConfigAC_FenceView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigAC_FenceView.axaml.cs	GCSViews/ConfigurationView/ConfigAC_FenceView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigADSBView.axaml	GCSViews/ConfigurationView/ConfigADSBView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigADSBView.axaml.cs	GCSViews/ConfigurationView/ConfigADSBView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigAccelCalibrationView.axaml	GCSViews/ConfigurationView/ConfigAccelCalibrationView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigAccelCalibrationView.axaml.cs	GCSViews/ConfigurationView/ConfigAccelCalibrationView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigAirspeedView.axaml	GCSViews/ConfigurationView/ConfigAirspeedView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigAirspeedView.axaml.cs	GCSViews/ConfigurationView/ConfigAirspeedView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigAntennaTrackerParamView.axaml	GCSViews/ConfigurationView/ConfigAntennaTrackerParamView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigAntennaTrackerParamView.axaml.cs	GCSViews/ConfigurationView/ConfigAntennaTrackerParamView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigAntennaTrackerView.axaml	GCSViews/ConfigurationView/ConfigAntennaTrackerView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigAntennaTrackerView.axaml.cs	GCSViews/ConfigurationView/ConfigAntennaTrackerView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigArduplaneView.axaml	GCSViews/ConfigurationView/ConfigArduplaneView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigArduplaneView.axaml.cs	GCSViews/ConfigurationView/ConfigArduplaneView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigArduroverView.axaml	GCSViews/ConfigurationView/ConfigArduroverView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigArduroverView.axaml.cs	GCSViews/ConfigurationView/ConfigArduroverView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigBasicTuningView.axaml	GCSViews/ConfigurationView/ConfigBasicTuningView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigBasicTuningView.axaml.cs	GCSViews/ConfigurationView/ConfigBasicTuningView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigBatteryMonitoring2View.axaml	GCSViews/ConfigurationView/ConfigBatteryMonitoring2View.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigBatteryMonitoring2View.axaml.cs	GCSViews/ConfigurationView/ConfigBatteryMonitoring2View.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigBatteryMonitoringView.axaml	GCSViews/ConfigurationView/ConfigBatteryMonitoringView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigBatteryMonitoringView.axaml.cs	GCSViews/ConfigurationView/ConfigBatteryMonitoringView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigCompassLegacyView.axaml	GCSViews/ConfigurationView/ConfigCompassLegacyView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigCompassLegacyView.axaml.cs	GCSViews/ConfigurationView/ConfigCompassLegacyView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigCompassMotView.axaml	GCSViews/ConfigurationView/ConfigCompassMotView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigCompassMotView.axaml.cs	GCSViews/ConfigurationView/ConfigCompassMotView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigCompassView.axaml	GCSViews/ConfigurationView/ConfigCompassView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigCompassView.axaml.cs	GCSViews/ConfigurationView/ConfigCompassView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigCubeIDView.axaml	GCSViews/ConfigurationView/ConfigCubeIDView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigCubeIDView.axaml.cs	GCSViews/ConfigurationView/ConfigCubeIDView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigDefaultSettingsView.axaml	GCSViews/ConfigurationView/ConfigDefaultSettingsView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigDefaultSettingsView.axaml.cs	GCSViews/ConfigurationView/ConfigDefaultSettingsView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigDroneCanView.axaml	GCSViews/ConfigurationView/ConfigDroneCanView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigDroneCanView.axaml.cs	GCSViews/ConfigurationView/ConfigDroneCanView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigESCCalibrationView.axaml	GCSViews/ConfigurationView/ConfigESCCalibrationView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigESCCalibrationView.axaml.cs	GCSViews/ConfigurationView/ConfigESCCalibrationView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigElevationSourcesView.axaml	GCSViews/ConfigurationView/ConfigElevationSourcesView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigElevationSourcesView.axaml.cs	GCSViews/ConfigurationView/ConfigElevationSourcesView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigExtendedTuningView.axaml	GCSViews/ConfigurationView/ConfigExtendedTuningView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigExtendedTuningView.axaml.cs	GCSViews/ConfigurationView/ConfigExtendedTuningView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigFFTView.axaml	GCSViews/ConfigurationView/ConfigFFTView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigFFTView.axaml.cs	GCSViews/ConfigurationView/ConfigFFTView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigFailSafeView.axaml	GCSViews/ConfigurationView/ConfigFailSafeView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigFailSafeView.axaml.cs	GCSViews/ConfigurationView/ConfigFailSafeView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigFirmwareLegacyView.axaml	GCSViews/ConfigurationView/ConfigFirmwareLegacyView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigFirmwareLegacyView.axaml.cs	GCSViews/ConfigurationView/ConfigFirmwareLegacyView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigFlightModesView.axaml	GCSViews/ConfigurationView/ConfigFlightModesView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigFlightModesView.axaml.cs	GCSViews/ConfigurationView/ConfigFlightModesView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigFrameClassTypeView.axaml	GCSViews/ConfigurationView/ConfigFrameClassTypeView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigFrameClassTypeView.axaml.cs	GCSViews/ConfigurationView/ConfigFrameClassTypeView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigFrameTypeView.axaml	GCSViews/ConfigurationView/ConfigFrameTypeView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigFrameTypeView.axaml.cs	GCSViews/ConfigurationView/ConfigFrameTypeView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigFriendlyParamsView.axaml	GCSViews/ConfigurationView/ConfigFriendlyParamsView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigFriendlyParamsView.axaml.cs	GCSViews/ConfigurationView/ConfigFriendlyParamsView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigGPSOrderView.axaml	GCSViews/ConfigurationView/ConfigGPSOrderView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigGPSOrderView.axaml.cs	GCSViews/ConfigurationView/ConfigGPSOrderView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigGpsInjectView.axaml	GCSViews/ConfigurationView/ConfigGpsInjectView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigGpsInjectView.axaml.cs	GCSViews/ConfigurationView/ConfigGpsInjectView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigHWBTView.axaml	GCSViews/ConfigurationView/ConfigHWBTView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigHWBTView.axaml.cs	GCSViews/ConfigurationView/ConfigHWBTView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigHWCANView.axaml	GCSViews/ConfigurationView/ConfigHWCANView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigHWCANView.axaml.cs	GCSViews/ConfigurationView/ConfigHWCANView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigHWESP8266View.axaml	GCSViews/ConfigurationView/ConfigHWESP8266View.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigHWESP8266View.axaml.cs	GCSViews/ConfigurationView/ConfigHWESP8266View.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigHWIDView.axaml	GCSViews/ConfigurationView/ConfigHWIDView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigHWIDView.axaml.cs	GCSViews/ConfigurationView/ConfigHWIDView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigHWOSDView.axaml	GCSViews/ConfigurationView/ConfigHWOSDView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigHWOSDView.axaml.cs	GCSViews/ConfigurationView/ConfigHWOSDView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigInitialParamsView.axaml	GCSViews/ConfigurationView/ConfigInitialParamsView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigInitialParamsView.axaml.cs	GCSViews/ConfigurationView/ConfigInitialParamsView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigJoystickView.axaml	GCSViews/ConfigurationView/ConfigJoystickView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigJoystickView.axaml.cs	GCSViews/ConfigurationView/ConfigJoystickView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigMavCommandView.axaml	GCSViews/ConfigurationView/ConfigMavCommandView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigMavCommandView.axaml.cs	GCSViews/ConfigurationView/ConfigMavCommandView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigMotorTestView.axaml	GCSViews/ConfigurationView/ConfigMotorTestView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigMotorTestView.axaml.cs	GCSViews/ConfigurationView/ConfigMotorTestView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigMountView.axaml	GCSViews/ConfigurationView/ConfigMountView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigMountView.axaml.cs	GCSViews/ConfigurationView/ConfigMountView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigOSDView.axaml	GCSViews/ConfigurationView/ConfigOSDView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigOSDView.axaml.cs	GCSViews/ConfigurationView/ConfigOSDView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigOnboardReplView.axaml	GCSViews/ConfigurationView/ConfigOnboardReplView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigOnboardReplView.axaml.cs	GCSViews/ConfigurationView/ConfigOnboardReplView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigOptFlowView.axaml	GCSViews/ConfigurationView/ConfigOptFlowView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigOptFlowView.axaml.cs	GCSViews/ConfigurationView/ConfigOptFlowView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigPX4FlowView.axaml	GCSViews/ConfigurationView/ConfigPX4FlowView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigPX4FlowView.axaml.cs	GCSViews/ConfigurationView/ConfigPX4FlowView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigParachuteView.axaml	GCSViews/ConfigurationView/ConfigParachuteView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigParachuteView.axaml.cs	GCSViews/ConfigurationView/ConfigParachuteView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigParamLoadingView.axaml	GCSViews/ConfigurationView/ConfigParamLoadingView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigParamLoadingView.axaml.cs	GCSViews/ConfigurationView/ConfigParamLoadingView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigPlannerAdvView.axaml	GCSViews/ConfigurationView/ConfigPlannerAdvView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigPlannerAdvView.axaml.cs	GCSViews/ConfigurationView/ConfigPlannerAdvView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigPlannerView.axaml	GCSViews/ConfigurationView/ConfigPlannerView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigPlannerView.axaml.cs	GCSViews/ConfigurationView/ConfigPlannerView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigRadioInputView.axaml	GCSViews/ConfigurationView/ConfigRadioInputView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigRadioInputView.axaml.cs	GCSViews/ConfigurationView/ConfigRadioInputView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigRadioOutputView.axaml	GCSViews/ConfigurationView/ConfigRadioOutputView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigRadioOutputView.axaml.cs	GCSViews/ConfigurationView/ConfigRadioOutputView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigRangeFinderView.axaml	GCSViews/ConfigurationView/ConfigRangeFinderView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigRangeFinderView.axaml.cs	GCSViews/ConfigurationView/ConfigRangeFinderView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigScriptReplView.axaml	GCSViews/ConfigurationView/ConfigScriptReplView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigScriptReplView.axaml.cs	GCSViews/ConfigurationView/ConfigScriptReplView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigSecureApView.axaml	GCSViews/ConfigurationView/ConfigSecureApView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigSecureApView.axaml.cs	GCSViews/ConfigurationView/ConfigSecureApView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigSecureView.axaml	GCSViews/ConfigurationView/ConfigSecureView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigSecureView.axaml.cs	GCSViews/ConfigurationView/ConfigSecureView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigSerialView.axaml	GCSViews/ConfigurationView/ConfigSerialView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigSerialView.axaml.cs	GCSViews/ConfigurationView/ConfigSerialView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigTerminalView.axaml	GCSViews/ConfigurationView/ConfigTerminalView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigTerminalView.axaml.cs	GCSViews/ConfigurationView/ConfigTerminalView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigTradHeli4View.axaml	GCSViews/ConfigurationView/ConfigTradHeli4View.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigTradHeli4View.axaml.cs	GCSViews/ConfigurationView/ConfigTradHeli4View.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigTradHeliView.axaml	GCSViews/ConfigurationView/ConfigTradHeliView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigTradHeliView.axaml.cs	GCSViews/ConfigurationView/ConfigTradHeliView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigUserDefinedView.axaml	GCSViews/ConfigurationView/ConfigUserDefinedView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/ConfigUserDefinedView.axaml.cs	GCSViews/ConfigurationView/ConfigUserDefinedView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/MavFTPUIView.axaml	GCSViews/ConfigurationView/MavFTPUIView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/MavFTPUIView.axaml.cs	GCSViews/ConfigurationView/MavFTPUIView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/WarningManagerView.axaml	GCSViews/ConfigurationView/WarningManagerView.axaml	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/WarningManagerView.axaml.cs	GCSViews/ConfigurationView/WarningManagerView.axaml.cs	import	Avalonia replacement in the native GCSViews feature tree.
+src/MissionPlannerAvalonia/Views/GeoRefView.axaml	Views/GeoRefView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/GeoRefView.axaml.cs	Views/GeoRefView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/GeoRefWindow.cs	Views/GeoRefWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/GridUIView.axaml	Views/GridUIView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/GridUIView.axaml.cs	Views/GridUIView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/GridUIWindow.cs	Views/GridUIWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/HelpView.axaml	Views/HelpView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/HelpView.axaml.cs	Views/HelpView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/InfoPageView.axaml	Views/InfoPageView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/InfoPageView.axaml.cs	Views/InfoPageView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/LinkStatsWindow.axaml	Views/LinkStatsWindow.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/LinkStatsWindow.axaml.cs	Views/LinkStatsWindow.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/LogBrowseView.axaml	Views/LogBrowseView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/LogBrowseView.axaml.cs	Views/LogBrowseView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/LogBrowseWindow.cs	Views/LogBrowseWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/LogDownloadWindow.axaml	Views/LogDownloadWindow.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/LogDownloadWindow.axaml.cs	Views/LogDownloadWindow.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/LogIndexWindow.axaml	Views/LogIndexWindow.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/LogIndexWindow.axaml.cs	Views/LogIndexWindow.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/LogMetadataWindow.cs	Views/LogMetadataWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/MAVLinkInspectorView.axaml	Views/MAVLinkInspectorView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/MAVLinkInspectorView.axaml.cs	Views/MAVLinkInspectorView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/MAVLinkInspectorWindow.cs	Views/MAVLinkInspectorWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/MainWindow.axaml	Views/MainWindow.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/MainWindow.axaml.cs	Views/MainWindow.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/MapCacheView.axaml	Views/MapCacheView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/MapCacheView.axaml.cs	Views/MapCacheView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/MapCacheWindow.cs	Views/MapCacheWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/MavlinkFieldGraphWindow.cs	Views/MavlinkFieldGraphWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/MavlinkLogWindow.axaml	Views/MavlinkLogWindow.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/MavlinkLogWindow.axaml.cs	Views/MavlinkLogWindow.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/MavlinkSerialTcpBridgeView.axaml	Views/MavlinkSerialTcpBridgeView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/MavlinkSerialTcpBridgeView.axaml.cs	Views/MavlinkSerialTcpBridgeView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/MavlinkSerialTcpBridgeWindow.cs	Views/MavlinkSerialTcpBridgeWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/MicrodroneDownlinkView.axaml	Views/MicrodroneDownlinkView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/MicrodroneDownlinkView.axaml.cs	Views/MicrodroneDownlinkView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/MicrodroneDownlinkWindow.cs	Views/MicrodroneDownlinkWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/MovingBaseView.axaml	Views/MovingBaseView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/MovingBaseView.axaml.cs	Views/MovingBaseView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/MovingBaseWindow.cs	Views/MovingBaseWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/OfflineMagFitWindow.axaml	Views/OfflineMagFitWindow.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/OfflineMagFitWindow.axaml.cs	Views/OfflineMagFitWindow.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/OpenDroneIdView.axaml	Views/OpenDroneIdView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/OpenDroneIdView.axaml.cs	Views/OpenDroneIdView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/OsdVideoOverlayWindow.axaml	Views/OsdVideoOverlayWindow.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/OsdVideoOverlayWindow.axaml.cs	Views/OsdVideoOverlayWindow.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/ParamCompareWindow.cs	Views/ParamCompareWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/PluginManagerWindow.axaml	Views/PluginManagerWindow.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/PluginManagerWindow.axaml.cs	Views/PluginManagerWindow.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/PropagationSettingsWindow.cs	Views/PropagationSettingsWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/ProximityWindow.cs	Views/ProximityWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/RawParamsView.axaml	Views/RawParamsView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/RawParamsView.axaml.cs	Views/RawParamsView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/SerialOutputCotView.axaml	Views/SerialOutputCotView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/SerialOutputCotView.axaml.cs	Views/SerialOutputCotView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/SerialOutputCotWindow.cs	Views/SerialOutputCotWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/SerialOutputNMEAView.axaml	Views/SerialOutputNMEAView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/SerialOutputNMEAView.axaml.cs	Views/SerialOutputNMEAView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/SerialOutputNMEAWindow.cs	Views/SerialOutputNMEAWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/SerialPassThroughView.axaml	Views/SerialPassThroughView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/SerialPassThroughView.axaml.cs	Views/SerialPassThroughView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/SerialPassThroughWindow.cs	Views/SerialPassThroughWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/Setup/InstallFirmwareView.axaml	GCSViews/Setup/InstallFirmwareView.axaml	import	Setup implementation placed under the native GCSViews tree.
+src/MissionPlannerAvalonia/Views/Setup/InstallFirmwareView.axaml.cs	GCSViews/Setup/InstallFirmwareView.axaml.cs	import	Setup implementation placed under the native GCSViews tree.
+src/MissionPlannerAvalonia/Views/Setup/NvModemView.axaml	GCSViews/Setup/NvModemView.axaml	import	Setup implementation placed under the native GCSViews tree.
+src/MissionPlannerAvalonia/Views/Setup/NvModemView.axaml.cs	GCSViews/Setup/NvModemView.axaml.cs	import	Setup implementation placed under the native GCSViews tree.
+src/MissionPlannerAvalonia/Views/Setup/SikRadioView.axaml	GCSViews/Setup/SikRadioView.axaml	import	Setup implementation placed under the native GCSViews tree.
+src/MissionPlannerAvalonia/Views/Setup/SikRadioView.axaml.cs	GCSViews/Setup/SikRadioView.axaml.cs	import	Setup implementation placed under the native GCSViews tree.
+src/MissionPlannerAvalonia/Views/SetupView.axaml	GCSViews/SetupView.axaml	import	Top-level operational view placed in the native GCSViews tree.
+src/MissionPlannerAvalonia/Views/SetupView.axaml.cs	GCSViews/SetupView.axaml.cs	import	Top-level operational view placed in the native GCSViews tree.
+src/MissionPlannerAvalonia/Views/SftpLogDownloadWindow.axaml	Views/SftpLogDownloadWindow.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/SftpLogDownloadWindow.axaml.cs	Views/SftpLogDownloadWindow.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/SimulationView.axaml	Views/SimulationView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/SimulationView.axaml.cs	Views/SimulationView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/SpectrogramWindow.cs	Views/SpectrogramWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/SwarmFollowLeaderWindow.axaml	Views/SwarmFollowLeaderWindow.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/SwarmFollowLeaderWindow.axaml.cs	Views/SwarmFollowLeaderWindow.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/SwarmFollowPathWindow.axaml	Views/SwarmFollowPathWindow.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/SwarmFollowPathWindow.axaml.cs	Views/SwarmFollowPathWindow.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/SwarmSequenceWindow.axaml	Views/SwarmSequenceWindow.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/SwarmSequenceWindow.axaml.cs	Views/SwarmSequenceWindow.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/SwarmWaypointLeaderWindow.axaml	Views/SwarmWaypointLeaderWindow.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/SwarmWaypointLeaderWindow.axaml.cs	Views/SwarmWaypointLeaderWindow.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/Terrain3DView.axaml	Views/Terrain3DView.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/Terrain3DView.axaml.cs	Views/Terrain3DView.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/Terrain3DWindow.cs	Views/Terrain3DWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/TerrainMakerWindow.axaml	Views/TerrainMakerWindow.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/TerrainMakerWindow.axaml.cs	Views/TerrainMakerWindow.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/ThemeEditorWindow.cs	Views/ThemeEditorWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/TrackerHomeModuleWindow.axaml	Views/TrackerHomeModuleWindow.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/TrackerHomeModuleWindow.axaml.cs	Views/TrackerHomeModuleWindow.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/TranslationEditorWindow.axaml	Views/TranslationEditorWindow.axaml	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/TranslationEditorWindow.axaml.cs	Views/TranslationEditorWindow.axaml.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/Views/WarningManagerWindow.cs	Views/WarningManagerWindow.cs	import	Port-owned application source/resource imported into the native root.
+src/MissionPlannerAvalonia/app.manifest	app.manifest	import	Port-owned application source/resource imported into the native root.
+src/Px4Uploader/Px4Uploader.csproj	ExtLibs/px4uploader/Px4Uploader.csproj	merge	Merge portable uploader changes into the native ExtLib project.
+src/UpstreamCompat/MonoRuntimeSettingsCompatibility.cs	ExtLibs/Utilities/Compatibility/MonoRuntimeSettingsCompatibility.cs	merge	Retain only if CoreCLR compatibility remains necessary after direct native changes.
+srtm/S36E149.hgt	srtm/S36E149.hgt	import	Cross-platform build/package/runtime support.
+srtm/S36E149.hgt.zip	srtm/S36E149.hgt.zip	import	Cross-platform build/package/runtime support.
+srtm/SRTM1	srtm/SRTM1	import	Cross-platform build/package/runtime support.
+srtm/SRTM3	srtm/SRTM3	import	Cross-platform build/package/runtime support.
+tests/MissionPlannerAvalonia.LegacyReference/LegacyContract.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.LegacyReference/LegacyContract.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.LegacyReference/MissionPlannerAvalonia.LegacyReference.csproj	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.LegacyReference/MissionPlannerAvalonia.LegacyReference.csproj	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.LegacyTestPlugin/LegacyLifecyclePlugin.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.LegacyTestPlugin/LegacyLifecyclePlugin.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.LegacyTestPlugin/MissionPlannerAvalonia.LegacyTestPlugin.csproj	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.LegacyTestPlugin/MissionPlannerAvalonia.LegacyTestPlugin.csproj	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.TestPlugin.Dependency/FixtureIdentity.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.TestPlugin.Dependency/FixtureIdentity.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.TestPlugin.Dependency/MissionPlannerAvalonia.TestPlugin.Dependency.csproj	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.TestPlugin.Dependency/MissionPlannerAvalonia.TestPlugin.Dependency.csproj	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.TestPlugin/LifecyclePlugins.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.TestPlugin/LifecyclePlugins.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.TestPlugin/MissionPlannerAvalonia.TestPlugin.csproj	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.TestPlugin/MissionPlannerAvalonia.TestPlugin.csproj	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/AdsbConfigTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/AdsbConfigTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/AirportOverlayTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/AirportOverlayTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/AntennaTrackerOutputTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/AntennaTrackerOutputTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/AppVersionTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/AppVersionTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/AssemblyInfo.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/AssemblyInfo.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/AudioVarioTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/AudioVarioTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/BackstageLifecycleTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/BackstageLifecycleTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/BatteryEstimatorTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/BatteryEstimatorTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/CameraFeedbackProjectionTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/CameraFeedbackProjectionTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/ConfigMountParityTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/ConfigMountParityTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/ConnectionHealthTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/ConnectionHealthTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/ConnectionListTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/ConnectionListTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/CotEventSerializerTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/CotEventSerializerTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/DataFlashExpressionEvaluatorTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/DataFlashExpressionEvaluatorTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/DataFlashMetadataTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/DataFlashMetadataTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/DeveloperBarometerAdjustmentTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/DeveloperBarometerAdjustmentTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/DeveloperToolParsersTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/DeveloperToolParsersTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/DeviceOperationsViewModelTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/DeviceOperationsViewModelTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/DisplayViewTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/DisplayViewTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/DroneCanSessionSafetyTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/DroneCanSessionSafetyTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/ElevationSourceTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/ElevationSourceTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/ExternalAdsbReceiverTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/ExternalAdsbReceiverTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/FaceMapTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/FaceMapTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/FirmwareArchiveTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/FirmwareArchiveTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/FlightCommandShortcutTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/FlightCommandShortcutTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/FlightDataGuidedAndMountTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/FlightDataGuidedAndMountTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/FlightDataSafetyAndTabTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/FlightDataSafetyAndTabTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/FlightDataShortcutTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/FlightDataShortcutTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/FlightMapOverlayTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/FlightMapOverlayTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/FlightPlannerUndoTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/FlightPlannerUndoTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/FormationFlightTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/FormationFlightTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/FrameDefaultCatalogTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/FrameDefaultCatalogTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/GeoPackageOverlayTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/GeoPackageOverlayTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/GeoRefOffsetTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/GeoRefOffsetTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/GeoTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/GeoTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/GimbalVideoInteractionTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/GimbalVideoInteractionTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/GraphPresetsTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/GraphPresetsTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/HeliVisualizationTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/HeliVisualizationTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/HongKongNoFlyTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/HongKongNoFlyTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/HudFrameRecordingTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/HudFrameRecordingTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/ImportedOverlayStoreTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/ImportedOverlayStoreTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/InitialParamsSafetyTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/InitialParamsSafetyTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/JoystickControlTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/JoystickControlTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/JoystickInputTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/JoystickInputTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/KIndexServiceTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/KIndexServiceTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/KmlOverlayTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/KmlOverlayTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/LinuxBleSerialTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/LinuxBleSerialTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/LogAnalyzerTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/LogAnalyzerTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/LogDownloadTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/LogDownloadTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/LogExpressionTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/LogExpressionTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/LogIndexTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/LogIndexTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/MapCacheManagerTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/MapCacheManagerTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/MapTileSourceFactoryTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/MapTileSourceFactoryTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/MavlinkGraphTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/MavlinkGraphTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/MavlinkSerialTcpBridgeTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/MavlinkSerialTcpBridgeTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/MavlinkVideoStreamsTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/MavlinkVideoStreamsTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/MessageIntervalTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/MessageIntervalTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/MicrodroneDownlinkTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/MicrodroneDownlinkTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/MissionCommandCatalogTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/MissionCommandCatalogTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/MissionFileTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/MissionFileTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/MissionPlannerAvalonia.Tests.csproj	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/MissionPlannerAvalonia.Tests.csproj	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/MissionTypeSwapTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/MissionTypeSwapTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/NativeGdalMapTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/NativeGdalMapTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/NativeSimpleBleTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/NativeSimpleBleTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/NmeaChecksumTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/NmeaChecksumTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/NmeaFollowSessionTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/NmeaFollowSessionTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/NmeaGgaParserTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/NmeaGgaParserTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/NvModemTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/NvModemTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/OfflineMagFitTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/OfflineMagFitTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/OgcMapProviderTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/OgcMapProviderTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/OpenDroneIdTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/OpenDroneIdTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/OsdVideoOverlayTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/OsdVideoOverlayTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/ParamFieldTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/ParamFieldTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/ParameterRecoveryWorkflowTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/ParameterRecoveryWorkflowTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/PlannerMapImportTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/PlannerMapImportTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/PlannerPortParityTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/PlannerPortParityTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/PluginRuntimeTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/PluginRuntimeTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/PoiStoreTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/PoiStoreTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/PortFixTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/PortFixTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/PortableWebSocketSerialTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/PortableWebSocketSerialTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/PreflightChecklistTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/PreflightChecklistTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/PropagationTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/PropagationTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/QuickItemTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/QuickItemTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/RawParamsImportTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/RawParamsImportTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/ResxTranslationEditorTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/ResxTranslationEditorTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/SecureCommandSignTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/SecureCommandSignTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/SettingsConcurrencyTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/SettingsConcurrencyTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/SftpLogDownloadTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/SftpLogDownloadTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/ShellSmokeTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/ShellSmokeTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/SitlDefaultsTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/SitlDefaultsTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/SpeechSafetyTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/SpeechSafetyTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/SshTerminalTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/SshTerminalTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/SurveyGridPreviewTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/SurveyGridPreviewTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/SurveyGridSupportTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/SurveyGridSupportTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/SurveyMissionBuilderTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/SurveyMissionBuilderTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/SwarmFollowLeaderSequenceTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/SwarmFollowLeaderSequenceTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/SwarmFollowPathTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/SwarmFollowPathTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/SwarmWaypointLeaderTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/SwarmWaypointLeaderTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/TempHandlerAuditTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/TempHandlerAuditTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/Terrain3DTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/Terrain3DTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/TerrainDataServiceTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/TerrainDataServiceTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/TestAppBuilder.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/TestAppBuilder.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/ThemeServiceTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/ThemeServiceTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/ThemeSwapDiag.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/ThemeSwapDiag.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/TlogExportServiceTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/TlogExportServiceTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/TrackerHomeModuleTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/TrackerHomeModuleTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/TrafficStoreTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/TrafficStoreTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/TransponderAccuracyTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/TransponderAccuracyTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/UpdaterTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/UpdaterTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/UpstreamPortTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/UpstreamPortTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/VideoSourceResolverTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/VideoSourceResolverTests.cs	import	Preserve all port regression coverage while unifying the test graph.
+tests/MissionPlannerAvalonia.Tests/WpRowTests.cs	MissionPlannerTests/Avalonia/MissionPlannerAvalonia.Tests/WpRowTests.cs	import	Preserve all port regression coverage while unifying the test graph.
