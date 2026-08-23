@@ -1945,7 +1945,7 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
     if (DrawnPolygon.Count < 3) {
       throw new InvalidOperationException("Draw at least 3 polygon points first.");
     }
-    var lines = new List<string> { "# saved by MissionPlanner-Avalonia" };
+    var lines = new List<string> { SavedByHeader() };
     lines.AddRange(DrawnPolygon.Select(point => $"{F(point.Lat)} {F(point.Lng)}"));
     lines.Add($"{F(DrawnPolygon[0].Lat)} {F(DrawnPolygon[0].Lng)}");
     await File.WriteAllLinesAsync(path, lines);
@@ -1981,7 +1981,7 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
           "Legacy .fen cannot represent exclusion polygons or circles; use QGC .plan instead.");
     }
     var lines = new List<string> {
-      "# saved by MissionPlanner-Avalonia",
+      SavedByHeader(),
       $"{F(returnPoint.Lat)} {F(returnPoint.Lng)}",
     };
     lines.AddRange(polygon.Select(point => $"{F(point.Lat)} {F(point.Lng)}"));
@@ -2019,7 +2019,7 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
     if (rally.Count == 0) {
       throw new InvalidOperationException("No rally points to save.");
     }
-    var lines = new List<string> { "# saved by MissionPlanner-Avalonia" };
+    var lines = new List<string> { SavedByHeader() };
     lines.AddRange(rally.Select(point => string.Join("\t", new[] {
       "RALLY", F(point.Lat), F(point.Lng), F(point.Alt), F(point.P1), F(point.P2), F(point.P3),
     })));
@@ -2050,6 +2050,9 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
     ReplaceOrAppend(rows, append);
     Status = $"{(append ? "Appended" : "Loaded")} {rows.Count} rally point(s) from {Path.GetFileName(path)}.";
   }
+
+  private static string SavedByHeader() =>
+      "# saved by Mission Planner " + AppVersion.Informational;
 
   private static List<(double Lat, double Lng)> ParseCoordinateLines(IEnumerable<string> lines) {
     var points = new List<(double, double)>();

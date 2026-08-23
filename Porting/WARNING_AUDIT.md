@@ -68,4 +68,5 @@ DOTNET_CLI_HOME=/tmp/missionplanner-inplace-dotnet \
   -c Release --no-build --nologo
 ```
 
-Verified result: build `0 warnings / 0 errors`; tests `1142 passed / 0 failed / 0 skipped`.
+Current verified result: build `0 warnings / 0 errors`; tests
+`1143 passed / 0 failed / 0 skipped` after adding the stable GitHub-release updater test.

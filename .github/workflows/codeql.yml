@@ -1,0 +1,41 @@
+name: Avalonia CodeQL
+
+on:
+  push:
+    branches: [master, 'port/**']
+  pull_request:
+    branches: [master]
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: avalonia-codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: csharp
+          build-mode: manual
+          config-file: ./.github/codeql/codeql-config.yml
+
+      - name: Trace complete application build
+        run: dotnet build MissionPlanner.slnx -c Release -m:1 --nologo
+
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:csharp

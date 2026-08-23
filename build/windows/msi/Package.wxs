@@ -1,0 +1,46 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Mission Planner (Avalonia)"
+           Manufacturer="Mission Planner contributors"
+           Version="$(InstallerVersion)"
+           UpgradeCode="87D0A514-E6E4-4E83-87A1-B2409744F708"
+           Scope="perMachine"
+           InstallerVersion="500"
+           Compressed="yes">
+    <SummaryInformation Description="Cross-platform Mission Planner for ArduPilot" />
+    <MajorUpgrade DowngradeErrorMessage="A newer Mission Planner build is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Icon Id="MissionPlanner.exe" SourceFile="$(RepositoryRoot)/Assets/appicon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="MissionPlanner.exe" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/Rouniy/MissionPlanner" />
+    <Property Id="ARPCOMMENTS" Value="Application version $(FullVersion)" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <!-- Keep the port beside, rather than over, an official WinForms Mission Planner install. -->
+      <Directory Id="INSTALLFOLDER" Name="MissionPlannerAvalonia">
+        <Component Id="MainExecutable" Bitness="always64">
+          <File Id="MissionPlannerExecutable"
+                Source="!(bindpath.PublishDir)MissionPlanner.exe"
+                KeyPath="yes">
+            <Shortcut Id="StartMenuShortcut"
+                      Directory="ProgramMenuFolder"
+                      Name="Mission Planner (Avalonia)"
+                      Description="Ground control station for ArduPilot vehicles"
+                      WorkingDirectory="INSTALLFOLDER"
+                      Icon="MissionPlanner.exe" />
+            <Shortcut Id="DesktopShortcut"
+                      Directory="DesktopFolder"
+                      Name="Mission Planner (Avalonia)"
+                      Description="Ground control station for ArduPilot vehicles"
+                      WorkingDirectory="INSTALLFOLDER"
+                      Icon="MissionPlanner.exe" />
+          </File>
+        </Component>
+
+        <Files Include="!(bindpath.PublishDir)**">
+          <Exclude Files="!(bindpath.PublishDir)MissionPlanner.exe" />
+        </Files>
+      </Directory>
+    </StandardDirectory>
+  </Package>
+</Wix>

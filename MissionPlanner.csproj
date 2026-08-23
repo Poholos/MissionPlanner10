@@ -40,7 +40,7 @@
     <MissionPlannerVersionFileExists>$([System.IO.File]::Exists('$(MissionPlannerVersionFile)'))</MissionPlannerVersionFileExists>
     <MissionPlannerUpstreamVersion Condition="'$(MissionPlannerUpstreamVersion)' == '' And '$(MissionPlannerVersionFileExists)' == 'True'">$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(MissionPlannerVersionFile)')), 'AssemblyFileVersion\(&quot;([0-9]+\.[0-9]+\.[0-9]+)&quot;\)').Groups[1].Value)</MissionPlannerUpstreamVersion>
     <MissionPlannerUpstreamVersion Condition="'$(MissionPlannerUpstreamVersion)' == ''">0.0.0</MissionPlannerUpstreamVersion>
-    <MissionPlannerBuildDate Condition="'$(MissionPlannerBuildDate)' == ''">$([System.DateTime]::UtcNow.ToString('yyyyMMdd'))</MissionPlannerBuildDate>
+    <MissionPlannerBuildDate Condition="'$(MissionPlannerBuildDate)' == ''">$([System.DateTime]::Now.ToString('yyyyMMdd'))</MissionPlannerBuildDate>
     <Version>$(MissionPlannerUpstreamVersion)</Version>
     <AssemblyVersion>$(MissionPlannerUpstreamVersion).0</AssemblyVersion>
     <FileVersion>$(MissionPlannerUpstreamVersion).0</FileVersion>
@@ -115,6 +115,30 @@
     <PackageReference Include="VideoLAN.LibVLC.Windows" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <MacVlcRid Condition="'$(RuntimeIdentifier)' == 'osx-x64' Or
+                              '$(RuntimeIdentifier)' == 'osx-arm64'">$(RuntimeIdentifier)</MacVlcRid>
+    <MacVlcRid Condition="'$(MacVlcRid)' == '' And
+                              $([MSBuild]::IsOSPlatform('OSX'))">$(NETCoreSdkPortableRuntimeIdentifier)</MacVlcRid>
+    <MacVlcRuntimeDir Condition="'$(MacVlcRid)' != ''">$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/$(BaseIntermediateOutputPath)vlc/$(MacVlcRid)'))</MacVlcRuntimeDir>
+    <SimpleBleMacRid Condition="'$(RuntimeIdentifier)' == 'osx-x64' Or
+                                    '$(RuntimeIdentifier)' == 'osx-arm64'">$(RuntimeIdentifier)</SimpleBleMacRid>
+    <SimpleBleMacRid Condition="'$(SimpleBleMacRid)' == '' And
+                                    $([MSBuild]::IsOSPlatform('OSX'))">$(NETCoreSdkPortableRuntimeIdentifier)</SimpleBleMacRid>
+    <SimpleBleMacNativeDir Condition="'$(SimpleBleMacRid)' != ''">$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/$(BaseIntermediateOutputPath)simpleble/$(SimpleBleMacRid)'))</SimpleBleMacNativeDir>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(SimpleBleMacRid)' != ''">
+    <Content Include="$(SimpleBleMacNativeDir)/libsimpleble-c.dylib" Link="libsimpleble-c.dylib">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="$(SimpleBleMacNativeDir)/libsimpleble.0.dylib" Link="libsimpleble.0.dylib">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="ExtLibs/ArduPilot/MissionPlanner.ArduPilot.csproj" />
     <ProjectReference Include="ExtLibs/alglibnet/alglibnet.csproj" />
@@ -127,6 +151,18 @@
 
   <ItemGroup>
     <Content Include="COPYING.txt" Link="LICENSE">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="COPYING.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="NOTICE.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="LICENSES/**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
@@ -163,6 +199,58 @@
   <ItemGroup>
     <InternalsVisibleTo Include="MissionPlanner.Tests" />
   </ItemGroup>
+
+  <Target Name="FetchMacVlc"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(MacVlcRid)' != ''">
+    <Error Condition="'$(MacVlcRid)' != 'osx-x64' And
+                      '$(MacVlcRid)' != 'osx-arm64'"
+           Text="Unsupported macOS VLC runtime identifier: $(MacVlcRid)" />
+    <Exec Command="bash &quot;$(MSBuildProjectDirectory)/build/vlc/fetch-macos.sh&quot; &quot;$(MacVlcRid)&quot; &quot;$(MacVlcRuntimeDir)&quot;" />
+  </Target>
+
+  <!-- Preserve VLC's original lib/plugins/share layout in output and the final .app bundle. -->
+  <Target Name="CollectMacVlcRuntime"
+          BeforeTargets="AssignTargetPaths"
+          DependsOnTargets="FetchMacVlc"
+          Condition="'$(MacVlcRid)' != ''">
+    <ItemGroup>
+      <_MacVlcLib Include="$(MacVlcRuntimeDir)/lib/**/*" />
+      <_MacVlcPlugins Include="$(MacVlcRuntimeDir)/plugins/**/*" />
+      <_MacVlcLua Include="$(MacVlcRuntimeDir)/share/lua/**/*" />
+      <_MacVlcHrtfs Include="$(MacVlcRuntimeDir)/share/hrtfs/**/*" />
+
+      <Content Include="@(_MacVlcLib)">
+        <Link>lib/%(_MacVlcLib.RecursiveDir)%(_MacVlcLib.Filename)%(_MacVlcLib.Extension)</Link>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </Content>
+      <Content Include="@(_MacVlcPlugins)">
+        <Link>plugins/%(_MacVlcPlugins.RecursiveDir)%(_MacVlcPlugins.Filename)%(_MacVlcPlugins.Extension)</Link>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </Content>
+      <Content Include="@(_MacVlcLua)">
+        <Link>share/lua/%(_MacVlcLua.RecursiveDir)%(_MacVlcLua.Filename)%(_MacVlcLua.Extension)</Link>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </Content>
+      <Content Include="@(_MacVlcHrtfs)">
+        <Link>share/hrtfs/%(_MacVlcHrtfs.RecursiveDir)%(_MacVlcHrtfs.Filename)%(_MacVlcHrtfs.Extension)</Link>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </Content>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="FetchMacSimpleBle"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(SimpleBleMacRid)' != ''">
+    <Error Condition="'$(SimpleBleMacRid)' != 'osx-x64' And
+                      '$(SimpleBleMacRid)' != 'osx-arm64'"
+           Text="Unsupported macOS SimpleBLE runtime identifier: $(SimpleBleMacRid)" />
+    <Exec Command="bash &quot;$(MSBuildProjectDirectory)/build/simpleble/fetch-macos.sh&quot; &quot;$(SimpleBleMacRid)&quot; &quot;$(SimpleBleMacNativeDir)&quot;" />
+  </Target>
 
   <Target Name="RemoveWindowsNativeBinariesFromNonWindowsPublish"
           AfterTargets="ComputeFilesToPublish"

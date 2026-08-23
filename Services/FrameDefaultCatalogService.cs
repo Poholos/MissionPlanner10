@@ -138,7 +138,7 @@ internal sealed class FrameDefaultCatalogService {
 
   private static HttpRequestMessage CreateRequest(string uri) {
     var request = new HttpRequestMessage(HttpMethod.Get, uri);
-    request.Headers.UserAgent.ParseAdd("MissionPlanner-Avalonia/frame-defaults");
+    request.Headers.UserAgent.ParseAdd("MissionPlanner/frame-defaults");
     request.Headers.Accept.ParseAdd("application/vnd.github+json");
     return request;
   }

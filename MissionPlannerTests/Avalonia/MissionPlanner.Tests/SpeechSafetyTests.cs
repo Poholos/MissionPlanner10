@@ -52,7 +52,7 @@ public class SpeechSafetyTests {
   public void Linux_cancel_uses_cancel_all_instead_of_crashing_stop_command() {
     Assert.Contains("-C", Speech.LinuxCancelArguments);
     Assert.DoesNotContain("-S", Speech.LinuxCancelArguments);
-    Assert.Contains("MissionPlanner-Avalonia", Speech.LinuxCancelArguments);
+    Assert.Contains("MissionPlanner", Speech.LinuxCancelArguments);
   }
 
   [Fact]

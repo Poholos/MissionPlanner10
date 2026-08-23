@@ -5,7 +5,7 @@ using MissionPlanner.Utilities;
 
 namespace MissionPlanner.Plugin;
 
-/// <summary>Portable services exposed to a MissionPlanner-Avalonia plugin.</summary>
+/// <summary>Portable services exposed to a cross-platform Mission Planner plugin.</summary>
 public abstract class PluginHost {
   /// <summary>The currently selected MAVLink interface.</summary>
   public abstract MAVLinkInterface comPort { get; }

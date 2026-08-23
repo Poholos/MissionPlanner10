@@ -178,12 +178,43 @@ public class UpdaterTests {
       },
     });
 
-    UpdateManifestEndpoint? endpoint = await BetaUpdateLocator.FindLatestAsync(
-        new HttpClient(handler), "test/project", Rid);
+    UpdateManifestEndpoint? endpoint = await GitHubReleaseLocator.FindLatestAsync(
+        new HttpClient(handler), "test/project", Rid, prerelease: true);
 
     Assert.NotNull(endpoint);
     Assert.Equal("https://download/manifest", endpoint!.ManifestUrl);
     Assert.Equal("https://download/signature", endpoint.SignatureUrl);
+  }
+
+  [Fact]
+  public async Task Stable_locator_skips_prereleases_and_selects_https_platform_manifests() {
+    const string api = "https://api.github.com/repos/test/project/releases?per_page=30";
+    var handler = new FakeHandler();
+    handler.Routes[api] = JsonSerializer.SerializeToUtf8Bytes(new[] {
+      new {
+        draft = false,
+        prerelease = true,
+        assets = new[] {
+          new { name = $"{Rid}-manifest.json", browser_download_url = "https://beta/manifest" },
+          new { name = $"{Rid}-manifest.sig", browser_download_url = "https://beta/signature" },
+        },
+      },
+      new {
+        draft = false,
+        prerelease = false,
+        assets = new[] {
+          new { name = $"{Rid}-manifest.json", browser_download_url = "https://stable/manifest" },
+          new { name = $"{Rid}-manifest.sig", browser_download_url = "https://stable/signature" },
+        },
+      },
+    });
+
+    UpdateManifestEndpoint? endpoint = await GitHubReleaseLocator.FindLatestAsync(
+        new HttpClient(handler), "test/project", Rid, prerelease: false);
+
+    Assert.NotNull(endpoint);
+    Assert.Equal("https://stable/manifest", endpoint!.ManifestUrl);
+    Assert.Equal("https://stable/signature", endpoint.SignatureUrl);
   }
 
   [Fact]

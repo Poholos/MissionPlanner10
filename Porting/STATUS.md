@@ -26,11 +26,20 @@ Updated: **2026-08-24**.
   migration evidence, not a copied source tree.
 - A clean Release build of the complete test graph succeeds with zero warnings and zero errors
   after resolving all 156 inherited `ExtLibs` diagnostics without a repository-wide `NoWarn`; the
-  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1142/1142**
+  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1143/1143**
   Avalonia tests pass on Linux. A 12-second Xvfb launch reaches the normal Avalonia event loop with
   no console errors.
 - Informational version is derived from the current native Mission Planner version and formatted as
   `1.3.83+YYYYMMDD.<commit>`; dirty developer builds append `.dirty`.
+- Native-identity packaging is integrated for Linux `.tar.gz`/`.deb`, Windows portable ZIP/MSI and
+  macOS x64/arm64 app archives. All four RID publishes pass locally; the Linux packages pass
+  `lintian` and extracted-DEB Xvfb smoke, while both macOS outputs contain architecture-correct
+  pinned VLC/SimpleBLE runtimes. Details and signing boundaries are in `RELEASE.md`.
+- Stable and beta auto-updates now select signed manifests directly from this fork's GitHub
+  Releases. The matching Ed25519 private key is present only as the repository secret
+  `UPDATE_SIGNING_KEY`; the committed public key is verified again during release.
+- CI, CodeQL, Dependabot and tag-release workflows are reconciled with the in-place tree. Legacy
+  WinForms/Xamarin workflows remain available manually but no longer run against every port push.
 - No native WinForms source, RESX translation, project or plugin has been deleted. The native
   manifest still exposes 454 `unported-blocker` rows that require code-level classification before
   final cut-over is declared complete.
@@ -38,14 +47,14 @@ Updated: **2026-08-24**.
 
 ## Immediate next step
 
-Commit and publish the completed native-dependency warning audit. Then import and rename the
-packaging/runtime support for the native `MissionPlanner` identity, run all four RID publish gates,
-and produce the Linux portable archive and `.deb`. README/CI/CodeQL/release workflow reconciliation
-follows before any merge to `master`.
+Commit and push the packaging/release integration, then require the new GitHub CI run to build and
+administratively extract the MSI on Windows, build/sign both `.app` archives on macOS, repeat Linux
+package smoke, and complete CodeQL. Fix any runner-only issue before creating a release tag or
+requesting approval to merge to `master`.
 
 ## Acceptance baseline
 
-- At least 1142 port tests retained and passing.
+- At least 1143 port tests retained and passing.
 - Clean Release build has zero errors and zero warnings.
 - `linux-x64`, `win-x64`, `osx-x64`, and `osx-arm64` publish gates pass.
 - Linux `.deb` and portable archive build and smoke successfully.

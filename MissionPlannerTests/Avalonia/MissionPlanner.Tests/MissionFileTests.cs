@@ -189,7 +189,7 @@ public class MissionFileTests {
     var path = Path.Combine(Path.GetTempPath(), $"mp_test_{System.Guid.NewGuid():N}.fen");
     try {
       await vm.SaveFileAsync(path);
-      Assert.StartsWith("# saved by MissionPlanner-Avalonia", File.ReadAllLines(path)[0]);
+      Assert.StartsWith("# saved by Mission Planner ", File.ReadAllLines(path)[0]);
 
       var loaded = new FlightPlannerViewModel();
       await loaded.LoadFileAsync(path);

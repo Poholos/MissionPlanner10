@@ -46,6 +46,9 @@ docs/
 /.idea
 obj2/
 obj3/
+/out/
+/dist/
+/upload/
 
 /.claude/settings.local.json
 /CLAUDE.md

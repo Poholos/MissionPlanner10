@@ -24,10 +24,10 @@ namespace MissionPlanner.Services;
 public enum UpdateChannel { Stable, Beta }
 
 public static class Updater {
-  public const string DefaultOwnerRepo = "sema-aviation/MissionPlanner-Avalonia";
-  public const string PagesBaseUrl = "https://sema-aviation.github.io/MissionPlanner-Avalonia";
+  public const string DefaultOwnerRepo = "Rouniy/MissionPlanner";
+  public const string GitHubReleasesBaseUrl = "https://github.com/Rouniy/MissionPlanner/releases";
 
-  public const string PublicKeyBase64 = "A0WFYpVPY1BvbOSpAzmuCTfbV6SR/cw9sUPy4AKZSgg=";
+  public const string PublicKeyBase64 = "QfTTfWOy5ZMv+AjccTTI1gwYO2aplwjNmRqHUVfmu0U=";
 
   private const string _stableSkipKey = "update_skip_version";
   private const string _betaSkipKey = "update_skip_beta_version";
@@ -63,19 +63,16 @@ public static class Updater {
     UpdateEngine.Manifest? m;
     try {
       engine = NewEngine();
-      if (channel == UpdateChannel.Beta) {
-        UpdateManifestEndpoint? endpoint = await BetaUpdateLocator.FindLatestAsync(
-            _http, DefaultOwnerRepo, UpdateEngine.Rid()).ConfigureAwait(true);
-        m = endpoint == null
-            ? null
-            : await engine.FetchManifestAsync(
-                endpoint.ManifestUrl, endpoint.SignatureUrl).ConfigureAwait(true);
-        if (m != null && m.Bundle == null) {
-          throw new InvalidDataException(
-              "The signed beta manifest does not contain a full update bundle.");
-        }
-      } else {
-        m = await engine.FetchManifestAsync().ConfigureAwait(true);
+      UpdateManifestEndpoint? endpoint = await GitHubReleaseLocator.FindLatestAsync(
+          _http, DefaultOwnerRepo, UpdateEngine.Rid(), prerelease: channel == UpdateChannel.Beta)
+          .ConfigureAwait(true);
+      m = endpoint == null
+          ? null
+          : await engine.FetchManifestAsync(
+              endpoint.ManifestUrl, endpoint.SignatureUrl).ConfigureAwait(true);
+      if (m != null && m.Bundle == null) {
+        throw new InvalidDataException(
+            "The signed GitHub release manifest does not contain a full update bundle.");
       }
     } catch (Exception ex) {
       if (!silentWhenUpToDate) {
@@ -88,7 +85,7 @@ public static class Updater {
       if (!silentWhenUpToDate) {
         string message = channel == UpdateChannel.Beta
             ? "No signed beta release is currently published for this platform."
-            : "Could not reach the update server.";
+            : "No signed stable GitHub release is currently published for this platform.";
         await Dialogs.Alert(ChannelTitle(channel), message);
       }
       return;
@@ -175,7 +172,8 @@ public static class Updater {
   }
 
   private static UpdateEngine NewEngine() =>
-      new(_http, AppPaths.InstallRoot, PagesBaseUrl, Convert.FromBase64String(PublicKeyBase64));
+      new(_http, AppPaths.InstallRoot, GitHubReleasesBaseUrl,
+          Convert.FromBase64String(PublicKeyBase64));
 
   private static string ChannelTitle(UpdateChannel channel) =>
       channel == UpdateChannel.Beta ? "Beta update" : "Update";
@@ -198,9 +196,9 @@ public static class Updater {
     Shutdown();
   }
 
-  // Beta releases use a signed manifest containing one SHA-256-pinned full bundle on every target.
-  // Stable macOS releases use the same bundle path because loose-file replacement would invalidate
-  // the Developer ID signature and notarization staple.
+  // Every GitHub release uses a signed manifest containing one SHA-256-pinned full bundle.
+  // macOS swaps the complete .app because loose-file replacement would invalidate its Developer ID
+  // signature and notarization staple.
   private static async Task InstallBundleAsync(UpdateEngine engine, UpdateEngine.ManifestBundle bundle) {
     string staging = Path.Combine(engine.CacheDir, "staging");
     try {
@@ -312,7 +310,7 @@ public static class Updater {
 
 public sealed record UpdateManifestEndpoint(string ManifestUrl, string SignatureUrl);
 
-public static class BetaUpdateLocator {
+public static class GitHubReleaseLocator {
   private sealed record ReleaseAsset(
       [property: JsonPropertyName("name")] string Name,
       [property: JsonPropertyName("browser_download_url")] string DownloadUrl);
@@ -323,7 +321,8 @@ public static class BetaUpdateLocator {
       [property: JsonPropertyName("assets")] IReadOnlyList<ReleaseAsset>? Assets);
 
   public static async Task<UpdateManifestEndpoint?> FindLatestAsync(
-      HttpClient http, string ownerRepo, string rid, CancellationToken ct = default) {
+      HttpClient http, string ownerRepo, string rid, bool prerelease,
+      CancellationToken ct = default) {
     ArgumentNullException.ThrowIfNull(http);
     if (string.IsNullOrWhiteSpace(ownerRepo) || string.IsNullOrWhiteSpace(rid)) {
       throw new ArgumentException("Repository and runtime identifier are required.");
@@ -343,7 +342,7 @@ public static class BetaUpdateLocator {
     string manifestName = rid + "-manifest.json";
     string signatureName = rid + "-manifest.sig";
     foreach (Release release in releases ?? Array.Empty<Release>()) {
-      if (release.Draft || !release.Prerelease || release.Assets == null) {
+      if (release.Draft || release.Prerelease != prerelease || release.Assets == null) {
         continue;
       }
       string? manifest = release.Assets.FirstOrDefault(asset =>

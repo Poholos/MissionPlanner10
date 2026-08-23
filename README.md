@@ -1,147 +1,268 @@
-# MissionPlanner
+# Mission Planner — native Avalonia port
 
-![Dot Net](https://github.com/ardupilot/missionplanner/actions/workflows/main.yml/badge.svg) ![Android](https://github.com/ardupilot/missionplanner/actions/workflows/android.yml/badge.svg) ![OSX/IOS](https://github.com/ardupilot/missionplanner/actions/workflows/mac.yml/badge.svg)
+[![CI](https://github.com/Rouniy/MissionPlanner/actions/workflows/ci.yml/badge.svg)](https://github.com/Rouniy/MissionPlanner/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/Rouniy/MissionPlanner/actions/workflows/codeql.yml/badge.svg)](https://github.com/Rouniy/MissionPlanner/actions/workflows/codeql.yml)
 
-Website : http://ardupilot.org/planner/
+A native, cross-platform (macOS / Linux / Windows) port of the **ArduPilot Mission Planner** UI,
+built with **Avalonia (.NET 10)**. The Avalonia application, reusable Mission Planner backends,
+plugins and migration history live together in this fork; there is no external source repository or
+submodule for the application.
 
-Forum : http://discuss.ardupilot.org/c/ground-control-software/mission-planner
+> Independent community port — **not** affiliated with or endorsed by ArduPilot. Based on
+> [Mission Planner](https://github.com/ArduPilot/MissionPlanner) (© Michael Oborne), GPLv3. See `NOTICE.md`.
 
-Download latest stable version : http://firmware.ardupilot.org/Tools/MissionPlanner/MissionPlanner-latest.msi
+## Project and upstream links
 
-Changelog : https://github.com/ArduPilot/MissionPlanner/blob/master/ChangeLog.txt
+- Avalonia port: [releases](https://github.com/Rouniy/MissionPlanner/releases) and
+  [issue tracker](https://github.com/Rouniy/MissionPlanner/issues).
+- Official Mission Planner: [website and documentation](https://ardupilot.org/planner/),
+  [support forum](https://discuss.ardupilot.org/c/ground-control-software/mission-planner),
+  [source](https://github.com/ArduPilot/MissionPlanner) and
+  [changelog](https://github.com/ArduPilot/MissionPlanner/blob/master/ChangeLog.txt).
+- The official [Windows MSI](https://firmware.ardupilot.org/Tools/MissionPlanner/MissionPlanner-latest.msi)
+  belongs to upstream Mission Planner; it is not an installer for this Avalonia port.
 
-License : https://github.com/ArduPilot/MissionPlanner/blob/master/COPYING.txt
+Please report Avalonia/Linux/macOS/Windows port problems in this repository. General ArduPilot or
+official Mission Planner usage questions belong in the ArduPilot documentation and forum above.
 
+The in-place migration started from native Mission Planner commit
+`67a3c4f22bd1b38ac499f9756902e04fa4ed8444`. Source provenance and the remaining native surface are
+audited under [`Porting/`](Porting/README.md); upstream updates can now be merged into this same tree.
 
-## How to compile
+The application version is copied automatically from `Properties/AssemblyInfo.cs` and then extended
+with the build date and repository commit. For example, official Mission Planner `1.3.83` produces
+`1.3.83+20260824.c5945b02`; a package made from uncommitted local changes adds
+`.dirty`. The composite version appears in the window title and Help page and is shared by release
+archives and update manifests. Filesystem/release names use the GitHub-safe equivalent
+`1.3.83-20260824.c5945b02`, and release tags add a leading `v`. Debian control metadata adds an
+epoch plus a monotonically ordered repository revision; MSI uses the same revision in its third
+numeric product-version field so Windows Installer upgrades remain ordered.
+Signed beta tags append `-beta` or `-beta.N`; they are published as GitHub prereleases and are
+discovered by the enabled Beta Updates preference; stable and beta channels both read only signed
+manifests attached to this repository's GitHub Releases.
 
-### On Windows (Recommended)
+See the live [port status](Porting/STATUS.md) and the pinned
+[feature audit](Porting/Reference/PORT_STATUS.md) for the support matrix and remaining work. The
+native [portable plugin host](Porting/Reference/PLUGINS.md) documents the official-style lifecycle,
+installation paths, Avalonia extension API, binary compatibility for non-visual legacy plugins and
+the remaining WinForms UI boundary.
 
-#### 1. Install software
+## Platform targets
 
-##### Main requirements
+Release automation builds self-contained artifacts for Windows x64, macOS x64, macOS ARM64 and
+Linux x64. Linux x64 is the platform verified locally in this synchronization; Windows and macOS
+remain first-class targets and are built by the cross-platform CI/release workflows.
 
-Currently, Mission Planner needs:
+Set `RID` to the required runtime identifier: `win-x64`, `osx-x64`, `osx-arm64` or `linux-x64`.
 
-Visual Studio 2022
+```bash
+RID=linux-x64
+dotnet publish MissionPlanner.csproj \
+  -c Release -r "$RID" --self-contained true -m:1 -p:DebugType=none \
+  -o "out/$RID"
+```
 
-##### IDE
+Both macOS artifacts bundle an architecture-matched VLC 3.0.23 runtime from the corresponding
+official VideoLAN application image. The ARM64 artifact and its video pipeline run natively on
+Apple Silicon; the x64 artifact remains available for Intel Macs and Rosetta 2. Exact source URLs,
+hashes and licenses are recorded in `LICENSES/VLC-3.0.23-NOTICE.txt`. A non-macOS host needs `curl`,
+`file` and `7z` when cross-publishing either macOS RID so the pinned official DMG can be verified and
+extracted.
 
-### Visual Studio Community
-To compile Mission Planner, we recommend using Visual Studio. You can download Visual Studio Community from the [Visual Studio Download page](https://visualstudio.microsoft.com/downloads/ "Visual Studio Download page").
+Joystick input uses the upstream DirectInput backend on Windows, a port-native joydev backend on
+Linux and a native IOKit HID backend on macOS. All three feed the same mapping UI and target-safe
+RC/manual-control sender; physical controller acceptance is tracked separately in the port-status
+document.
 
-Visual Studio is a comprehensive suite with built-in Git support, but it can be overwhelming due to its complexity. To streamline the installation process, you can customize your installation by selecting the relevant "Workloads" and "Individual components" based on your software development needs.
+Nordic-UART Bluetooth LE connections use managed BlueZ/D-Bus on Linux and the pinned SimpleBLE
+0.7.3 native ABI on Windows and macOS. Windows keeps its upstream SimpleBLE DLLs; checksummed x64
+and arm64 macOS dylibs are fetched from the official SimpleBLE release during publish and bundled
+with the corresponding artifact. Discovery, connection and I/O are cancellable and bounded;
+end-to-end traffic with representative BLE modems remains a native-platform acceptance item.
 
-To simplify this selection process, we have provided a configuration file that specifies the components required for MissionPlanner development. Here's how you can use it:
+Setup > NV Modem is a native port of AgroSky GTU's `NV5Settings` for NV4/NV5 radio modems. It
+discovers modems and performs parameter, key, RTSP and maintenance operations through the UDP/TCP/
+UART MAVLink connections already open in Mission Planner; it never opens a second port. Parameter
+values are session-only and cleared on refresh or device change, while the copied parameter
+descriptions remain available in the tab. See [NV Modem](Porting/Reference/NV_MODEM.md).
 
-1. Go to "More" in the Visual Studio installer.
-2. Select "Import configuration."
-3. Use the following file: [vs2022.vsconfig](https://raw.githubusercontent.com/ArduPilot/MissionPlanner/master/vs2022.vsconfig "vs2022.vsconfig").
+## Linux prerequisites
 
-By following these steps, you'll have the necessary components installed and ready for Mission Planner development.
+Ubuntu 24.04 / Linux Mint 22 can use the distribution SDK. `global.json` accepts the 10.0.100
+feature band and rolls forward, so the distro-provided 10.0.111 SDK is sufficient; a manually
+installed 10.0.301 SDK is not required.
 
-###### VSCode
-Currently VSCode with C# plugin is able to parse the code but cannot build.
+```bash
+sudo apt-get update
+sudo apt-get install dotnet-sdk-10.0 libvlc5 vlc-plugin-base speech-dispatcher-espeak-ng bluez
+# Optional official-style GDAL Custom local raster map provider:
+sudo apt-get install gdal-bin
+sudo usermod -aG dialout "$USER"
+```
 
-#### 2. Get the code
+Log out and back in after adding `dialout`. `libvlc` is needed for video,
+`speech-dispatcher-espeak-ng` for spoken warnings and BlueZ for Linux Nordic-UART Bluetooth LE
+connections. A current system GDAL runtime enables the optional `GDAL Custom` map provider; the
+managed GeoTIFF/DTED elevation path does not require it. Add `xvfb` for headless GUI smoke tests and
+`dotnet-sdk-aot-10.0` only when experimenting with NativeAOT.
 
-If you get Visual Studio Community, you should be able to use Git from the IDE. 
-Clone `https://github.com/ArduPilot/MissionPlanner.git` to get the full code.
+Video sources may be direct files or libVLC MRLs such as `rtsp://host/path`, `udp://@:5600`,
+`rtp://@:5600` and `v4l2:///dev/video0`. The input dialog also accepts an RTP GStreamer pipeline
+containing `udpsrc port=...`, `application/x-rtp` and H.264/H.265 depayloading; the port converts it
+to a temporary SDP file for libVLC. A bare non-RTP GStreamer pipeline is not interchangeable with a
+libVLC MRL and is rejected with an explanatory message.
 
-In case you didn't install an IDE, you will need to manually install Git. Please follow instruction in https://ardupilot.org/dev/docs/where-to-get-the-code.html#downloading-the-code-using-git
+## Build & run
 
-Open a git bash terminal in the MissionPlanner directory and type, "git submodule update --init" to download all submodules
+The repository is self-contained for the Avalonia application. The historical `ExtLibs/mono`
+submodule belongs to the native source history but is not required by this build.
 
-#### 3. Build
+```bash
+git clone https://github.com/Rouniy/MissionPlanner.git
+cd MissionPlanner
+dotnet restore MissionPlanner.csproj -m:1
+dotnet run --project MissionPlanner.csproj -m:1
+```
 
-To build the code:
-- Open MissionPlanner.sln with Visual Studio
-- From the Build menu, select "Build MissionPlanner"
+`-m:1` avoids an intermittent MSBuild task-host failure seen in the large upstream project graph.
 
-### On other systems
-Building Mission Planner on other systems isn't support currently.
+## Self-contained artifact details
 
-## Launching Mission Planner on other system
+For the `linux-x64` publish example above, launch `./out/linux-x64/MissionPlanner`.
 
-Mission Planner is available for Android via the Play Store. https://play.google.com/store/apps/details?id=com.michaeloborne.MissionPlanner
-Mission Planner can be used with Mono on Linux systems. Be aware that not all functions are available on Linux.
-Native MacOS and iOS support is experimental and not recommended for inexperienced users. https://github.com/ArduPilot/MissionPlanner/releases/tag/osxlatest 
-For MacOS users it is recommended to use Mission Planner for Windows via Boot Camp or Parallels (or equivalent).
+The launcher and native libraries are ELF files. The `.dll` files beside them are normal managed
+.NET assemblies (portable ECMA-335 bytecode), not Windows native libraries. Windows-only native
+`simpleble*.dll` and `libusb-1.0.dll` files inherited from upstream are explicitly removed from
+Linux and macOS publish output, while `win-x64` retains the SimpleBLE runtime it needs.
 
-### On Linux
+NativeAOT can be produced experimentally with `-p:EnableNativeAot=true`, but it is not a supported
+release mode on any target: upstream log4net and several reflection/serialization paths are not
+NativeAOT-compatible. Use the self-contained CoreCLR artifacts for operational builds.
 
-#### Requirements
+## Windows packages
 
-Those instructions were tested on Ubuntu 20.04.
-Please install Mono, either :
-- `sudo apt install mono-complete mono-runtime libmono-system-windows-forms4.0-cil libmono-system-core4.0-cil libmono-winforms4.0-cil libmono-corlib4.0-cil libmono-system-management4.0-cil libmono-system-xml-linq4.0-cil`
+The Windows target creates both a portable ZIP and an x64 MSI from one self-contained publish:
 
-#### Launching
+```bash
+make windows-packages
+# Individual formats:
+make windows-zip
+make windows-msi
+```
 
-- Get the lastest zipped version of Mission Planner here : https://firmware.ardupilot.org/Tools/MissionPlanner/MissionPlanner-latest.zip
-- Unzip in the directory you want
-- Go into the directory
-- run with `mono MissionPlanner.exe`
+WiX itself must run on Windows, so `windows-zip` can be cross-built on Linux while
+`windows-packages`/`windows-msi` are verified on the `windows-latest` CI runner. The MSI installs
+the port under `Program Files/MissionPlannerAvalonia` and uses a separate upgrade identity and
+shortcuts, so it does not overwrite an installed official WinForms Mission Planner. It does not
+install the official serial-driver certificate or vendor drivers. The complete artifact matrix,
+release-tag format, updater assets and optional signing secrets are documented in
+[`Porting/RELEASE.md`](Porting/RELEASE.md).
 
-You can debug Mission Planner on Mono with `MONO_LOG_LEVEL=debug mono MissionPlanner.exe`
+## Linux packages
 
-### External Services Used
+One target publishes the application once and creates both a portable archive and a Debian package:
 
-| Source | Use | How to disable | Custodian |
-|---|---|---|---|
-| https://firmware.oborne.me  | used as a global cdn for checking for MP update check - checked once per day at startup | edit missionplanner.exe.config | Michael Oborne |
-| https://firmware.ardupilot.org  | used for updates to stable, firmware metadata, firmware, user alerts, gstreamer, SRTM, SITL | updates to stable (edit missionplanner.exe.config) - all others Not possible | Ardupilot Team |
-| https://github.com/ | used for updates to beta | edit missionplanner.exe.config | Michael Oborne |
-| https://raw.githubusercontent.com | old param metadata, sitl config files | Not possible | Ardupilot Team |
-| https://api.github.com/ | ardupilot preload param files | Not possible | Ardupilot Team |
-| https://raw.oborne.me/  | used as glocal cdn for parameter metadata generator, no longer primary source | only used at user request to regenerate, edit missionplanner.exe.config | Michael Oborne |
-| https://maps.google.com  | used for elevation api - removed due to abuse | N/A | N/A |
-| https://discuss.cubepilot.org/ | use for SB2 reporting - only on affected boards when user enters details | only used at user request | CubePilot |
-| https://altitudeangel.com  | utm data - user enabled | only used at user request | Altitude Angel |
-| https://autotest.ardupilot.org  | dataflash log meta data, parameter metadata | Not Possible | Ardupilot Team |
-| Many | your choice of map provider google/bing/openstreetmap/etc | User selectable | User/Many |
-| https://www.cloudflare.com | geo location provider - for NFZ selection | Not Possible | Michael Oborne |
-| https://esua.cad.gov.hk | HK no fly zones - user enabled | User selectable | HK Gov |
-| https://ssl.google-analytics.com | Google Analytics Anonymous Stats - Screen Loads, Exceptions/Crashs, Events (Connect), Startup Timing, FW upload (FW Type and Board Type) | disable in Config > Planner > OptOut Anon Stats | Michael Oborne |
-| https://api.dronelogbook.com | logging - disabled | N/A | N/A |
-| https://ardupilot.org | help urls on many pages | User Initiated | ArduPilot Team |
-| https://www.youtube.com | help videos on many pages | User Initiated | ArduPilot Team |
-| https://files.rfdesign.com.au | RFD firmwares | User Initiated | RFDesign |
-| https://teck.airmarket.io | airmarket - disabled | N/A | N/A |
+```bash
+make linux-packages
+# Individual formats:
+make linux-tar
+make linux-deb
+```
 
-### Offline Use - No Internet
+Artifacts are written to `out/packages/`. The `.deb` is intended for Ubuntu 24.04 / Linux Mint 22
+and compatible amd64 distributions. It is self-contained, so a .NET runtime is not required on the
+target machine. APT installs the native GUI, ICU, OpenSSL and libVLC dependencies declared by the
+package; `speech-dispatcher-espeak-ng` and `bluez` are recommended for spoken warnings and optional
+BLE connections respectively, while `gdal-bin` is suggested for local GDAL raster maps.
 
-| Location | Use | Transferable between pcs |
-|---|---|---|
-| C:\ProgramData\Mission Planner\gmapcache | Map cache | yes |
-| C:\ProgramData\Mission Planner\srtm | Elevation data cache | yes |
-| C:\ProgramData\Mission Planner\\*.pdef.xml | Parameter cache | yes |
-| C:\ProgramData\Mission Planner\LogMessages*.xml | DF Log metadata cache | yes |
+```bash
+sudo apt install ./out/packages/missionplanner_*.deb
+missionplanner
+```
 
-on linux this is in /home/<user>/.local/share/Mission Planner/
+The Debian package installs the application under `/usr/lib/missionplanner`, adds a desktop
+entry and exposes `/usr/bin/missionplanner`. Package-managed installs do not overwrite
+themselves with the in-app updater; update them through APT. The portable `tar.gz` includes
+`install.sh` for a per-user desktop entry. Portable Linux, Windows and macOS builds can use the
+in-app updater after the fork owner configures the Ed25519 release-signing secret; downloaded full
+bundles are additionally pinned by SHA-256 before extraction.
 
-### Offline Data Supported
-#### Elevation
-* SRTM Cache
-* GeoTiff's in WGS84/EGM96
-* DTED
+## Runtime files
 
-#### Images
-* Map Cache
-* WMS
-* WMTS
-* GDAL
+The application does not write settings or downloaded data beside the executable. Paths follow the
+native convention on every supported platform:
 
-### Paths used - Default
+| Purpose | Linux | Windows | macOS |
+| --- | --- | --- | --- |
+| Configuration | `$XDG_CONFIG_HOME/MissionPlanner` (default `~/.config`) | `%APPDATA%\MissionPlanner` | `~/Library/Application Support/MissionPlanner` |
+| Logs and user data | `$XDG_DATA_HOME/MissionPlanner` (default `~/.local/share`) | `%LOCALAPPDATA%\MissionPlanner` | `~/Library/Application Support/MissionPlanner` |
+| Download/cache data | `$XDG_CACHE_HOME/MissionPlanner` (default `~/.cache`) | `%LOCALAPPDATA%\MissionPlanner\cache` | `~/Library/Caches/MissionPlanner` |
+| Crash/state files | `$XDG_STATE_HOME/MissionPlanner` (default `~/.local/state`) | `%LOCALAPPDATA%\MissionPlanner\state` | `~/Library/Logs/MissionPlanner` |
 
-| Location | Use |
-|---|---|
-| C:\ProgramData\Mission Planner | All cross user content |
-| C:\Users\USERNAME\Documents\Mission Planner | All per user content |
+SRTM terrain, SITL binaries, parameter definitions, log metadata and updater downloads are caches.
+Existing files from legacy `Mission Planner` folders are copied on first use without deleting the
+old copy.
 
-on linux this is in /home/<user>/.local/share/Mission Planner/
+Portable plugin DLLs live under the user-data `plugins` directory and can be managed from
+**Tools > Plugin Manager** (`Ctrl+P`). They run as trusted in-process code with full application
+access; install only plugins you trust. See
+[portable plugins](Porting/Reference/PLUGINS.md) for the API and
+platform paths.
 
-### CA Cert
-A CA cert is installed to the root store and used to sign the windows serial port drivers, and is installed as part of the MSI install.
+The official TerrainMakerPlugin is built into Flight Planner as **Make Terrain DAT…**. It creates
+ArduPilot whole-degree DAT tiles from the visible map area using the configured local DEM/SRTM
+sources, reports the exact estimated output size, supports cancellation and atomically replaces only
+complete tiles.
 
-[![FlagCounter](https://s01.flagcounter.com/count2/A4bA/bg_FFFFFF/txt_000000/border_CCCCCC/columns_8/maxflags_40/viewers_0/labels_1/pageviews_0/flags_0/percent_0/)](https://info.flagcounter.com/A4bA)
+## Network services and privacy
+
+The port keeps the useful network integrations described by official Mission Planner, but only for
+features that are present here. Analytics and the upstream Cloudflare geolocation request are not
+implemented. The main runtime network destinations are:
+
+| Service | Purpose | When it is contacted |
+| --- | --- | --- |
+| This repository's GitHub Releases and API | Signed stable/beta application updates | Portable builds check at startup; manual checks are in Help. Package-managed installs do not self-update. |
+| `firmware.ardupilot.org`, ArduPilot GitHub/raw content | Vehicle firmware manifests and files, parameter/frame defaults and SITL assets | When a connected firmware version is checked or the operator starts the corresponding download/tool. |
+| Google, Bing, OpenStreetMap, Esri or an operator-supplied WMS/WMTS server | Map imagery | Only for the selected online map provider; cached/local maps remain available offline. |
+| Hong Kong CAD eSUA | Official Hong Kong no-fly polygons | Only when **Show NoFly** and the separate Hong Kong option are enabled; results use a 12-hour disk cache. |
+| NOAA SWPC | K-index space-weather value | A bounded background refresh at application startup. |
+| `adsb.lol` | Optional external ADS-B traffic | Only while the external ADS-B receiver is enabled. |
+| ArduPilot documentation, forum, RFDesign or CubePilot | Help pages and optional vendor firmware | Only after an explicit user action, except the connected-firmware availability check noted above. |
+
+Telemetry links configured by the operator (UDP, TCP, serial, Bluetooth, NTRIP, video and similar)
+necessarily contact their configured device or server. Portable plugins are trusted in-process code
+and may add their own network behavior.
+
+## Offline use
+
+Vehicle connections, cached maps, mission editing, parameter work against a connected vehicle, log
+review and local terrain sources do not require Internet access. Data that can be prepared on one
+machine and copied to the matching runtime directory includes:
+
+| Data | Offline support |
+| --- | --- |
+| Map tiles | Use the map cache manager or copy the cache directory. WMS/WMTS and online basemaps need prior cached tiles. |
+| Elevation | Cached SRTM, local WGS84/EGM96 GeoTIFF and DTED are supported; local sources take priority. |
+| Parameter and log metadata | Bundled fallbacks are included; newer downloaded definitions remain in the cache. Parameter *values* are deliberately never restored from a previous device/session. |
+| No-fly zones | Local KML/KMZ files under the user-data `NoFly` directory work offline; the last Hong Kong eSUA response can be used from cache. |
+| Firmware and SITL | Previously downloaded cache content can be reused; discovering or downloading new versions requires a network connection. |
+
+Unlike the official Windows MSI, this port's MSI does not install a serial-driver CA certificate. Linux
+serial access uses the operating system's device permissions; Windows drivers remain an operating-
+system/vendor responsibility.
+
+## Development
+
+```bash
+dotnet build MissionPlanner.slnx -c Release -m:1
+dotnet test MissionPlannerTests/Avalonia/MissionPlanner.Tests/MissionPlanner.Tests.csproj -c Release -m:1
+```
+
+The clean solution build is expected to report zero warnings and zero errors. The current warning
+audit and exact reproduction commands are in [`Porting/WARNING_AUDIT.md`](Porting/WARNING_AUDIT.md).
+
+## License
+
+**GPLv3** (see [`COPYING.txt`](COPYING.txt)). This is a derivative work of Mission Planner and
+inherits its license. Third-party runtime notices are retained in [`LICENSES/`](LICENSES/).

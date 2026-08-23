@@ -45,7 +45,7 @@ public sealed class FrameDefaultCatalogTests {
     Assert.Equal("Tools/Frame_params/QuadPlanes/Tailsitter.param", files[1].Path);
     Assert.Equal("Q_FRAME_CLASS,10\n", Encoding.UTF8.GetString(downloaded));
     Assert.Equal(3, handler.UserAgents.Count);
-    Assert.All(handler.UserAgents, value => Assert.Contains("MissionPlanner-Avalonia", value));
+    Assert.All(handler.UserAgents, value => Assert.Contains("MissionPlanner/frame-defaults", value));
   }
 
   [Theory]

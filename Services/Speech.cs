@@ -15,7 +15,7 @@ public static class Speech {
   internal const int MaxPendingUtterances = 4;
   internal const int MaximumUtteranceLength = 512;
   internal static readonly string[] LinuxCancelArguments =
-      ["-N", "MissionPlanner-Avalonia", "-n", "main", "-C"];
+      ["-N", "MissionPlanner", "-n", "main", "-C"];
 
   private static int _enabled;
   public static bool Enabled {
@@ -249,7 +249,7 @@ public static class Speech {
       process == null ? null : new RunningUtterance(process, backend);
 
   internal static string[] LinuxUtteranceArguments(string text, string? language = null) => [
-    "-N", "MissionPlanner-Avalonia",
+    "-N", "MissionPlanner",
     "-n", "main",
     "-o", "espeak-ng",
     "-l", string.IsNullOrWhiteSpace(language) ? DetectLanguage(text) : language,

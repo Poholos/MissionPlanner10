@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DIR="$(cd "$(dirname "$0")" && pwd)"
+APPS="$HOME/.local/share/applications"
+
+mkdir -p "$APPS"
+sed "s|@INSTALL_DIR@|$DIR|g" "$DIR/missionplanner.desktop" \
+  > "$APPS/missionplanner.desktop"
+chmod +x "$DIR/MissionPlanner"
+update-desktop-database "$APPS" 2>/dev/null || true
+
+echo "Installed. Find 'Mission Planner' in your launcher (or run ./MissionPlanner)."
+echo
+echo "Serial access to a flight controller needs the dialout group:"
+echo "  sudo usermod -aG dialout \$USER   # then log out and back in"
+
+if ! command -v spd-say >/dev/null 2>&1 ||
+    ! dpkg-query -W -f='${Status}' speech-dispatcher-espeak-ng 2>/dev/null |
+      grep -q 'install ok installed'; then
+  echo
+  echo "Optional spoken warnings need Speech Dispatcher with the espeak-ng module:"
+  echo "  sudo apt-get install speech-dispatcher-espeak-ng"
+fi
+
+if ! ldconfig -p 2>/dev/null | grep -q 'libvlc\.so'; then
+  echo
+  echo "Video input needs libVLC:"
+  echo "  sudo apt-get install libvlc5 vlc-plugin-base"
+fi

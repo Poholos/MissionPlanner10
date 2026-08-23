@@ -1,0 +1,27 @@
+<Project Sdk="WixToolset.Sdk/5.0.2">
+  <PropertyGroup>
+    <OutputType>Package</OutputType>
+    <OutputName>MissionPlanner</OutputName>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <DefineConstants>
+      InstallerVersion=$(InstallerVersion);
+      FullVersion=$(FullVersion);
+      RepositoryRoot=$(RepositoryRoot)
+    </DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <BindPath Include="$(PublishDir)" BindName="PublishDir" />
+  </ItemGroup>
+
+  <Target Name="ValidateInstallerInputs" BeforeTargets="BeforeBuild">
+    <Error Condition="'$(PublishDir)' == '' Or !Exists('$(PublishDir)/MissionPlanner.exe')"
+           Text="PublishDir must contain the win-x64 MissionPlanner.exe publish output." />
+    <Error Condition="'$(InstallerVersion)' == ''"
+           Text="InstallerVersion is required." />
+    <Error Condition="'$(FullVersion)' == ''"
+           Text="FullVersion is required." />
+    <Error Condition="'$(RepositoryRoot)' == '' Or !Exists('$(RepositoryRoot)/Assets/appicon.ico')"
+           Text="RepositoryRoot must point at the Mission Planner source root." />
+  </Target>
+</Project>
