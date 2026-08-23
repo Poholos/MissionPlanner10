@@ -54,6 +54,7 @@ env -u VERSION "$DOTNET" publish "$APP_PROJECT" \
   --self-contained true \
   -m:1 \
   -p:DebugType=none \
+  -p:PlatformTarget=x64 \
   -p:MissionPlannerUpstreamVersion="$MP_UPSTREAM_VERSION" \
   -p:MissionPlannerBuildDate="$MP_BUILD_DATE" \
   -p:MissionPlannerCommit="$MP_COMMIT$MP_DIRTY_SUFFIX" \

@@ -23,22 +23,34 @@
                 Source="!(bindpath.PublishDir)MissionPlanner.exe"
                 KeyPath="yes">
             <Shortcut Id="StartMenuShortcut"
-                      Directory="ProgramMenuFolder"
+                      Directory="CommonProgramsFolder"
                       Name="Mission Planner (Avalonia)"
                       Description="Ground control station for ArduPilot vehicles"
                       WorkingDirectory="INSTALLFOLDER"
+                      Advertise="yes"
                       Icon="MissionPlanner.exe" />
             <Shortcut Id="DesktopShortcut"
-                      Directory="DesktopFolder"
+                      Directory="CommonDesktopFolder"
                       Name="Mission Planner (Avalonia)"
                       Description="Ground control station for ArduPilot vehicles"
                       WorkingDirectory="INSTALLFOLDER"
+                      Advertise="yes"
                       Icon="MissionPlanner.exe" />
           </File>
         </Component>
 
+        <!-- SQLite's native PE is versioned but language-neutral. LANGID 0 keeps MSI repair
+             decisions deterministic and satisfies ICE60 without hiding installer validation. -->
+        <Component Id="SqliteNative" Bitness="always64">
+          <File Id="SqliteNativeFile"
+                Source="!(bindpath.PublishDir)e_sqlite3.dll"
+                DefaultLanguage="0"
+                KeyPath="yes" />
+        </Component>
+
         <Files Include="!(bindpath.PublishDir)**">
           <Exclude Files="!(bindpath.PublishDir)MissionPlanner.exe" />
+          <Exclude Files="!(bindpath.PublishDir)e_sqlite3.dll" />
         </Files>
       </Directory>
     </StandardDirectory>
