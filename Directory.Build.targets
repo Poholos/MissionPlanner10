@@ -1,0 +1,51 @@
+<Project>
+  <!-- Security updates apply to inherited native projects without globally retargeting them. -->
+  <ItemGroup>
+    <PackageReference Update="log4net" Version="3.3.2" />
+    <PackageReference Update="SharpCompress" Version="0.48.0" />
+    <PackageReference Update="SkiaSharp" Version="2.88.6"
+                      Condition="'$(IsAvaloniaPortProject)' != 'true'" />
+    <PackageReference Update="SkiaSharp.NativeAssets.Linux" Version="2.88.6" />
+    <PackageReference Remove="Microsoft.CodeAnalysis.NetAnalyzers"
+                      Condition="'$(MSBuildProjectName)' == 'MissionPlanner.Comms'" />
+  </ItemGroup>
+
+  <!-- Always bind release/developer identity to the canonical monorepo commit. -->
+  <Target Name="ResolveMissionPlannerBuildIdentity"
+          BeforeTargets="CoreCompile"
+          Condition="'$(IsMissionPlannerApplication)' == 'true'">
+    <Exec Command="git -C &quot;$(MSBuildProjectDirectory)&quot; rev-parse --short=8 HEAD"
+          ConsoleToMSBuild="true"
+          IgnoreExitCode="true"
+          StandardOutputImportance="Low"
+          Condition="'$(MissionPlannerCommit)' == ''">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_MissionPlannerGitOutput" />
+    </Exec>
+    <Exec Command="git -C &quot;$(MSBuildProjectDirectory)&quot; status --porcelain --untracked-files=normal"
+          ConsoleToMSBuild="true"
+          IgnoreExitCode="true"
+          StandardOutputImportance="Low"
+          Condition="'$(MissionPlannerCommit)' == ''">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_MissionPlannerGitStatus" />
+    </Exec>
+    <PropertyGroup>
+      <MissionPlannerCommit Condition="'$(MissionPlannerCommit)' == '' And '$(_MissionPlannerGitOutput)' != ''">$([System.String]::Copy('$(_MissionPlannerGitOutput)').Trim())</MissionPlannerCommit>
+      <MissionPlannerCommit Condition="'$(MissionPlannerCommit)' == '' And '$(SourceRevisionId)' != ''">$([System.Text.RegularExpressions.Regex]::Match('$(SourceRevisionId)', '^[0-9a-fA-F]{7,12}').Value)</MissionPlannerCommit>
+      <MissionPlannerCommit Condition="'$(MissionPlannerCommit)' == ''">unknown</MissionPlannerCommit>
+      <MissionPlannerCommit Condition="'$(_MissionPlannerGitStatus)' != '' And !$([System.String]::Copy('$(MissionPlannerCommit)').EndsWith('.dirty'))">$(MissionPlannerCommit).dirty</MissionPlannerCommit>
+      <InformationalVersion>$(MissionPlannerUpstreamVersion)+$(MissionPlannerBuildDate).$(MissionPlannerCommit)</InformationalVersion>
+      <_MissionPlannerBuildInfoFile>$(IntermediateOutputPath)MissionPlanner.BuildIdentity.g.cs</_MissionPlannerBuildInfoFile>
+    </PropertyGroup>
+    <ItemGroup>
+      <_MissionPlannerBuildInfoLine Include="using System.Reflection%3B" />
+      <_MissionPlannerBuildInfoLine Include="[assembly: AssemblyInformationalVersion(&quot;$(InformationalVersion)&quot;)]" />
+    </ItemGroup>
+    <WriteLinesToFile File="$(_MissionPlannerBuildInfoFile)"
+                      Lines="@(_MissionPlannerBuildInfoLine)"
+                      Overwrite="true"
+                      WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <Compile Include="$(_MissionPlannerBuildInfoFile)" />
+    </ItemGroup>
+  </Target>
+</Project>

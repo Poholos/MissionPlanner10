@@ -1,0 +1,151 @@
+<UserControl
+  xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:cv="using:MissionPlanner.ViewModels.GCSViews.ConfigurationView"
+  mc:Ignorable="d"
+  d:DesignWidth="700"
+  d:DesignHeight="640"
+  x:Class="MissionPlanner.Views.GCSViews.ConfigurationView.ConfigBatteryMonitoringView"
+  x:DataType="cv:ConfigBatteryMonitoringViewModel"
+  Background="{DynamicResource MpControlBg}"
+>
+  <ScrollViewer>
+    <StackPanel Margin="16" Spacing="8" MaxWidth="560" HorizontalAlignment="Left">
+      <TextBlock Classes="pagetitle" Text="Battery Monitor 1" />
+
+      <Grid ColumnDefinitions="180,*" RowDefinitions="Auto">
+        <TextBlock Grid.Column="0" Classes="fieldlbl" Text="Monitor" VerticalAlignment="Center" />
+        <ComboBox
+          Grid.Column="1"
+          MinWidth="280"
+          ItemsSource="{Binding Monitor.Options}"
+          SelectedItem="{Binding Monitor.SelectedOption}"
+        />
+      </Grid>
+
+      <Grid ColumnDefinitions="180,*">
+        <TextBlock Grid.Column="0" Classes="fieldlbl" Text="Sensor" VerticalAlignment="Center" />
+        <ComboBox
+          Grid.Column="1"
+          MinWidth="280"
+          ItemsSource="{Binding SensorTypes}"
+          SelectedIndex="{Binding SelectedSensorIndex}"
+        />
+      </Grid>
+
+      <Grid ColumnDefinitions="180,*">
+        <TextBlock Grid.Column="0" Classes="fieldlbl" Text="APM ver" VerticalAlignment="Center" />
+        <ComboBox
+          Grid.Column="1"
+          MinWidth="280"
+          ItemsSource="{Binding HwVersions}"
+          SelectedIndex="{Binding SelectedHwIndex}"
+        />
+      </Grid>
+
+      <Grid ColumnDefinitions="180,*">
+        <TextBlock Grid.Column="0" Classes="fieldlbl" Text="Capacity (mAh)" VerticalAlignment="Center" />
+        <NumericUpDown
+          Grid.Column="1"
+          MinWidth="160"
+          HorizontalAlignment="Left"
+          Minimum="{Binding Capacity.Min}"
+          Maximum="{Binding Capacity.Max}"
+          Increment="{Binding Capacity.Increment}"
+          FormatString="0"
+          Value="{Binding Capacity.Value}"
+        />
+      </Grid>
+
+      <Grid ColumnDefinitions="180,*">
+        <TextBlock Grid.Column="0" Classes="fieldlbl" Text="Voltage pin" VerticalAlignment="Center" />
+        <ComboBox
+          Grid.Column="1"
+          MinWidth="280"
+          ItemsSource="{Binding VoltPin.Options}"
+          SelectedItem="{Binding VoltPin.SelectedOption}"
+        />
+      </Grid>
+
+      <Grid ColumnDefinitions="180,*">
+        <TextBlock Grid.Column="0" Classes="fieldlbl" Text="Current pin" VerticalAlignment="Center" />
+        <ComboBox
+          Grid.Column="1"
+          MinWidth="280"
+          ItemsSource="{Binding CurrPin.Options}"
+          SelectedItem="{Binding CurrPin.SelectedOption}"
+        />
+      </Grid>
+
+      <Grid ColumnDefinitions="180,*">
+        <TextBlock Grid.Column="0" Classes="fieldlbl" Text="Volt mult (BATT_VOLT_MULT)" VerticalAlignment="Center" TextWrapping="Wrap" />
+        <NumericUpDown
+          Grid.Column="1"
+          MinWidth="160"
+          HorizontalAlignment="Left"
+          Increment="0.001"
+          FormatString="0.######"
+          Value="{Binding VoltMult.Value}"
+        />
+      </Grid>
+
+      <Grid ColumnDefinitions="180,*">
+        <TextBlock Grid.Column="0" Classes="fieldlbl" Text="Amp per volt (BATT_AMP_PERVLT)" VerticalAlignment="Center" TextWrapping="Wrap" />
+        <NumericUpDown
+          Grid.Column="1"
+          MinWidth="160"
+          HorizontalAlignment="Left"
+          Increment="0.001"
+          FormatString="0.######"
+          Value="{Binding AmpPerVolt.Value}"
+        />
+      </Grid>
+
+      <Grid ColumnDefinitions="180,*">
+        <TextBlock Grid.Column="0" Classes="fieldlbl" Text="Amp offset (BATT_AMP_OFFSET)" VerticalAlignment="Center" TextWrapping="Wrap" />
+        <NumericUpDown
+          Grid.Column="1"
+          MinWidth="160"
+          HorizontalAlignment="Left"
+          Increment="0.001"
+          FormatString="0.######"
+          Value="{Binding AmpOffset.Value}"
+        />
+      </Grid>
+
+      <Border BorderBrush="#5A5A5A" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,8,0,0">
+        <StackPanel Spacing="6">
+          <TextBlock Text="Calibration" FontWeight="Bold" Foreground="#D8D8D8" />
+
+          <Grid ColumnDefinitions="280,140,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="4" ColumnSpacing="8">
+            <TextBlock Grid.Row="0" Grid.Column="0" Classes="fieldlbl" Text="1. Measured battery voltage" VerticalAlignment="Center" />
+            <NumericUpDown Grid.Row="0" Grid.Column="1" Increment="0.1" FormatString="0.##" Value="{Binding MeasuredVoltage}" />
+            <Button Grid.Row="0" Grid.Column="2" Content="Apply" Command="{Binding ApplyVoltageCalibrationCommand}" />
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Classes="fieldlbl" Text="2. Battery voltage (Calced)" VerticalAlignment="Center" />
+            <TextBlock Grid.Row="1" Grid.Column="1" Classes="fieldlbl" Text="{Binding LiveVoltage}" VerticalAlignment="Center" />
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Classes="fieldlbl" Text="3. Voltage divider (Calced)" VerticalAlignment="Center" />
+            <NumericUpDown Grid.Row="2" Grid.Column="1" Increment="0.001" FormatString="0.######" Value="{Binding VoltMult.Value}" />
+
+            <TextBlock Grid.Row="3" Grid.Column="0" Classes="fieldlbl" Text="4. Measured current" VerticalAlignment="Center" />
+            <NumericUpDown Grid.Row="3" Grid.Column="1" Increment="0.1" FormatString="0.##" Value="{Binding MeasuredCurrent}" />
+            <Button Grid.Row="3" Grid.Column="2" Content="Apply" Command="{Binding ApplyCurrentCalibrationCommand}" />
+
+            <TextBlock Grid.Row="4" Grid.Column="0" Classes="fieldlbl" Text="5. Current (Calced)" VerticalAlignment="Center" />
+            <TextBlock Grid.Row="4" Grid.Column="1" Classes="fieldlbl" Text="{Binding LiveCurrent}" VerticalAlignment="Center" />
+
+            <TextBlock Grid.Row="5" Grid.Column="0" Classes="fieldlbl" Text="6. Amps per volt" VerticalAlignment="Center" />
+            <NumericUpDown Grid.Row="5" Grid.Column="1" Increment="0.001" FormatString="0.######" Value="{Binding AmpPerVolt.Value}" />
+          </Grid>
+
+          <TextBlock Foreground="{DynamicResource MpAccentBrush}" Text="{Binding CalibrationStatus}" />
+        </StackPanel>
+      </Border>
+
+      <CheckBox Content="MP Alert on Low Battery" IsChecked="{Binding AlertOnLowBattery}" Margin="0,4,0,0" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

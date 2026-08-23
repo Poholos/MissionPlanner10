@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <AssemblyName>MissionPlanner.LegacyTestPlugin</AssemblyName>
+    <RootNamespace>MissionPlanner.LegacyTestPlugin</RootNamespace>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+    <IsPublishable>false</IsPublishable>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../MissionPlanner.LegacyReference/MissionPlanner.LegacyReference.csproj" />
+  </ItemGroup>
+</Project>

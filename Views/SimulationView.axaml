@@ -1,0 +1,168 @@
+<UserControl
+  xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:vm="using:MissionPlanner.ViewModels"
+  xmlns:i="https://github.com/projektanker/icons.avalonia"
+  mc:Ignorable="d"
+  d:DesignWidth="1100"
+  d:DesignHeight="640"
+  x:Class="MissionPlanner.Views.SimulationView"
+  x:DataType="vm:SimulationViewModel"
+  Background="{DynamicResource MpControlBg}"
+>
+  <UserControl.Styles>
+    <Style Selector="RadioButton.firmware">
+      <Setter Property="Foreground" Value="#E0E0E0" />
+      <Setter Property="Padding" Value="10,6" />
+    </Style>
+  </UserControl.Styles>
+  <Grid RowDefinitions="*,Auto">
+
+    <Panel Grid.Row="0" x:Name="MapHost" />
+    <StackPanel Grid.Row="1" Margin="12" Spacing="10">
+      <TextBlock Text="Please select a firmware to run" Foreground="#E0E0E0" />
+      <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
+        <RadioButton Classes="firmware" GroupName="firmware" IsChecked="{Binding IsPlane}">
+          <StackPanel>
+            <i:Icon Value="fa-solid fa-plane" FontSize="44" Foreground="#E0E0E0"
+                    HorizontalAlignment="Center" />
+            <TextBlock Text="Plane" HorizontalAlignment="Center" />
+          </StackPanel>
+        </RadioButton>
+        <RadioButton Classes="firmware" GroupName="firmware" IsChecked="{Binding IsRover}">
+          <StackPanel>
+            <i:Icon Value="fa-solid fa-car" FontSize="44" Foreground="#E0E0E0"
+                    HorizontalAlignment="Center" />
+            <TextBlock Text="Rover" HorizontalAlignment="Center" />
+          </StackPanel>
+        </RadioButton>
+        <RadioButton Classes="firmware" GroupName="firmware" IsChecked="{Binding IsCopter}">
+          <StackPanel>
+            <i:Icon Value="fa-solid fa-fan" FontSize="44" Foreground="#E0E0E0"
+                    HorizontalAlignment="Center" />
+            <TextBlock Text="Multirotor" HorizontalAlignment="Center" />
+          </StackPanel>
+        </RadioButton>
+        <RadioButton Classes="firmware" GroupName="firmware" IsChecked="{Binding IsHeli}">
+          <StackPanel>
+            <i:Icon Value="fa-solid fa-helicopter" FontSize="44" Foreground="#E0E0E0"
+                    HorizontalAlignment="Center" />
+            <TextBlock Text="Helicopter" HorizontalAlignment="Center" />
+          </StackPanel>
+        </RadioButton>
+      </StackPanel>
+
+      <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+        <TextBlock Classes="lbl" Text="Version" />
+        <ComboBox
+          MinWidth="140"
+          ItemsSource="{Binding Channels}"
+          SelectedIndex="{Binding SelectedChannelIndex}"
+        />
+        <TextBlock Classes="lbl" Text="Frame" />
+        <ComboBox
+          MinWidth="140"
+          ItemsSource="{Binding Models}"
+          SelectedItem="{Binding SelectedModel}"
+        />
+      </StackPanel>
+
+      <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+        <TextBlock Classes="lbl" Text="Heading" />
+        <NumericUpDown
+          Width="110"
+          Minimum="0"
+          Maximum="360"
+          Increment="1"
+          Value="{Binding Heading}"
+        />
+        <TextBlock Classes="lbl" Text="Speed" />
+        <NumericUpDown
+          Width="110"
+          Minimum="1"
+          Maximum="100"
+          Increment="1"
+          Value="{Binding SimSpeed}"
+        />
+        <CheckBox Content="Wipe EEPROM" Foreground="#E0E0E0" IsChecked="{Binding WipeEeprom}" />
+      </StackPanel>
+
+      <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+        <TextBlock Classes="lbl" Text="Extra cmdline" />
+        <TextBox
+          Width="380"
+          Watermark="extra SITL arguments"
+          Text="{Binding ExtraCmdline}"
+        />
+      </StackPanel>
+
+      <Border Background="#252627" CornerRadius="4" Padding="10">
+        <StackPanel Spacing="8">
+          <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+            <TextBlock Classes="lbl" Text="Advanced users — SITL swarm" />
+            <TextBlock Classes="lbl" Text="Instances" />
+            <NumericUpDown
+              Width="80"
+              Minimum="2"
+              Maximum="50"
+              Increment="1"
+              Value="{Binding SwarmCount}"
+            />
+          </StackPanel>
+          <WrapPanel HorizontalAlignment="Center">
+            <Button
+              Content="Copter swarm — single link"
+              Command="{Binding StartCopterSingleLinkSwarmCommand}"
+              Margin="4"
+            />
+            <Button
+              Content="Copter swarm — multilink"
+              Command="{Binding StartCopterMultiLinkSwarmCommand}"
+              Margin="4"
+            />
+            <Button
+              Content="Plane swarm — multilink"
+              Command="{Binding StartPlaneMultiLinkSwarmCommand}"
+              Margin="4"
+            />
+            <Button
+              Content="Rover swarm — multilink"
+              Command="{Binding StartRoverMultiLinkSwarmCommand}"
+              Margin="4"
+            />
+          </WrapPanel>
+        </StackPanel>
+      </Border>
+
+      <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
+        <Button
+          Content="{Binding StartStopText}"
+          Command="{Binding StartStopCommand}"
+          MinWidth="120"
+          HorizontalContentAlignment="Center"
+        />
+      </StackPanel>
+      <TextBlock Text="{Binding Status}" Foreground="#888888" HorizontalAlignment="Center" />
+      <Border
+        Background="#2C2D2E"
+        CornerRadius="3"
+        Padding="6"
+        IsVisible="{Binding Log, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+      >
+        <ScrollViewer MaxHeight="120">
+          <TextBox
+            Text="{Binding Log}"
+            IsReadOnly="True"
+            FontFamily="Consolas,Menlo,monospace"
+            FontSize="11"
+            Background="Transparent"
+            BorderThickness="0"
+            Foreground="#C8C8C8"
+          />
+        </ScrollViewer>
+      </Border>
+    </StackPanel>
+  </Grid>
+</UserControl>

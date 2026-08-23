@@ -1,0 +1,121 @@
+<UserControl
+  xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:cv="using:MissionPlanner.ViewModels.GCSViews.ConfigurationView"
+  mc:Ignorable="d"
+  d:DesignWidth="900"
+  d:DesignHeight="700"
+  x:Class="MissionPlanner.Views.GCSViews.ConfigurationView.ConfigFailSafeView"
+  x:DataType="cv:ConfigFailSafeViewModel"
+  Background="{DynamicResource MpControlBg}"
+>
+  <UserControl.Resources>
+    <DataTemplate x:Key="FieldTemplate" x:DataType="cv:ParamField">
+      <Grid ColumnDefinitions="200,180,Auto,*" Margin="0,3">
+        <TextBlock Grid.Column="0" Text="{Binding Label}" Classes="fieldlbl" ToolTip.Tip="{Binding Description}" TextWrapping="Wrap" Margin="0,0,8,0" />
+        <ComboBox Grid.Column="1" IsVisible="{Binding IsCombo}" MinWidth="160" ItemsSource="{Binding Options}" SelectedItem="{Binding SelectedOption}" />
+        <CheckBox Grid.Column="1" IsVisible="{Binding IsBool}" IsChecked="{Binding Checked}" />
+        <NumericUpDown Grid.Column="1" IsVisible="{Binding IsNumeric}" MinWidth="160" Value="{Binding Value}" Minimum="{Binding Min}" Maximum="{Binding Max}" Increment="{Binding Increment}" FormatString="0.######" />
+        <TextBlock Grid.Column="2" Text="{Binding Units}" Classes="fieldlbl" Margin="8,0" />
+        <TextBlock Grid.Column="3" Text="{Binding Status}" Foreground="{DynamicResource MpAccentBrush}" VerticalAlignment="Center" />
+      </Grid>
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <UserControl.Styles>
+    <Style Selector="Border.group">
+      <Setter Property="BorderBrush" Value="#5A5A5A" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="10" />
+      <Setter Property="Margin" Value="0,0,0,10" />
+    </Style>
+    <Style Selector="TextBlock.grouptitle">
+      <Setter Property="Foreground" Value="{DynamicResource MpAccentBrush}" />
+      <Setter Property="FontWeight" Value="Bold" />
+      <Setter Property="Margin" Value="0,0,0,6" />
+    </Style>
+  </UserControl.Styles>
+
+  <ScrollViewer>
+    <Grid ColumnDefinitions="*,320" Margin="16">
+      <StackPanel Grid.Column="0" Spacing="6" Margin="0,0,12,0">
+        <TextBlock Classes="pagetitle" Text="{Binding Title}" />
+        <TextBlock Classes="fieldlbl" Text="{Binding Vehicle, StringFormat='Vehicle: {0}'}" FontWeight="Bold" />
+        <TextBlock Classes="fieldlbl" Text="{Binding Intro}" TextWrapping="Wrap" />
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <Button Content="Refresh Params" Command="{Binding RefreshCommand}" />
+          <Button Content="Wiki" Command="{Binding OpenWikiCommand}" Background="Transparent"
+                  Foreground="CornflowerBlue" Padding="0" Cursor="Hand" VerticalAlignment="Center"
+                  ToolTip.Tip="{Binding WikiUrl}" />
+        </StackPanel>
+
+        <Border Classes="group">
+          <Grid ColumnDefinitions="*,*,*">
+            <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+              <TextBlock Text="Flight Mode" Classes="fieldlbl" HorizontalAlignment="Center" />
+              <TextBlock Text="{Binding CurrentMode}" Foreground="{Binding ModeBrush}" FontSize="26"
+                         FontWeight="Bold" HorizontalAlignment="Center" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+              <TextBlock Text="Armed" Classes="fieldlbl" HorizontalAlignment="Center" />
+              <TextBlock Text="{Binding ArmedText}" FontSize="26" FontWeight="Bold"
+                         HorizontalAlignment="Center" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+              <TextBlock Text="GPS" Classes="fieldlbl" HorizontalAlignment="Center" />
+              <TextBlock Text="{Binding GpsText}" FontSize="20" FontWeight="Bold"
+                         HorizontalAlignment="Center" />
+            </StackPanel>
+          </Grid>
+        </Border>
+
+        <Border Classes="group">
+          <StackPanel>
+            <TextBlock Classes="grouptitle" Text="Radio" />
+            <ItemsControl ItemsSource="{Binding RadioFields}" ItemTemplate="{StaticResource FieldTemplate}" />
+          </StackPanel>
+        </Border>
+
+        <Border Classes="group">
+          <StackPanel>
+            <TextBlock Classes="grouptitle" Text="GCS" />
+            <ItemsControl ItemsSource="{Binding GcsFields}" ItemTemplate="{StaticResource FieldTemplate}" />
+          </StackPanel>
+        </Border>
+
+        <Border Classes="group">
+          <StackPanel>
+            <TextBlock Classes="grouptitle" Text="Battery" />
+            <ItemsControl ItemsSource="{Binding BatteryFields}" ItemTemplate="{StaticResource FieldTemplate}" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+
+      <Border Grid.Column="1" Classes="group" VerticalAlignment="Top">
+        <StackPanel Spacing="4">
+          <TextBlock Text="Live RC Input / Output" Classes="fieldlbl" FontWeight="Bold" Margin="0,0,0,6" />
+          <Grid ColumnDefinitions="40,*,*" ColumnSpacing="6" Margin="0,0,0,2">
+            <TextBlock Grid.Column="1" Text="Radio IN" Classes="fieldlbl" FontWeight="Bold"
+                       HorizontalAlignment="Center" />
+            <TextBlock Grid.Column="2" Text="Servo/Motor OUT" Classes="fieldlbl" FontWeight="Bold"
+                       HorizontalAlignment="Center" />
+          </Grid>
+          <ItemsControl ItemsSource="{Binding Channels}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="cv:FailsafeChannel">
+                <Grid ColumnDefinitions="40,*,*" Margin="0,2" ColumnSpacing="6">
+                  <TextBlock Grid.Column="0" Text="{Binding Number, StringFormat='RC{0}'}" Classes="fieldlbl" VerticalAlignment="Center" />
+                  <ProgressBar Grid.Column="1" Minimum="800" Maximum="2200" Value="{Binding In}" Foreground="{Binding InBrush}" Height="14" />
+                  <ProgressBar Grid.Column="2" Minimum="800" Maximum="2200" Value="{Binding Out}" Foreground="{Binding OutBrush}" Height="14" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock Text="Left bar = input, right bar = output. Throttle (RC3) turns red below FS_THR_VALUE." Classes="fieldlbl" TextWrapping="Wrap" Margin="0,6,0,0" />
+        </StackPanel>
+      </Border>
+    </Grid>
+  </ScrollViewer>
+</UserControl>

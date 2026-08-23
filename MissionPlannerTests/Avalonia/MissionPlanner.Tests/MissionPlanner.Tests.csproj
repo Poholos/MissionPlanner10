@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>MissionPlanner.Tests</AssemblyName>
+    <RootNamespace>MissionPlanner.Tests</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsPublishable>false</IsPublishable>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Avalonia.Headless.XUnit" />
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="HidSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../../MissionPlanner.csproj" />
+    <ProjectReference Include="../../../Plugin/PortableApi/MissionPlanner.PluginApi.csproj">
+      <Aliases>PortablePluginContract</Aliases>
+    </ProjectReference>
+    <ProjectReference Include="../MissionPlanner.LegacyTestPlugin/MissionPlanner.LegacyTestPlugin.csproj"
+                      ReferenceOutputAssembly="false"
+                      SkipGetTargetFrameworkProperties="true" />
+    <ProjectReference Include="../MissionPlanner.TestPlugin/MissionPlanner.TestPlugin.csproj" />
+  </ItemGroup>
+
+  <Target Name="CopyLegacyPluginFixture" AfterTargets="Build">
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)../MissionPlanner.LegacyTestPlugin/bin/$(Configuration)/net472/MissionPlanner.LegacyTestPlugin.dll"
+          DestinationFolder="$(TargetDir)" />
+  </Target>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>

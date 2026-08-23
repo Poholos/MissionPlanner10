@@ -49,3 +49,4 @@ obj3/
 
 /.claude/settings.local.json
 /CLAUDE.md
+**/TestResults/

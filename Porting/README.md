@@ -39,6 +39,39 @@ Regenerate both inventories with:
 ./build/porting/generate-manifests.sh /home/alex/src/MP/MissionPlanner-Avalonia
 ```
 
+Import the pinned application-owned source (not its project graph, tests, old submodule, build
+output, or repository metadata) with:
+
+```bash
+./build/porting/import-application.sh /home/alex/src/MP/MissionPlanner-Avalonia
+```
+
+The importer verifies the exact source commit, refuses a dirty source, uses only the reviewed
+mapping, records source blob identities and performs the planned application namespace migration
+from `MissionPlannerAvalonia.*` to `MissionPlanner.*`. It only replaces the baseline `Program.cs`;
+any other unexpected target collision aborts the import. It also generates
+`ImportedApplicationItems.props`, the explicit transitional compile allow-list used by the root
+project. The allow-list contains only audited imported files and never makes excluded native files
+disappear from `NATIVE_SURFACE.tsv`.
+
+Import the pinned regression-test sources (without copying their old project graph) with:
+
+```bash
+./build/porting/import-tests.sh /home/alex/src/MP/MissionPlanner-Avalonia
+```
+
+Test sources are placed below `MissionPlannerTests/Avalonia`, renamed to the native
+`MissionPlanner.*` namespace family and retain a source-blob record in `IMPORTED_TESTS.tsv`.
+
+Import the pinned historical audits needed to verify the migration with:
+
+```bash
+./build/porting/import-reference-docs.sh /home/alex/src/MP/MissionPlanner-Avalonia
+```
+
+These files live in `Porting/Reference`, remain byte-identical to their recorded source blobs and
+are evidence for the in-place migration rather than a second source tree.
+
 The generator deliberately starts uncertain native C# entries as `unported-blocker`. Classification
 is changed only after code-level comparison; this makes missing functionality visible instead of
 silently excluding it from the new project.

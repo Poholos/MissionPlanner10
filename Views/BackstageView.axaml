@@ -1,0 +1,66 @@
+<UserControl
+  xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:vm="using:MissionPlanner.ViewModels"
+  mc:Ignorable="d"
+  d:DesignWidth="1100"
+  d:DesignHeight="640"
+  x:Class="MissionPlanner.Views.BackstageView"
+  x:DataType="vm:BackstageViewModel"
+  Background="{DynamicResource MpControlBg}"
+>
+  <Grid ColumnDefinitions="Auto,*">
+    <ScrollViewer
+      Grid.Column="0"
+      Background="{DynamicResource MpBgDeepBrush}"
+      Width="210"
+      VerticalScrollBarVisibility="Auto"
+      HorizontalScrollBarVisibility="Disabled"
+    >
+      <ItemsControl ItemsSource="{Binding Pages}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:BackstagePage">
+            <Button
+              Classes="backstage"
+              Classes.sub="{Binding IsSub}"
+              Classes.active="{Binding IsSelected}"
+              IsVisible="{Binding Visible}"
+              Command="{Binding $parent[ItemsControl].((vm:BackstageViewModel)DataContext).SelectCommand}"
+              CommandParameter="{Binding}"
+              HorizontalAlignment="Stretch"
+              HorizontalContentAlignment="Left"
+            >
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock
+                  Grid.Column="0"
+                  Text="{Binding Header}"
+                  VerticalAlignment="Center"
+                  TextTrimming="CharacterEllipsis"
+                />
+                <Border
+                  Grid.Column="1"
+                  IsVisible="{Binding HasBadge}"
+                  Background="#8A5A00"
+                  CornerRadius="3"
+                  Padding="4,1"
+                  Margin="6,0,0,0"
+                  VerticalAlignment="Center"
+                >
+                  <TextBlock Text="{Binding Badge}" FontSize="9" Foreground="#FFD9A0" />
+                </Border>
+              </Grid>
+            </Button>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+
+    <Grid Grid.Column="1">
+      <ContentControl Content="{Binding CurrentContent}" />
+
+      <ContentControl Content="{Binding ParamLoading}" IsVisible="{Binding ShowParamLoading}" />
+    </Grid>
+  </Grid>
+</UserControl>

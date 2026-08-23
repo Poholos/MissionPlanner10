@@ -1,0 +1,60 @@
+<UserControl
+  xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:cv="using:MissionPlanner.ViewModels.GCSViews.ConfigurationView"
+  mc:Ignorable="d"
+  d:DesignWidth="800"
+  d:DesignHeight="640"
+  x:Class="MissionPlanner.Views.GCSViews.ConfigurationView.ConfigAccelCalibrationView"
+  x:DataType="cv:ConfigAccelCalibrationViewModel"
+  Background="{DynamicResource MpControlBg}"
+>
+  <UserControl.Styles>
+    <Style Selector="TextBlock.desc">
+      <Setter Property="Foreground" Value="#E6E6E6" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="Button.cal">
+      <Setter Property="Margin" Value="0,6,0,0" />
+      <Setter Property="MinWidth" Value="150" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+    </Style>
+  </UserControl.Styles>
+
+  <ScrollViewer>
+    <StackPanel Margin="16" Spacing="0">
+      <TextBlock Classes="pagetitle" Text="{Binding Title}" Margin="0,0,0,4" />
+      <Border Classes="titlerule" />
+
+      <StackPanel Margin="0,8,0,0">
+        <TextBlock Classes="desc" Text="Level your Autopilot to set default accelerometer Min/Max (3 axis)." />
+        <TextBlock Classes="desc" Text="This will ask you to place your autopilot on each edge." />
+        <Button Classes="cal" Content="{Binding AccelButtonText}" Command="{Binding CalibrateAccelCommand}"
+                IsEnabled="{Binding AccelButtonEnabled}" />
+      </StackPanel>
+
+      <StackPanel Margin="0,28,0,0">
+        <TextBlock Classes="desc" Text="Level your Autopilot to set default accelerometer offsets (1 axis/AHRS trims)." />
+        <TextBlock Classes="desc" Text="This requires you to place your autopilot flat and level." />
+        <Button Classes="cal" Content="{Binding LevelButtonText}" Command="{Binding CalibrateLevelCommand}" />
+      </StackPanel>
+
+      <StackPanel Margin="0,28,0,0">
+        <TextBlock Classes="desc" Text="Level your Autopilot to set default accelerometer scale factors for level flight (1 axis)." />
+        <TextBlock Classes="desc" Text="This requires you to place your autopilot flat and level." />
+        <Button Classes="cal" Content="{Binding SimpleButtonText}" Command="{Binding SimpleAccelCommand}" />
+      </StackPanel>
+
+      <TextBlock
+        Margin="0,24,0,0"
+        Text="{Binding UserMessage}"
+        Foreground="{DynamicResource MpAccentBrush}"
+        FontSize="16"
+        TextWrapping="Wrap"
+        IsVisible="{Binding UserMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+      />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

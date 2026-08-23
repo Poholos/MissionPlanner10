@@ -1,0 +1,49 @@
+using System;
+using System.Threading.Tasks;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+
+namespace MissionPlanner.ViewModels;
+
+public partial class HelpViewModel : ViewModelBase {
+
+  public string AppVersionDisplay => "Version " + Services.AppVersion.Full;
+
+  [ObservableProperty]
+  private string _updateStatus = "";
+
+  [ObservableProperty]
+  [NotifyCanExecuteChangedFor(nameof(CheckForUpdatesCommand))]
+  [NotifyCanExecuteChangedFor(nameof(CheckForBetaUpdatesCommand))]
+  private bool _isChecking;
+
+  [RelayCommand(CanExecute = nameof(CanCheck))]
+  private async Task CheckForUpdates() {
+    IsChecking = true;
+    UpdateStatus = "Checking for updates…";
+    try {
+      await Services.Updater.CheckNowAsync();
+      UpdateStatus = "";
+    } catch (Exception ex) {
+      UpdateStatus = "Update check failed: " + ex.Message;
+    } finally {
+      IsChecking = false;
+    }
+  }
+
+  [RelayCommand(CanExecute = nameof(CanCheck))]
+  private async Task CheckForBetaUpdates() {
+    IsChecking = true;
+    UpdateStatus = "Checking for signed beta updates…";
+    try {
+      await Services.Updater.CheckBetaNowAsync();
+      UpdateStatus = "";
+    } catch (Exception ex) {
+      UpdateStatus = "Beta update check failed: " + ex.Message;
+    } finally {
+      IsChecking = false;
+    }
+  }
+
+  private bool CanCheck() => !IsChecking;
+}

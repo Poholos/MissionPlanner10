@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/Application/">
+    <Project Path="MissionPlanner.csproj" />
+    <Project Path="Plugin/PortableApi/MissionPlanner.PluginApi.csproj" />
+  </Folder>
+  <Folder Name="/Tests/Avalonia/">
+    <Project Path="MissionPlannerTests/Avalonia/MissionPlanner.LegacyReference/MissionPlanner.LegacyReference.csproj" />
+    <Project Path="MissionPlannerTests/Avalonia/MissionPlanner.LegacyTestPlugin/MissionPlanner.LegacyTestPlugin.csproj" />
+    <Project Path="MissionPlannerTests/Avalonia/MissionPlanner.TestPlugin.Dependency/MissionPlanner.TestPlugin.Dependency.csproj" />
+    <Project Path="MissionPlannerTests/Avalonia/MissionPlanner.TestPlugin/MissionPlanner.TestPlugin.csproj" />
+    <Project Path="MissionPlannerTests/Avalonia/MissionPlanner.Tests/MissionPlanner.Tests.csproj" />
+  </Folder>
+</Solution>

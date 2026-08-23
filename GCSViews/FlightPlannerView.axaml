@@ -1,0 +1,228 @@
+<UserControl
+  xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:vm="using:MissionPlanner.ViewModels"
+  xmlns:ctl="using:MissionPlanner.Controls"
+  mc:Ignorable="d"
+  d:DesignWidth="1100"
+  d:DesignHeight="640"
+  x:Class="MissionPlanner.Views.FlightPlannerView"
+  x:DataType="vm:FlightPlannerViewModel"
+  Background="{DynamicResource MpControlBg}"
+>
+  <Grid x:Name="PlannerLayoutGrid" ColumnDefinitions="*,4,168" RowDefinitions="*,4,210">
+    <ctl:FlightPlannerMap x:Name="Map" Grid.Row="0" Grid.Column="0" />
+    <GridSplitter x:Name="HorizontalDockSplitter" Grid.Row="1" Grid.Column="0"
+                  Background="{DynamicResource MpBg}" ResizeDirection="Rows" />
+
+    <Grid x:Name="WaypointPanel" Grid.Row="2" Grid.Column="0" RowDefinitions="Auto,*">
+        <WrapPanel Grid.Row="0" Margin="6,4" VerticalAlignment="Center">
+          <ctl:FormField Label="{Binding WpRadiusLabel}" LabelWidth="92" Margin="0,2,12,2">
+            <NumericUpDown Classes="sm" Value="{Binding WpRadius}" />
+          </ctl:FormField>
+          <ctl:FormField Label="{Binding LoiterRadiusLabel}" LabelWidth="104" Margin="0,2,12,2">
+            <NumericUpDown Classes="sm" Value="{Binding LoiterRadius}" />
+          </ctl:FormField>
+          <ctl:FormField Label="{Binding DefaultAltLabel}" LabelWidth="92" Margin="0,2,12,2">
+            <NumericUpDown Classes="sm" Value="{Binding DefaultAltDisplay}" />
+          </ctl:FormField>
+          <ctl:FormField Label="Alt Mode" LabelWidth="56" Margin="0,2,12,2">
+            <ComboBox Width="92" ItemsSource="{Binding DefaultFrames}"
+                      SelectedItem="{Binding DefaultFrame}" />
+          </ctl:FormField>
+          <ctl:FormField Label="{Binding AltWarnLabel}" LabelWidth="80" Margin="0,2,12,2">
+            <NumericUpDown Classes="sm" Value="{Binding AltWarnDisplay}" />
+          </ctl:FormField>
+          <Button Content="Add WP" Command="{Binding AddWaypointCommand}" Margin="0,0,8,0" />
+          <CheckBox Content="Spline" IsChecked="{Binding SplineDefault}" Foreground="#E0E0E0"
+                    Margin="0,0,10,0" VerticalAlignment="Center" />
+          <CheckBox Content="Verify Height" IsChecked="{Binding VerifyHeight}" Foreground="#E0E0E0"
+                    Margin="0,0,10,0" VerticalAlignment="Center"
+                    IsVisible="{Binding ShowVerifyHeight}" />
+          <TextBlock Text="Zoom" Classes="fieldlbl" Margin="0,0,4,0" />
+          <Slider x:Name="ZoomSlider" Width="120" Minimum="3" Maximum="20" Value="17"
+                  ValueChanged="OnZoomSliderChanged" VerticalAlignment="Center" Margin="0,0,10,0" />
+
+          <TextBlock Text="Dist" Classes="fieldlbl" Margin="0,0,3,0" />
+          <TextBlock Text="{Binding TotalDist}" Classes="fieldlbl" Margin="0,0,8,0" />
+          <TextBlock Text="Home" Classes="fieldlbl" Margin="0,0,3,0" />
+          <TextBlock Text="{Binding HomeDist}" Classes="fieldlbl" Margin="0,0,8,0" />
+          <TextBlock Text="Prev" Classes="fieldlbl" Margin="0,0,3,0" />
+          <TextBlock Text="{Binding PrevDist}" Classes="fieldlbl" Margin="0,0,10,0" />
+          <TextBlock Text="{Binding Status}" Classes="fieldlbl" VerticalAlignment="Center" />
+        </WrapPanel>
+
+        <DataGrid
+          Grid.Row="1"
+          x:Name="WpGrid"
+          ItemsSource="{Binding Waypoints}"
+          SelectedItem="{Binding SelectedWaypoint}"
+          SelectionChanged="OnWpSelectionChanged"
+          AutoGenerateColumns="False"
+          CanUserReorderColumns="True"
+          GridLinesVisibility="All"
+        >
+          <DataGrid.KeyBindings>
+            <KeyBinding Gesture="Delete" Command="{Binding DeleteWaypointCommand}"
+                        CommandParameter="{Binding SelectedWaypoint}" />
+          </DataGrid.KeyBindings>
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="#" Binding="{Binding Seq}" IsReadOnly="True" Width="40" />
+            <DataGridTemplateColumn Header="Command" Width="190">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:WpRow">
+                  <TextBlock Text="{Binding CommandName}" VerticalAlignment="Center" Margin="4,0"
+                             TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding CommandName}" />
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+              <DataGridTemplateColumn.CellEditingTemplate>
+                <DataTemplate x:DataType="vm:WpRow">
+                  <ComboBox
+                    ItemsSource="{x:Static vm:WpRow.CommandList}"
+                    SelectedItem="{Binding CommandName, Mode=TwoWay}"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Stretch"
+                    Width="180"
+                  />
+                </DataTemplate>
+              </DataGridTemplateColumn.CellEditingTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTextColumn Header="P1" Binding="{Binding P1}" Width="70" />
+            <DataGridTextColumn Header="P2" Binding="{Binding P2}" Width="70" />
+            <DataGridTextColumn Header="P3" Binding="{Binding P3}" Width="70" />
+            <DataGridTextColumn Header="P4" Binding="{Binding P4}" Width="70" />
+            <DataGridTextColumn Header="Lat" Binding="{Binding Lat}" Width="120" />
+            <DataGridTextColumn Header="Lon" Binding="{Binding Lng}" Width="120" />
+            <DataGridTextColumn Header="Alt" Binding="{Binding AltDisplay}" Width="80" />
+            <DataGridTemplateColumn Header="Frame" Width="90">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:WpRow">
+                  <TextBlock Text="{Binding FrameName}" VerticalAlignment="Center" Margin="4,0"
+                             TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding FrameName}" />
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+              <DataGridTemplateColumn.CellEditingTemplate>
+                <DataTemplate x:DataType="vm:WpRow">
+                  <ComboBox
+                    ItemsSource="{x:Static vm:WpRow.FrameList}"
+                    SelectedItem="{Binding FrameName, Mode=TwoWay}"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Stretch"
+                    Width="82"
+                  />
+                </DataTemplate>
+              </DataGridTemplateColumn.CellEditingTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTextColumn Header="Grad %" Binding="{Binding Grad}" IsReadOnly="True" Width="64" />
+            <DataGridTextColumn Header="Angle" Binding="{Binding Angle}" IsReadOnly="True" Width="60" />
+            <DataGridTextColumn Header="Dist" Binding="{Binding Dist}" IsReadOnly="True" Width="64" />
+            <DataGridTextColumn Header="AZ" Binding="{Binding Az}" IsReadOnly="True" Width="50" />
+            <DataGridTextColumn Header="Zone" Binding="{Binding Zone}" Width="50" />
+            <DataGridTextColumn Header="Easting" Binding="{Binding Easting}" Width="90" />
+            <DataGridTextColumn Header="Northing" Binding="{Binding Northing}" Width="90" />
+            <DataGridTextColumn Header="MGRS" Binding="{Binding Mgrs}" Width="130" />
+            <DataGridTemplateColumn Header="Up" Width="44">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:WpRow">
+                  <Button
+                    Content="▲"
+                    Padding="4,0"
+                    Command="{Binding $parent[DataGrid].((vm:FlightPlannerViewModel)DataContext).MoveWaypointUpCommand}"
+                    CommandParameter="{Binding}"
+                  />
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTemplateColumn Header="Down" Width="50">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:WpRow">
+                  <Button
+                    Content="▼"
+                    Padding="4,0"
+                    Command="{Binding $parent[DataGrid].((vm:FlightPlannerViewModel)DataContext).MoveWaypointDownCommand}"
+                    CommandParameter="{Binding}"
+                  />
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTemplateColumn Header="Delete" Width="70">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:WpRow">
+                  <Button
+                    Content="X"
+                    Padding="6,0"
+                    Command="{Binding $parent[DataGrid].((vm:FlightPlannerViewModel)DataContext).DeleteWaypointCommand}"
+                    CommandParameter="{Binding}"
+                  />
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+          </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+
+    <GridSplitter x:Name="VerticalDockSplitter" Grid.Row="0" Grid.RowSpan="3" Grid.Column="1"
+                  Background="{DynamicResource MpBg}" ResizeDirection="Columns" />
+
+    <Border x:Name="ActionPanel" Grid.Row="0" Grid.RowSpan="3" Grid.Column="2"
+            Background="{DynamicResource MpPanelBg}" Padding="6">
+      <ScrollViewer x:Name="ActionScroller" VerticalScrollBarVisibility="Auto"
+                    HorizontalScrollBarVisibility="Disabled">
+        <StackPanel x:Name="ActionItemsPanel" Spacing="6">
+          <CheckBox Content="Grid" IsChecked="{Binding ShowGrid}" Foreground="#E0E0E0" />
+          <Button Content="View KML" HorizontalAlignment="Stretch" Click="OnViewKml" />
+          <ComboBox
+            HorizontalAlignment="Stretch"
+            ItemsSource="{Binding MapTypes}"
+            SelectedItem="{Binding MapType}"
+          />
+          <TextBlock Text="Status: ready" Foreground="#BBBBBB" FontSize="11" />
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Button Content="WMS…" HorizontalAlignment="Stretch" Click="OnConfigureWms" />
+            <Button Content="WMTS…" HorizontalAlignment="Stretch" Click="OnConfigureWmts" />
+          </StackPanel>
+          <Button Content="Inject Custom Map" HorizontalAlignment="Stretch" Click="OnInjectCustomMap" />
+          <Button Content="Survey (Grid)" HorizontalAlignment="Stretch" Click="OnSurveyGrid" />
+          <Separator />
+          <Button Content="Load File" HorizontalAlignment="Stretch" Click="OnLoadFile" />
+          <Button Content="Load + Append" HorizontalAlignment="Stretch" Click="OnLoadAndAppendFile" />
+          <Button Content="Save File" HorizontalAlignment="Stretch" Click="OnSaveFile" />
+          <Separator />
+          <TextBlock Text="Mission Type" Foreground="#BBBBBB" FontSize="11" />
+          <ComboBox
+            HorizontalAlignment="Stretch"
+            ItemsSource="{Binding MissionTypes}"
+            SelectedItem="{Binding MissionType}"
+          />
+          <CheckBox Content="Use MAVFTP" IsChecked="{Binding UseMissionMavFtp, Mode=TwoWay}"
+                    ToolTip.Tip="Use ArduPilot @MISSION files when available; automatically falls back to the normal mission protocol" />
+          <Button Content="Read" HorizontalAlignment="Stretch" Command="{Binding ReadWaypointsCommand}" />
+          <Button Content="Write" HorizontalAlignment="Stretch" Command="{Binding WriteWaypointsCommand}" />
+          <Button
+            Content="Write Fast"
+            HorizontalAlignment="Stretch"
+            Command="{Binding WriteWaypointsFastCommand}"
+          />
+          <Separator />
+          <TextBlock Text="Home Location" Foreground="{DynamicResource MpAccentBrush}" FontWeight="Bold" FontSize="12" />
+          <ctl:FormField Orientation="Vertical" Label="Lat">
+            <TextBox HorizontalAlignment="Stretch" Text="{Binding HomeLat}" />
+          </ctl:FormField>
+          <ctl:FormField Orientation="Vertical" Label="Long">
+            <TextBox HorizontalAlignment="Stretch" Text="{Binding HomeLng}" />
+          </ctl:FormField>
+          <ctl:FormField Orientation="Vertical" Label="{Binding HomeAltLabel}">
+            <TextBox HorizontalAlignment="Stretch" Text="{Binding HomeAltDisplay}" />
+          </ctl:FormField>
+          <Button
+            Content="Set from Vehicle"
+            HorizontalAlignment="Stretch"
+            Command="{Binding SetHomeFromVehicleCommand}"
+          />
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
+  </Grid>
+</UserControl>

@@ -1,0 +1,104 @@
+<UserControl
+  xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:cv="using:MissionPlanner.ViewModels.GCSViews.ConfigurationView"
+  xmlns:controls="using:MissionPlanner.Controls"
+  mc:Ignorable="d"
+  d:DesignWidth="900"
+  d:DesignHeight="760"
+  x:Class="MissionPlanner.Views.GCSViews.ConfigurationView.ConfigTradHeliView"
+  x:DataType="cv:ConfigTradHeliViewModel"
+  Background="{DynamicResource MpControlBg}"
+>
+  <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Margin="16">
+    <TextBlock Grid.Row="0" Classes="pagetitle" Text="{Binding Title}" />
+
+    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,0,0,10">
+      <Button Content="Refresh Params" Command="{Binding RefreshCommand}" />
+      <TextBlock Text="{Binding Intro}" Classes="fieldlbl" TextWrapping="Wrap" VerticalAlignment="Center" />
+    </StackPanel>
+
+    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="16" Margin="0,0,0,8">
+      <TextBlock Text="Swashplate Type" Classes="fieldlbl" VerticalAlignment="Center" />
+      <RadioButton GroupName="swash" Content="CCPM" IsChecked="{Binding SwashIsCcpm}" />
+      <RadioButton GroupName="swash" Content="H1 (Single Servo)" IsChecked="{Binding !SwashIsCcpm}" />
+    </StackPanel>
+
+    <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="6" Margin="0,0,0,10">
+      <TextBlock Text="Manual Servo:" Classes="fieldlbl" VerticalAlignment="Center" />
+      <Button Content="Manual" Command="{Binding SetServoManCommand}" CommandParameter="1" />
+      <Button Content="Max" Command="{Binding SetServoManCommand}" CommandParameter="2" />
+      <Button Content="Center" Command="{Binding SetServoManCommand}" CommandParameter="3" />
+      <Button Content="Min" Command="{Binding SetServoManCommand}" CommandParameter="4" />
+      <Button Content="Test" Command="{Binding SetServoManCommand}" CommandParameter="5" />
+      <Button Content="Disable" Command="{Binding SetServoManCommand}" CommandParameter="0" />
+      <TextBlock Text="{Binding ServoStatus}" Foreground="{DynamicResource MpAccentBrush}" VerticalAlignment="Center" Margin="8,0,0,0" />
+    </StackPanel>
+
+    <ScrollViewer Grid.Row="4">
+      <StackPanel Spacing="12">
+        <Border Background="{DynamicResource MpPanelBg}" BorderBrush="{DynamicResource MpBorderBrush}"
+                BorderThickness="1" CornerRadius="4" Padding="10">
+          <Grid ColumnDefinitions="2*,*" ColumnSpacing="12">
+            <controls:HeliCollectivePlot Grid.Column="0" Height="280" MinWidth="430"
+                StabilizeCurve="{Binding StabilizeCurve}"
+                AcroCurve="{Binding AcroCurve}"
+                CursorPercent="{Binding CollectiveCursorPercent}"
+                ToolTip.Tip="Blue: Stabilize collective points. Gold: Acro expo curve. Red: live collective output position." />
+
+            <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
+              <TextBlock Grid.Row="0" Text="Live servo setup" FontWeight="SemiBold" FontSize="14" />
+              <Grid Grid.Row="1" ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                <StackPanel Grid.Column="0" HorizontalAlignment="Center" Spacing="4">
+                  <TextBlock Text="Collective" HorizontalAlignment="Center" Classes="fieldlbl" />
+                  <ProgressBar Orientation="Vertical" Minimum="800" Maximum="2200"
+                               Value="{Binding CollectiveInput}" Width="34" Height="170" />
+                  <TextBlock Text="{Binding CollectiveInput, StringFormat='{}{0:0} µs'}"
+                             HorizontalAlignment="Center" Classes="fieldlbl" />
+                </StackPanel>
+                <controls:Gauge Grid.Column="1" Width="190" Height="190"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Min="-180" Max="180" Label="Swash servo positions" Units="deg"
+                                Value="{Binding Servo1Position}"
+                                Value2="{Binding Servo2Position}"
+                                Value3="{Binding Servo3Position}" />
+              </Grid>
+              <StackPanel Grid.Row="2" Spacing="4">
+                <TextBlock Text="Rudder" Classes="fieldlbl" />
+                <ProgressBar Orientation="Horizontal" Minimum="800" Maximum="2200"
+                             Value="{Binding RudderInput}" Height="22" />
+                <TextBlock Text="{Binding RudderInput, StringFormat='Current: {0:0} µs'}"
+                           Classes="fieldlbl" />
+                <TextBlock Text="{Binding CollectiveRangeText}" Classes="fieldlbl" />
+                <TextBlock Text="{Binding RudderRangeText}" Classes="fieldlbl" />
+                <TextBlock Text="Range capture runs while H_SV_MAN is active. Remove blades before servo tests."
+                           TextWrapping="Wrap" Foreground="{DynamicResource MpAccentBrush}" />
+              </StackPanel>
+            </Grid>
+          </Grid>
+        </Border>
+
+        <ItemsControl ItemsSource="{Binding Fields}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="cv:ParamField">
+              <Grid ColumnDefinitions="240,200,Auto,*" Margin="0,3">
+                <TextBlock Grid.Column="0" Text="{Binding Label}" Classes="fieldlbl"
+                           ToolTip.Tip="{Binding Description}" TextWrapping="Wrap" Margin="0,0,8,0" />
+                <ComboBox Grid.Column="1" IsVisible="{Binding IsCombo}" MinWidth="180"
+                          ItemsSource="{Binding Options}" SelectedItem="{Binding SelectedOption}" />
+                <CheckBox Grid.Column="1" IsVisible="{Binding IsBool}" IsChecked="{Binding Checked}" />
+                <NumericUpDown Grid.Column="1" IsVisible="{Binding IsNumeric}" MinWidth="180"
+                               Value="{Binding Value}" Minimum="{Binding Min}" Maximum="{Binding Max}"
+                               Increment="{Binding Increment}" FormatString="0.######" />
+                <TextBlock Grid.Column="2" Text="{Binding Units}" Classes="fieldlbl" Margin="8,0" />
+                <TextBlock Grid.Column="3" Text="{Binding Status}" Foreground="{DynamicResource MpAccentBrush}" VerticalAlignment="Center" />
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

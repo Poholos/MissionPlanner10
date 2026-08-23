@@ -1,0 +1,326 @@
+<UserControl
+  xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:vm="using:MissionPlanner.ViewModels"
+  xmlns:controls="using:MissionPlanner.Controls"
+  mc:Ignorable="d"
+  d:DesignWidth="760"
+  d:DesignHeight="640"
+  x:Class="MissionPlanner.Views.GridUIView"
+  x:DataType="vm:GridUIViewModel"
+  Background="{DynamicResource MpControlBg}"
+>
+  <Grid Margin="14" RowDefinitions="Auto,320,*,Auto,Auto">
+    <TextBlock Grid.Row="0" Classes="pagetitle" Text="Survey (Grid)" />
+
+    <Border Grid.Row="1" Margin="0,8,0,0" BorderBrush="{DynamicResource MpBorderBrush}"
+            BorderThickness="1" CornerRadius="4" ClipToBounds="True">
+      <Grid>
+        <controls:SurveyGridPreviewMap x:Name="PreviewMap" />
+
+        <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8"
+                Padding="8,5" CornerRadius="4" Background="#D0202224">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <RadioButton GroupName="boundaryEdit" Content="Pan / vertices" Tag="Pan"
+                         IsChecked="True" Click="OnBoundaryEditMode" />
+            <RadioButton GroupName="boundaryEdit" Content="Rectangle" Tag="DrawRectangle"
+                         Click="OnBoundaryEditMode" />
+            <RadioButton GroupName="boundaryEdit" Content="Shift edge" Tag="ShiftEdge"
+                         Click="OnBoundaryEditMode" />
+            <RadioButton GroupName="boundaryEdit" Content="Move boundary" Tag="MoveBoundary"
+                         Click="OnBoundaryEditMode" />
+          </StackPanel>
+        </Border>
+
+        <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8"
+                Padding="8,5" CornerRadius="4" Background="#D0202224">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <CheckBox Content="Boundary" IsChecked="{Binding ShowBoundary}" />
+            <CheckBox Content="Grid" IsChecked="{Binding ShowGrid}" />
+            <CheckBox Content="Markers" IsChecked="{Binding ShowMarkers}" />
+            <CheckBox Content="Internals" IsChecked="{Binding ShowInternals}" />
+            <CheckBox Content="Footprints" IsChecked="{Binding ShowFootprints}" />
+            <Button Content="Fit" Padding="8,2" Click="OnFitPreview" />
+          </StackPanel>
+        </Border>
+
+        <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="8"
+                Padding="8,5" CornerRadius="4" Background="#D0202224"
+                IsVisible="{Binding ShowFootprints}">
+          <StackPanel Orientation="Horizontal" Spacing="7">
+            <TextBlock Text="Overlap" VerticalAlignment="Center" Margin="0,0,3,0" />
+            <Border Width="18" Height="18" CornerRadius="9" Background="#8C800080"><TextBlock Text="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10" /></Border>
+            <Border Width="18" Height="18" CornerRadius="9" Background="#8C0000FF"><TextBlock Text="2" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10" /></Border>
+            <Border Width="18" Height="18" CornerRadius="9" Background="#8C00FFFF"><TextBlock Text="3" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10" Foreground="Black" /></Border>
+            <Border Width="18" Height="18" CornerRadius="9" Background="#8C008000"><TextBlock Text="4" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10" /></Border>
+            <Border Width="18" Height="18" CornerRadius="9" Background="#8CFFFF00"><TextBlock Text="5" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10" Foreground="Black" /></Border>
+            <Border Width="18" Height="18" CornerRadius="9" Background="#8CFFA500"><TextBlock Text="6" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10" Foreground="Black" /></Border>
+            <Border Width="18" Height="18" CornerRadius="9" Background="#8CFF0000"><TextBlock Text="7" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10" /></Border>
+            <Border Width="18" Height="18" CornerRadius="9" Background="#8C8B0000"><TextBlock Text="8+" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="9" /></Border>
+          </StackPanel>
+        </Border>
+      </Grid>
+    </Border>
+
+    <Grid Grid.Row="2" ColumnDefinitions="*,12,300" Margin="0,8,0,0">
+
+      <TabControl Grid.Column="0">
+
+        <TabItem Header="Simple">
+          <ScrollViewer>
+            <StackPanel Margin="8" Spacing="8">
+              <Grid ColumnDefinitions="150,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="8">
+                <TextBlock Grid.Row="0" Grid.Column="0" Classes="fieldlbl" Text="Altitude (m)" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="0" Grid.Column="1" Minimum="-100" Maximum="99999" Increment="1"
+                               Value="{Binding Altitude}" />
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Classes="fieldlbl" Text="Angle (deg)" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="1" Grid.Column="1" Minimum="0" Maximum="360" Increment="1"
+                               Value="{Binding Angle}" />
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Classes="fieldlbl" Text="Flying Speed (m/s)" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="2" Grid.Column="1" Minimum="0" Maximum="200" Increment="0.1"
+                               Value="{Binding FlyingSpeed}" />
+
+                <TextBlock Grid.Row="3" Grid.Column="0" Classes="fieldlbl" Text="Camera" VerticalAlignment="Center" />
+                <ComboBox Grid.Row="3" Grid.Column="1" HorizontalAlignment="Stretch"
+                          ItemsSource="{Binding Cameras}" SelectedItem="{Binding SelectedCamera}" />
+
+                <CheckBox Grid.Row="4" Grid.Column="1" Content="Camera facing forward (vs sideways)"
+                          IsChecked="{Binding CamDirection}" />
+              </Grid>
+            </StackPanel>
+          </ScrollViewer>
+        </TabItem>
+
+        <TabItem Header="Mission">
+          <ScrollViewer>
+            <StackPanel Margin="8" Spacing="10">
+              <CheckBox Content="Add DO_CHANGE_SPEED at survey start"
+                        IsChecked="{Binding UseSpeed}" />
+
+              <Grid ColumnDefinitions="170,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                    RowSpacing="8">
+                <TextBlock Grid.Row="0" Grid.Column="0" Classes="fieldlbl" Text="Camera trigger"
+                           VerticalAlignment="Center" />
+                <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding TriggerModes}"
+                          SelectedItem="{Binding TriggerMode}" />
+
+                <CheckBox Grid.Row="1" Grid.Column="1"
+                          Content="Start/stop trigger at strip boundaries"
+                          IsChecked="{Binding StopTriggerAtStripEnds}" />
+
+                <CheckBox Grid.Row="2" Grid.Column="1" Content="Add takeoff command"
+                          IsChecked="{Binding AddTakeoff}" />
+
+                <TextBlock Grid.Row="3" Grid.Column="0" Classes="fieldlbl" Text="Takeoff altitude (m)"
+                           VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="3" Grid.Column="1" Minimum="0" Maximum="10000"
+                               Value="{Binding TakeoffAltitude}" />
+
+                <TextBlock Grid.Row="4" Grid.Column="0" Classes="fieldlbl" Text="Finish with"
+                           VerticalAlignment="Center" />
+                <ComboBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding FinishActions}"
+                          SelectedItem="{Binding FinishAction}" />
+
+                <CheckBox Grid.Row="5" Grid.Column="1" Content="Spline strip starts"
+                          IsChecked="{Binding UseSplineWaypoints}" />
+
+                <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                  <CheckBox Content="Hold heading" IsChecked="{Binding HoldHeading}"
+                            VerticalAlignment="Center" />
+                  <NumericUpDown Width="100" Minimum="0" Maximum="359" Increment="1"
+                                 Value="{Binding Heading}" />
+                  <TextBlock Text="deg" VerticalAlignment="Center" />
+                </StackPanel>
+
+                <TextBlock Grid.Row="7" Grid.Column="0" Classes="fieldlbl" Text="Waypoint delay (s)"
+                           VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="7" Grid.Column="1" Minimum="0" Maximum="3600"
+                               Increment="0.1" Value="{Binding WaypointDelay}" />
+
+                <TextBlock Grid.Row="8" Grid.Column="0" Classes="fieldlbl" Text="Split into flights"
+                           VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="8" Grid.Column="1" Minimum="1" Maximum="100"
+                               Increment="1" Value="{Binding SplitCount}" />
+              </Grid>
+
+              <Border Background="{DynamicResource MpInputBg}" CornerRadius="4" Padding="10">
+                <StackPanel Spacing="8">
+                  <TextBlock Classes="fieldlbl" Text="Servo trigger settings" />
+                  <Grid ColumnDefinitions="170,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="8">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Classes="fieldlbl" Text="Servo number"
+                               VerticalAlignment="Center" />
+                    <NumericUpDown Grid.Row="0" Grid.Column="1" Minimum="1" Maximum="16"
+                                   Value="{Binding ServoNumber}" />
+                    <TextBlock Grid.Row="1" Grid.Column="0" Classes="fieldlbl" Text="Repeat PWM / seconds"
+                               VerticalAlignment="Center" />
+                    <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                      <NumericUpDown Width="100" Minimum="800" Maximum="2200"
+                                     Value="{Binding ServoPwm}" />
+                      <NumericUpDown Width="100" Minimum="0" Maximum="60" Increment="0.1"
+                                     Value="{Binding ServoRepeatSeconds}" />
+                    </StackPanel>
+                    <TextBlock Grid.Row="2" Grid.Column="0" Classes="fieldlbl" Text="Strip start PWM"
+                               VerticalAlignment="Center" />
+                    <NumericUpDown Grid.Row="2" Grid.Column="1" Minimum="800" Maximum="2200"
+                                   Value="{Binding ServoLowPwm}" />
+                    <TextBlock Grid.Row="3" Grid.Column="0" Classes="fieldlbl" Text="Strip end PWM"
+                               VerticalAlignment="Center" />
+                    <NumericUpDown Grid.Row="3" Grid.Column="1" Minimum="800" Maximum="2200"
+                                   Value="{Binding ServoHighPwm}" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+
+              <TextBlock Classes="hint" TextWrapping="Wrap"
+                         Text="Distance uses the photo spacing from the Camera/Grid calculation. Digicam and Repeat servo create a command at every photo point unless strip start/stop is selected. Set servo switches PWM at strip boundaries. Split flights require Takeoff and an RTL/Land finish; DO_JUMP entries select each complete strip-bounded segment." />
+            </StackPanel>
+          </ScrollViewer>
+        </TabItem>
+
+        <TabItem Header="Grid Options">
+          <ScrollViewer>
+            <StackPanel Margin="8" Spacing="8">
+              <Grid ColumnDefinitions="170,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="8">
+                <TextBlock Grid.Row="0" Grid.Column="0" Classes="fieldlbl" Text="Distance between lines (m)" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="0" Grid.Column="1" Minimum="0.1" Maximum="1000" Increment="1"
+                               Value="{Binding Distance}" />
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Classes="fieldlbl" Text="Overshoot (m)" VerticalAlignment="Center" />
+                <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                  <NumericUpDown Width="110" Minimum="0" Maximum="1000" Value="{Binding Overshoot1}" />
+                  <NumericUpDown Width="110" Minimum="0" Maximum="1000" Value="{Binding Overshoot2}" />
+                </StackPanel>
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Classes="fieldlbl" Text="Overlap %" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="2" Grid.Column="1" Minimum="0" Maximum="99" Increment="1"
+                               Value="{Binding Overlap}" />
+
+                <TextBlock Grid.Row="3" Grid.Column="0" Classes="fieldlbl" Text="Sidelap %" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="3" Grid.Column="1" Minimum="0" Maximum="99" Increment="1"
+                               Value="{Binding Sidelap}" />
+
+                <TextBlock Grid.Row="4" Grid.Column="0" Classes="fieldlbl" Text="Lead-in (m)" VerticalAlignment="Center" />
+                <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                  <NumericUpDown Width="110" Minimum="0" Maximum="1000" Value="{Binding Leadin}" />
+                  <NumericUpDown Width="110" Minimum="0" Maximum="1000" Value="{Binding Leadin2}" />
+                </StackPanel>
+
+                <TextBlock Grid.Row="5" Grid.Column="0" Classes="fieldlbl" Text="Start From" VerticalAlignment="Center" />
+                <ComboBox Grid.Row="5" Grid.Column="1" HorizontalAlignment="Stretch"
+                          ItemsSource="{Binding StartPositions}" SelectedItem="{Binding StartFrom}" />
+
+                <TextBlock Grid.Row="6" Grid.Column="0" Classes="fieldlbl" Text="Start point vertex" VerticalAlignment="Center"
+                           IsVisible="{Binding IsPointStart}" />
+                <NumericUpDown Grid.Row="6" Grid.Column="1" Minimum="1" Maximum="{Binding BoundaryPointCount}"
+                               Value="{Binding StartPointNumber}" IsVisible="{Binding IsPointStart}" />
+
+                <TextBlock Grid.Row="7" Grid.Column="0" Classes="fieldlbl" Text="Min Lane Separation" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="7" Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding MinLaneSeparation}" />
+
+                <TextBlock Grid.Row="8" Grid.Column="0" Classes="fieldlbl" Text="Corridor Width (m)" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="8" Grid.Column="1" Minimum="0" Maximum="2000" Value="{Binding CorridorWidth}" />
+
+                <CheckBox Grid.Row="9" Grid.Column="1" Content="Optimise for distance"
+                          IsChecked="{Binding OptimizeForDistance}" />
+              </Grid>
+
+              <StackPanel Orientation="Horizontal" Spacing="14">
+                <CheckBox Content="Cross Grid" IsChecked="{Binding CrossGrid}" />
+                <CheckBox Content="Corridor" IsChecked="{Binding Corridor}" />
+                <CheckBox Content="Spiral" IsChecked="{Binding Spiral}" />
+              </StackPanel>
+
+              <Border Background="{DynamicResource MpInputBg}" CornerRadius="4" Padding="10" IsVisible="{Binding Spiral}">
+                <Grid ColumnDefinitions="170,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
+                  <TextBlock Grid.Row="0" Grid.Column="0" Classes="fieldlbl" Text="Clockwise Laps" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Row="0" Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding ClockwiseLaps}" />
+                  <TextBlock Grid.Row="1" Grid.Column="0" Classes="fieldlbl" Text="Laps" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Row="1" Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding Laps}" />
+                  <CheckBox Grid.Row="2" Grid.Column="1" Content="Match Spiral Perimeter"
+                            IsChecked="{Binding MatchSpiralPerimeter}" />
+                </Grid>
+              </Border>
+            </StackPanel>
+          </ScrollViewer>
+        </TabItem>
+
+        <TabItem Header="Camera">
+          <ScrollViewer>
+            <StackPanel Margin="8" Spacing="8">
+              <Grid ColumnDefinitions="150,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="8">
+                <TextBlock Grid.Row="0" Grid.Column="0" Classes="fieldlbl" Text="Focal Length (mm)" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="0" Grid.Column="1" Minimum="0.1" Maximum="500" Increment="0.1"
+                               Value="{Binding FocalLength}" />
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Classes="fieldlbl" Text="Sensor W x H (mm)" VerticalAlignment="Center" />
+                <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                  <TextBox Width="120" Text="{Binding SensorWidth}" />
+                  <TextBox Width="120" Text="{Binding SensorHeight}" />
+                </StackPanel>
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Classes="fieldlbl" Text="Image W x H (px)" VerticalAlignment="Center" />
+                <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                  <TextBox Width="120" Text="{Binding ImageWidth}" />
+                  <TextBox Width="120" Text="{Binding ImageHeight}" />
+                </StackPanel>
+
+                <TextBlock Grid.Row="3" Grid.Column="0" Classes="fieldlbl" Text="Footprint (m)" VerticalAlignment="Center" />
+                <TextBlock Grid.Row="3" Grid.Column="1" VerticalAlignment="Center"
+                           Text="{Binding FootprintText}" />
+
+                <TextBlock Grid.Row="4" Grid.Column="0" Classes="fieldlbl" Text="Ground Res" VerticalAlignment="Center" />
+                <TextBlock Grid.Row="4" Grid.Column="1" VerticalAlignment="Center"
+                           Text="{Binding CmPixel}" />
+              </Grid>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="Load sample JPEG…" Click="OnLoadSamplePhoto" />
+                <Button Content="Save camera profile…" Click="OnSaveCameraProfile" />
+              </StackPanel>
+            </StackPanel>
+          </ScrollViewer>
+        </TabItem>
+      </TabControl>
+
+      <Border Grid.Column="2" Background="{DynamicResource MpInputBg}" CornerRadius="4" Padding="12">
+        <StackPanel Spacing="6">
+          <TextBlock Classes="fieldlbl" FontSize="15" Text="Stats" />
+          <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="4">
+            <TextBlock Grid.Row="0" Grid.Column="0" Classes="fieldlbl" Text="Area" />
+            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding AreaText}" />
+            <TextBlock Grid.Row="1" Grid.Column="0" Classes="fieldlbl" Text="Total Distance" />
+            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding DistanceText}" />
+            <TextBlock Grid.Row="2" Grid.Column="0" Classes="fieldlbl" Text="Photos" />
+            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding PhotoCount}" />
+            <TextBlock Grid.Row="3" Grid.Column="0" Classes="fieldlbl" Text="Waypoints" />
+            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding WaypointCount}" />
+            <TextBlock Grid.Row="4" Grid.Column="0" Classes="fieldlbl" Text="Strips" />
+            <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding StripCount}" />
+            <TextBlock Grid.Row="5" Grid.Column="0" Classes="fieldlbl" Text="Flight Time" />
+            <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding FlightTimeText}" />
+            <TextBlock Grid.Row="6" Grid.Column="0" Classes="fieldlbl" Text="Photo Every" />
+            <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding PhotoEveryText}" />
+            <TextBlock Grid.Row="7" Grid.Column="0" Classes="fieldlbl" Text="Min Shutter" />
+            <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding MinShutterText}" />
+            <TextBlock Grid.Row="8" Grid.Column="0" Classes="fieldlbl" Text="Turn Radius" />
+            <TextBlock Grid.Row="8" Grid.Column="1" Text="{Binding TurnRadText}" />
+            <TextBlock Grid.Row="9" Grid.Column="0" Classes="fieldlbl" Text="Ground Elevation" />
+            <TextBlock Grid.Row="9" Grid.Column="1" Text="{Binding GroundElevationText}" />
+          </Grid>
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <TextBlock Grid.Row="3" Margin="0,8,0,0" Text="{Binding Status}" Foreground="{DynamicResource MpAccentBrush}" TextWrapping="Wrap" />
+
+    <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,8,0,0">
+      <Button Content="Load .grid…" Click="OnLoadGrid" />
+      <Button Content="Save .grid…" Click="OnSaveGrid" />
+      <Button Content="Cancel" Command="{Binding CloseCommand}" />
+      <Button Content="Accept" Command="{Binding AcceptCommand}" />
+    </StackPanel>
+  </Grid>
+</UserControl>

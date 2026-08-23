@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>MissionPlanner.TestPlugin</AssemblyName>
+    <RootNamespace>MissionPlanner.TestPlugin</RootNamespace>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../../Plugin/PortableApi/MissionPlanner.PluginApi.csproj" />
+    <ProjectReference Include="../MissionPlanner.TestPlugin.Dependency/MissionPlanner.TestPlugin.Dependency.csproj" />
+  </ItemGroup>
+</Project>
