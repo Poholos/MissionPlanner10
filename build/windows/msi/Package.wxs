@@ -17,34 +17,40 @@
 
     <StandardDirectory Id="ProgramFiles64Folder">
       <!-- Keep the port beside, rather than over, an official WinForms Mission Planner install. -->
-      <Directory Id="INSTALLFOLDER" Name="MissionPlannerAvalonia">
-        <Component Id="MainExecutable" Bitness="always64">
-          <File Id="MissionPlannerExecutable"
-                Source="!(bindpath.PublishDir)MissionPlanner.exe"
-                KeyPath="yes" />
-        </Component>
-
-        <!-- SQLite's native PE is versioned but language-neutral. LANGID 0 keeps MSI repair
-             decisions deterministic and satisfies ICE60 without hiding installer validation. -->
-        <Component Id="SqliteNative" Bitness="always64">
-          <File Id="SqliteNativeFile"
-                Source="!(bindpath.PublishDir)e_sqlite3.dll"
-                DefaultLanguage="0"
-                KeyPath="yes" />
-        </Component>
-
-        <Files Include="!(bindpath.PublishDir)**">
-          <Exclude Files="!(bindpath.PublishDir)MissionPlanner.exe" />
-          <Exclude Files="!(bindpath.PublishDir)e_sqlite3.dll" />
-        </Files>
-      </Directory>
+      <Directory Id="INSTALLFOLDER" Name="MissionPlannerAvalonia" />
     </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+    <StandardDirectory Id="DesktopFolder" />
 
-    <!-- Non-advertised shortcuts must use an HKCU registry value as their component
-         key path (ICE43). Keeping each shortcut in a per-user-only component also
-         avoids mixing it with the per-machine executable component (ICE57). -->
-    <StandardDirectory Id="ProgramMenuFolder">
-      <Component Id="StartMenuShortcutComponent" Bitness="always64">
+    <!-- Windows Installer installs resources only when their components belong to a feature.
+         Keep the package intentionally monolithic: the application is either present in full or
+         absent, which also gives administrative extraction and repair one authoritative set. -->
+    <Feature Id="Main" Title="Mission Planner" AllowAbsent="no">
+      <Component Id="MainExecutable" Directory="INSTALLFOLDER" Bitness="always64">
+        <File Id="MissionPlannerExecutable"
+              Source="!(bindpath.PublishDir)MissionPlanner.exe"
+              KeyPath="yes" />
+      </Component>
+
+      <!-- SQLite's native PE is versioned but language-neutral. LANGID 0 keeps MSI repair
+           decisions deterministic and satisfies ICE60 without hiding installer validation. -->
+      <Component Id="SqliteNative" Directory="INSTALLFOLDER" Bitness="always64">
+        <File Id="SqliteNativeFile"
+              Source="!(bindpath.PublishDir)e_sqlite3.dll"
+              DefaultLanguage="0"
+              KeyPath="yes" />
+      </Component>
+
+      <Files Directory="INSTALLFOLDER" Include="!(bindpath.PublishDir)**">
+        <Exclude Files="!(bindpath.PublishDir)MissionPlanner.exe" />
+        <Exclude Files="!(bindpath.PublishDir)e_sqlite3.dll" />
+      </Files>
+
+      <!-- Non-advertised shortcuts must use an HKCU registry value as their component
+           key path (ICE43). Keeping each shortcut in a per-user-only component also
+           avoids mixing it with the per-machine executable component (ICE57). -->
+      <Component Id="StartMenuShortcutComponent"
+                 Directory="ProgramMenuFolder" Bitness="always64">
         <Shortcut Id="StartMenuShortcut"
                   Name="Mission Planner (Avalonia)"
                   Description="Ground control station for ArduPilot vehicles"
@@ -58,10 +64,9 @@
                        Value="1"
                        KeyPath="yes" />
       </Component>
-    </StandardDirectory>
 
-    <StandardDirectory Id="DesktopFolder">
-      <Component Id="DesktopShortcutComponent" Bitness="always64">
+      <Component Id="DesktopShortcutComponent"
+                 Directory="DesktopFolder" Bitness="always64">
         <Shortcut Id="DesktopShortcut"
                   Name="Mission Planner (Avalonia)"
                   Description="Ground control station for ArduPilot vehicles"
@@ -75,6 +80,6 @@
                        Value="1"
                        KeyPath="yes" />
       </Component>
-    </StandardDirectory>
+    </Feature>
   </Package>
 </Wix>

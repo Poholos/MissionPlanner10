@@ -125,6 +125,9 @@ jobs:
             }
             foreach ($requiredFile in $requiredFiles) {
               if (-not (Get-ChildItem $msiRoot -Recurse -File -Filter $requiredFile)) {
+                Get-Content $installLog |
+                  Select-String -Pattern 'INSTALLFOLDER|Feature: Main|Component:' |
+                  Select-Object -Last 100
                 throw "Installed MSI does not contain $requiredFile"
               }
             }
@@ -138,6 +141,7 @@ jobs:
           }
 
       - uses: actions/upload-artifact@v7
+        if: always()
         with:
           name: missionplanner-windows-x64
           path: |
