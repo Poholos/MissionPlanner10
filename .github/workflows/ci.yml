@@ -86,7 +86,7 @@ jobs:
         shell: bash
         run: ./build/windows/package.sh all
 
-      - name: Validate ZIP and MSI administrative extraction
+      - name: Validate ZIP and MSI installation
         shell: pwsh
         run: |
           $zip = Get-ChildItem out/packages/*win-x64.zip | Select-Object -First 1
@@ -110,15 +110,28 @@ jobs:
             }
           }
 
-          $msiRoot = Join-Path $env:RUNNER_TEMP "msi"
-          New-Item -ItemType Directory -Force -Path $msiRoot | Out-Null
-          $process = Start-Process msiexec.exe -Wait -PassThru -ArgumentList @(
-            '/a', $msi.FullName, '/qn', "TARGETDIR=$msiRoot"
-          )
-          if ($process.ExitCode -ne 0) { throw "MSI validation failed: $($process.ExitCode)" }
-          foreach ($requiredFile in $requiredFiles) {
-            if (-not (Get-ChildItem $msiRoot -Recurse -File -Filter $requiredFile)) {
-              throw "MSI does not contain $requiredFile"
+          $msiRoot = Join-Path $env:RUNNER_TEMP "msi-install"
+          $installLog = Join-Path $env:RUNNER_TEMP "msi-install.log"
+          try {
+            $process = Start-Process msiexec.exe -Wait -PassThru -ArgumentList @(
+              '/i', $msi.FullName, '/qn', '/norestart',
+              "INSTALLFOLDER=$msiRoot", '/L*V', $installLog
+            )
+            if ($process.ExitCode -ne 0) {
+              Get-Content $installLog -Tail 200
+              throw "MSI installation failed: $($process.ExitCode)"
+            }
+            foreach ($requiredFile in $requiredFiles) {
+              if (-not (Get-ChildItem $msiRoot -Recurse -File -Filter $requiredFile)) {
+                throw "Installed MSI does not contain $requiredFile"
+              }
+            }
+          } finally {
+            $process = Start-Process msiexec.exe -Wait -PassThru -ArgumentList @(
+              '/x', $msi.FullName, '/qn', '/norestart'
+            )
+            if ($process.ExitCode -ne 0 -and $process.ExitCode -ne 1605) {
+              throw "MSI cleanup failed: $($process.ExitCode)"
             }
           }
 

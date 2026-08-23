@@ -3,6 +3,9 @@
     <OutputType>Package</OutputType>
     <OutputName>MissionPlanner</OutputName>
     <InstallerPlatform>x64</InstallerPlatform>
+    <!-- e_sqlite3.dll is intentionally recorded with neutral LANGID 0. Its PE version
+         resource has no language, so WiX 1101 is expected while ICE60 is satisfied. -->
+    <SuppressSpecificWarnings>$(SuppressSpecificWarnings);1101</SuppressSpecificWarnings>
     <DefineConstants>
       InstallerVersion=$(InstallerVersion);
       FullVersion=$(FullVersion);

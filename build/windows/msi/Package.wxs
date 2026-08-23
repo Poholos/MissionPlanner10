@@ -48,7 +48,7 @@
         <Shortcut Id="StartMenuShortcut"
                   Name="Mission Planner (Avalonia)"
                   Description="Ground control station for ArduPilot vehicles"
-                  Target="[#MissionPlannerExecutable]"
+                  Target="[INSTALLFOLDER]MissionPlanner.exe"
                   WorkingDirectory="INSTALLFOLDER"
                   Icon="MissionPlanner.exe" />
         <RegistryValue Root="HKCU"
@@ -65,7 +65,7 @@
         <Shortcut Id="DesktopShortcut"
                   Name="Mission Planner (Avalonia)"
                   Description="Ground control station for ArduPilot vehicles"
-                  Target="[#MissionPlannerExecutable]"
+                  Target="[INSTALLFOLDER]MissionPlanner.exe"
                   WorkingDirectory="INSTALLFOLDER"
                   Icon="MissionPlanner.exe" />
         <RegistryValue Root="HKCU"
