@@ -26,7 +26,7 @@ Updated: **2026-08-24**.
   migration evidence, not a copied source tree.
 - A clean Release build of the complete test graph succeeds with zero warnings and zero errors
   after resolving all 156 inherited `ExtLibs` diagnostics without a repository-wide `NoWarn`; the
-  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1147/1147**
+  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1148/1148**
   Avalonia tests pass on Linux. A 12-second Xvfb launch reaches the normal Avalonia event loop with
   no console errors.
 - Informational version is derived from the current native Mission Planner version and formatted as
@@ -64,14 +64,13 @@ Updated: **2026-08-24**.
 
 ## Immediate next step
 
-Commit and push the GTU key synchronization and the corrected Windows MSI install smoke. Require
-the resulting GitHub run to perform a real default-path MSI install/uninstall, build/sign both
-`.app` archives on macOS, repeat Linux package smoke and complete CodeQL. Fix any runner-only issue
-before creating a release tag or requesting approval to merge to `master`.
+Require the current GitHub run to perform a real default-path MSI install/uninstall, build/sign both
+`.app` archives on macOS, repeat Linux package smoke and complete CodeQL. Once that run is green,
+start the conservative unused-file/directory/build-system audit on a separate cleanup branch.
 
 ## Acceptance baseline
 
-- At least 1147 port tests retained and passing.
+- At least 1148 port tests retained and passing.
 - Clean Release build has zero errors and zero warnings.
 - `linux-x64`, `win-x64`, `osx-x64`, and `osx-arm64` publish gates pass.
 - Linux `.deb` and portable archive build and smoke successfully.

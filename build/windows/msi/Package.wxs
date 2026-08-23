@@ -28,6 +28,7 @@
     <Feature Id="Main" Title="Mission Planner" AllowAbsent="no">
       <Component Id="MainExecutable" Directory="INSTALLFOLDER" Bitness="always64">
         <File Id="MissionPlannerExecutable"
+              Name="MissionPlanner.exe"
               Source="!(bindpath.PublishDir)MissionPlanner.exe"
               KeyPath="yes" />
       </Component>
@@ -36,6 +37,7 @@
            decisions deterministic and satisfies ICE60 without hiding installer validation. -->
       <Component Id="SqliteNative" Directory="INSTALLFOLDER" Bitness="always64">
         <File Id="SqliteNativeFile"
+              Name="e_sqlite3.dll"
               Source="!(bindpath.PublishDir)e_sqlite3.dll"
               DefaultLanguage="0"
               KeyPath="yes" />
