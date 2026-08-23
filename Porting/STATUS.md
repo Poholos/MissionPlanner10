@@ -26,7 +26,7 @@ Updated: **2026-08-24**.
   migration evidence, not a copied source tree.
 - A clean Release build of the complete test graph succeeds with zero warnings and zero errors
   after resolving all 156 inherited `ExtLibs` diagnostics without a repository-wide `NoWarn`; the
-  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1146/1146**
+  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1147/1147**
   Avalonia tests pass on Linux. A 12-second Xvfb launch reaches the normal Avalonia event loop with
   no console errors.
 - Informational version is derived from the current native Mission Planner version and formatted as
@@ -38,11 +38,12 @@ Updated: **2026-08-24**.
 - Stable and beta auto-updates now select signed manifests directly from this fork's GitHub
   Releases. The matching Ed25519 private key is present only as the repository secret
   `UPDATE_SIGNING_KEY`; the committed public key is verified again during release.
-- NV5 encryption-key handling is synchronized with GTU commit `5771e7b0`: the UI accepts printable
-  or hexadecimal key material, key-byte parameters use the MAVLink `UINT32` representation, and a
-  complete one- or two-radio snapshot is persisted through one idempotent
-  `NV_ENCRYPTION_KEYS_SET`/`NV_ENCRYPTION_KEYS_ACK` transaction rather than sixteen independent
-  parameter writes. NV4 retains its eight signed words followed by singular `REFRESH_SETTING`,
+- NV5 encryption-key handling is synchronized with GTU commit `0ae81300`: the UI generates and
+  displays exactly 32 uppercase hexadecimal digits, accepts only a 32-digit hexadecimal NV5 key,
+  and maps it to four big-endian MAVLink `UINT32` words (`CHx_KEY_W0..W3`). A complete one- or
+  two-radio snapshot is persisted through one idempotent `NV_ENCRYPTION_KEYS_SET`/
+  `NV_ENCRYPTION_KEYS_ACK` transaction rather than four independent parameter writes per radio.
+  NV4 retains its eight signed words followed by singular `REFRESH_SETTING`,
   whose write type is verified as `UINT32`.
 - CI, CodeQL, Dependabot and tag-release workflows are reconciled with the in-place tree. Legacy
   WinForms/Xamarin workflows remain available manually but no longer run against every port push.
@@ -50,6 +51,16 @@ Updated: **2026-08-24**.
   manifest still exposes 454 `unported-blocker` rows that require code-level classification before
   final cut-over is declared complete.
 - Claude remains temporarily disabled by user instruction.
+
+## GTU synchronization checkpoint
+
+- NV modem behavior was last compared with `/home/alex/src/AgroSky/GTU` at commit
+  `0ae813004079bd46d63d708966b7eff266ad5949` (`feat: use NV5 encryption key words`). The GTU
+  worktree was clean; its local `master` was one commit ahead of `origin/master`.
+- Before each later NV modem change and before a release, recheck both committed and uncommitted
+  GTU changes with `git status`, then compare every newer change to `hermes-gui/include/nv5settings.h`,
+  `hermes-gui/src/nv5settings.cpp` and `hermes-gui/test/testnv5settings.cpp`. Update this commit and
+  the NV regression tests whenever the source behavior advances.
 
 ## Immediate next step
 
@@ -60,7 +71,7 @@ before creating a release tag or requesting approval to merge to `master`.
 
 ## Acceptance baseline
 
-- At least 1146 port tests retained and passing.
+- At least 1147 port tests retained and passing.
 - Clean Release build has zero errors and zero warnings.
 - `linux-x64`, `win-x64`, `osx-x64`, and `osx-arm64` publish gates pass.
 - Linux `.deb` and portable archive build and smoke successfully.

@@ -12,6 +12,8 @@ internal enum NvModemGeneration {
 
 internal static class NvModemCatalog {
   internal const int Nv5KeyBytes = 16;
+  internal const int Nv5KeyWordBytes = 4;
+  internal const int Nv5KeyWordCount = Nv5KeyBytes / Nv5KeyWordBytes;
   internal const int Nv4KeyBytes = 32;
 
   internal static bool IsNv5Signature(string name) =>
@@ -24,13 +26,38 @@ internal static class NvModemCatalog {
       name is "HW_VERSION" or "CENTRAL_FREQ_MZ" or "REFRESH_SETTING"
       || Nv4KeyWordIndex(name) >= 0;
 
-  internal static bool IsNv5KeyByte(string name) {
-    if ((!name.StartsWith("CH1_KEY", StringComparison.Ordinal)
-         && !name.StartsWith("CH2_KEY", StringComparison.Ordinal))
-        || name.EndsWith("_KEY_HASH", StringComparison.Ordinal)) {
-      return false;
+  internal static string Nv5KeyWordName(int channel, int word) =>
+      $"CH{channel}_KEY_W{word}";
+
+  internal static int Nv5KeyWordIndex(string name) {
+    string prefix = name.StartsWith("CH1_", StringComparison.Ordinal)
+        ? "CH1_KEY_W"
+        : name.StartsWith("CH2_", StringComparison.Ordinal) ? "CH2_KEY_W" : "";
+    return prefix.Length != 0 && name.Length == prefix.Length + 1
+        && int.TryParse(name.AsSpan(prefix.Length), out int word)
+        && word is >= 0 and < Nv5KeyWordCount ? word : -1;
+  }
+
+  internal static uint Nv5KeyWord(ReadOnlySpan<byte> key, int word) {
+    int offset = checked(word * Nv5KeyWordBytes);
+    if (word is < 0 or >= Nv5KeyWordCount || offset + Nv5KeyWordBytes > key.Length) {
+      throw new ArgumentOutOfRangeException(nameof(word));
     }
-    return int.TryParse(name[^2..], out int index) && index is >= 0 and < Nv5KeyBytes;
+    return ((uint)key[offset] << 24)
+        | ((uint)key[offset + 1] << 16)
+        | ((uint)key[offset + 2] << 8)
+        | key[offset + 3];
+  }
+
+  internal static void WriteNv5KeyWord(Span<byte> key, int word, uint value) {
+    int offset = checked(word * Nv5KeyWordBytes);
+    if (word is < 0 or >= Nv5KeyWordCount || offset + Nv5KeyWordBytes > key.Length) {
+      throw new ArgumentOutOfRangeException(nameof(word));
+    }
+    key[offset] = (byte)(value >> 24);
+    key[offset + 1] = (byte)(value >> 16);
+    key[offset + 2] = (byte)(value >> 8);
+    key[offset + 3] = (byte)value;
   }
 
   internal static int Nv4KeyWordIndex(string name) {
@@ -230,10 +257,10 @@ internal static class NvModemCatalog {
       return "Read-only stored unsigned 32-bit peer-profile fingerprint; 0 means the link was not pair-provisioned.";
     }
 
-    if (name.Contains("_KEY", StringComparison.Ordinal)) {
-      return "AES-128 key byte represented as MAVLink UINT32 in the 0..255 range. "
-          + "KEY00 through KEY15 are persisted together by one atomic transaction and must "
-          + "match on linked radios.";
+    if (Nv5KeyWordIndex(name) >= 0) {
+      return "AES-128 key word (UINT32). W0 contains bytes 0..3, W1 bytes 4..7, "
+          + "W2 bytes 8..11, and W3 bytes 12..15, each in big-endian order. "
+          + "Configure all four words identically on linked radios.";
     }
 
     if (name.EndsWith("_RADIO_CRC", StringComparison.Ordinal)) {

@@ -43,10 +43,10 @@ The page includes:
 - live NV4 or per-radio NV5 link status;
 - LR2021/LoRa/FLRC, FHSS, FEC and role presets, staged locally until **Save**;
 - channel-settings copy from another completely read NV5 modem;
-- NV4 32-byte and NV5 16-byte encryption keys, printable or hexadecimal (with an optional `hex:`
-  prefix), with generation and fingerprints;
-- UINT32 representation for individual NV5 key-byte parameters plus atomic persistence of the
-  complete selected one- or two-channel key snapshot through `NV_ENCRYPTION_KEYS_SET` (`53017`),
+- NV4 32-byte keys as printable text or hexadecimal (with an optional `hex:` prefix), and NV5
+  16-byte AES keys as exactly 32 hexadecimal digits, with generation and fingerprints;
+- four big-endian `UINT32` parameters (`CHx_KEY_W0..W3`) for each NV5 key plus atomic persistence
+  of the complete selected one- or two-channel key snapshot through `NV_ENCRYPTION_KEYS_SET` (`53017`),
   with idempotent retries and final `NV_ENCRYPTION_KEYS_ACK` (`53018`) fingerprints;
 - RTSP path get/set and transport presets for supported LR2021 configurations;
 - transmitter enable/suppress diagnostics and standard MAVLink reboot;

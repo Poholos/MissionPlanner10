@@ -134,6 +134,19 @@ public class NvModemTests {
         NvModemCatalog.Description("REFRESH_SETTING"), StringComparison.OrdinalIgnoreCase);
     Assert.Contains("868000 = 868 MHz", NvModemCatalog.Description("CH1_FREQ_KHZ"));
     Assert.Contains("0=receiver", NvModemCatalog.Description("CH2_ROLE"));
+    Assert.Equal(0, NvModemCatalog.Nv5KeyWordIndex("CH1_KEY_W0"));
+    Assert.Equal(3, NvModemCatalog.Nv5KeyWordIndex("CH2_KEY_W3"));
+    Assert.Equal(-1, NvModemCatalog.Nv5KeyWordIndex("CH1_KEY00"));
+    Assert.Contains("big-endian", NvModemCatalog.Description("CH1_KEY_W0"),
+        StringComparison.OrdinalIgnoreCase);
+    byte[] key = Encoding.ASCII.GetBytes("ABCDEFGHIJKLMNOP");
+    Assert.Equal(0x41424344u, NvModemCatalog.Nv5KeyWord(key, 0));
+    Assert.Equal(0x4d4e4f50u, NvModemCatalog.Nv5KeyWord(key, 3));
+    var restored = new byte[NvModemCatalog.Nv5KeyBytes];
+    for (int word = 0; word < NvModemCatalog.Nv5KeyWordCount; word++) {
+      NvModemCatalog.WriteNv5KeyWord(restored, word, NvModemCatalog.Nv5KeyWord(key, word));
+    }
+    Assert.Equal(key, restored);
     Assert.Equal("Teensy · RFM/SX1278",
         NvModemCatalog.HardwareModel(NvModemGeneration.Nv4, 99));
   }
@@ -330,15 +343,13 @@ public class NvModemTests {
     var source = new NvModemLink(new MAVLinkInterface(), "UDP NV5");
     var status = new Nv5LinkStatusMessage { Channel = 1, RadioChip = 0, Role = 1 };
     viewModel.HandlePacket(source, Packet(NvModemMessageIds.Nv5LinkStatus, status, 9, 68));
-    const int count = 18;
+    const int count = 6;
     viewModel.HandlePacket(source, ParameterPacket("MODEM_PROFILE", 7, 5, count, 9, 68));
     viewModel.HandlePacket(source, ParameterPacket("CH1_MOD", 1, 5, count, 9, 68));
-    for (int index = 0; index < 16; index++) {
-      viewModel.HandlePacket(source, ParameterPacket($"CH1_KEY{index:00}",
-          65 + index, 5, count, 9, 68));
-    }
+    DeliverNv5KeyWords(viewModel, source, 9, 68, 1,
+        Encoding.ASCII.GetBytes("ABCDEFGHIJKLMNOP"), count);
     transport.Sent.Clear();
-    viewModel.KeyText = "ABCDEFGHIJKLMNOP";
+    viewModel.KeyText = "4142434445464748494A4B4C4D4E4F50";
 
     viewModel.SetKeyCommand.Execute(null);
     FakeTransport.SentPacket sent = Assert.Single(transport.Sent);
@@ -370,7 +381,7 @@ public class NvModemTests {
         }, 9, 68));
 
     Assert.False(viewModel.IsBusy);
-    Assert.Equal("ABCDEFGHIJKLMNOP", viewModel.KeyText);
+    Assert.Equal("4142434445464748494A4B4C4D4E4F50", viewModel.KeyText);
     Assert.Contains("stored atomically", viewModel.Status, StringComparison.OrdinalIgnoreCase);
   }
 
@@ -382,21 +393,43 @@ public class NvModemTests {
     var source = new NvModemLink(new MAVLinkInterface(), "TCP NV5");
     viewModel.HandlePacket(source, Packet(NvModemMessageIds.Nv5LinkStatus,
         new Nv5LinkStatusMessage { Channel = 1, RadioChip = 0, Role = 1 }, 7, 68));
-    for (int index = 0; index < 16; index++) {
-      viewModel.HandlePacket(source, ParameterPacket($"CH1_KEY{index:00}",
-          index, 5, 16, 7, 68));
-    }
+    byte[] stored = Convert.FromHexString("000102030405060708090a0b0c0d0e0f");
+    DeliverNv5KeyWords(viewModel, source, 7, 68, 1, stored, 4);
 
-    Assert.Equal("hex:000102030405060708090a0b0c0d0e0f", viewModel.KeyText);
+    Assert.Equal("000102030405060708090A0B0C0D0E0F", viewModel.KeyText);
     transport.Sent.Clear();
-    // Match GTU: the hex: prefix is accepted but is optional for an
-    // unambiguous 32-digit NV5 key.
+    viewModel.KeyText = "ABCDEFGHIJKLMNOP";
+    viewModel.SetKeyCommand.Execute(null);
+    Assert.Empty(transport.Sent);
+    Assert.Contains("exactly 32 hexadecimal digits", viewModel.Status,
+        StringComparison.OrdinalIgnoreCase);
+
+    // GTU accepts lower- or uppercase hex input and normalizes the editor to uppercase.
     viewModel.KeyText = "ffeeddccbbaa99887766554433221100";
     viewModel.SetKeyCommand.Execute(null);
 
     var write = Assert.IsType<NvEncryptionKeysSetMessage>(Assert.Single(transport.Sent).Packet);
     Assert.Equal(Convert.FromHexString("ffeeddccbbaa99887766554433221100"),
         write.Channel1Key);
+    Assert.Equal("FFEEDDCCBBAA99887766554433221100", viewModel.KeyText);
+  }
+
+  [Fact]
+  public void Nv5_key_generator_uses_cryptographic_bytes_and_uppercase_hex() {
+    var transport = new FakeTransport();
+    using var viewModel = new NvModemViewModel(transport, () => DateTime.UtcNow,
+        startTimer: false);
+    var source = new NvModemLink(new MAVLinkInterface(), "UDP NV5");
+    viewModel.HandlePacket(source, Packet(NvModemMessageIds.Nv5LinkStatus,
+        new Nv5LinkStatusMessage { Channel = 1, RadioChip = 0, Role = 1 }, 12, 68));
+    DeliverNv5KeyWords(viewModel, source, 12, 68, 1, new byte[16], 4);
+    transport.Sent.Clear();
+
+    viewModel.GenerateKeyCommand.Execute(null);
+
+    Assert.Matches("^[0-9A-F]{32}$", viewModel.KeyText);
+    Assert.Contains("Generated and staged", viewModel.Status, StringComparison.Ordinal);
+    Assert.Empty(transport.Sent);
   }
 
   [Fact]
@@ -407,12 +440,10 @@ public class NvModemTests {
     var source = new NvModemLink(new MAVLinkInterface(), "UDP NV5");
     viewModel.HandlePacket(source, Packet(NvModemMessageIds.Nv5LinkStatus,
         new Nv5LinkStatusMessage { Channel = 1, RadioChip = 0, Role = 1 }, 8, 68));
-    for (int index = 0; index < 16; index++) {
-      viewModel.HandlePacket(source, ParameterPacket($"CH1_KEY{index:00}",
-          65 + index, 5, 16, 8, 68));
-    }
+    DeliverNv5KeyWords(viewModel, source, 8, 68, 1,
+        Encoding.ASCII.GetBytes("ABCDEFGHIJKLMNOP"), 4);
     transport.Sent.Clear();
-    viewModel.KeyText = "ABCDEFGHIJKLMNOP";
+    viewModel.KeyText = "4142434445464748494A4B4C4D4E4F50";
     viewModel.SetKeyCommand.Execute(null);
     var first = Assert.IsType<NvEncryptionKeysSetMessage>(Assert.Single(transport.Sent).Packet);
 
@@ -485,7 +516,7 @@ public class NvModemTests {
 
     Assert.Contains("CH1_FREQ_KHZ,915000", exported);
     Assert.Contains("#NV5_RTSP_PATH,/cam/main", exported);
-    Assert.Contains("key-byte values", exported, StringComparison.OrdinalIgnoreCase);
+    Assert.Contains("key-word values", exported, StringComparison.OrdinalIgnoreCase);
     Assert.DoesNotContain("\r\r\n", exported);
     Assert.True(viewModel.HasPendingChanges);
   }
@@ -640,6 +671,26 @@ public class NvModemTests {
     Assert.Equal(minimum, info.minlength);
     Assert.Equal(length, info.length);
     Assert.Equal(type, info.type);
+  }
+
+  private static void DeliverNv5KeyWords(
+      NvModemViewModel viewModel,
+      NvModemLink source,
+      byte systemId,
+      byte componentId,
+      int channel,
+      byte[] key,
+      ushort count) {
+    Assert.Equal(NvModemCatalog.Nv5KeyBytes, key.Length);
+    for (int word = 0; word < NvModemCatalog.Nv5KeyWordCount; word++) {
+      viewModel.HandlePacket(source, ParameterPacket(
+          NvModemCatalog.Nv5KeyWordName(channel, word),
+          NvModemCatalog.Nv5KeyWord(key, word),
+          (byte)MAVLink.MAV_PARAM_TYPE.UINT32,
+          count,
+          systemId,
+          componentId));
+    }
   }
 
   private static MAVLink.MAVLinkMessage ParameterPacket(

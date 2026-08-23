@@ -71,11 +71,7 @@ public partial class NvModemParameterRow : ObservableObject {
   partial void OnIsChangedChanged(bool value) => OnPropertyChanged(nameof(EditState));
 
   internal bool TryValue(out double value) =>
-      NvModemParameterCodec.TryParse(ValueText, Type, out value)
-      && (!NvModemCatalog.IsNv5KeyByte(Name)
-          || value is >= 0 and <= 255
-          || (NvModemParameterCodec.NearlyEqual(value, -1)
-              && NvModemParameterCodec.NearlyEqual(Original, -1)));
+      NvModemParameterCodec.TryParse(ValueText, Type, out value);
 
   internal void Accept(double value) {
     Original = value;
@@ -173,7 +169,6 @@ internal sealed class NvModemDeviceState {
   internal int ExpectedParameterCount { get; set; }
   internal Dictionary<string, double> Parameters { get; } = new(StringComparer.Ordinal);
   internal Dictionary<string, byte> ParameterTypes { get; } = new(StringComparer.Ordinal);
-  internal Dictionary<string, double> LocallyKnownKeyBytes { get; } = new(StringComparer.Ordinal);
   internal Dictionary<int, uint> LegacyKeyWords { get; } = [];
   internal string LegacyKeyFingerprint { get; set; } = "";
   internal NvModemInfoMessage ModemInfo { get; set; }
@@ -611,14 +606,16 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
   [RelayCommand]
   private void GenerateKey() {
     NvModemDeviceState? device = SelectedState;
-    int count = device?.Generation == NvModemGeneration.Nv4
-        ? NvModemCatalog.Nv4KeyBytes : NvModemCatalog.Nv5KeyBytes;
-    const string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    Span<char> generated = stackalloc char[count];
-    for (int index = 0; index < generated.Length; index++) {
-      generated[index] = alphabet[RandomNumberGenerator.GetInt32(alphabet.Length)];
+    if (device?.Generation == NvModemGeneration.Nv4) {
+      const string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+      Span<char> generated = stackalloc char[NvModemCatalog.Nv4KeyBytes];
+      for (int index = 0; index < generated.Length; index++) {
+        generated[index] = alphabet[RandomNumberGenerator.GetInt32(alphabet.Length)];
+      }
+      KeyText = new string(generated);
+    } else {
+      KeyText = Convert.ToHexString(RandomNumberGenerator.GetBytes(NvModemCatalog.Nv5KeyBytes));
     }
-    KeyText = new string(generated);
     if (StageEncryptionKey()) {
       SetStatus("Generated and staged a new encryption key. Nothing was sent.");
     }
@@ -740,7 +737,7 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
     var output = new StringBuilder();
     output.AppendLine(device.Generation == NvModemGeneration.Nv4
         ? "#WARNING: NV4 export contains the readable encryption key words"
-        : "#WARNING: NV5 export contains the key-byte values currently visible in Mission Planner");
+        : "#WARNING: NV5 export contains the key-word values currently visible in Mission Planner");
     if (SupportsRtsp(device) && RtspPath.Length != 0) {
       output.Append("#NV5_RTSP_PATH,").AppendLine(RtspPath);
     }
@@ -812,11 +809,7 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
         readOnly++;
         continue;
       }
-      if (!NvModemParameterCodec.TryParse(fields[1], row.Type, out double value)
-          || NvModemCatalog.IsNv5KeyByte(row.Name)
-              && value is < 0 or > 255
-              && !(NvModemParameterCodec.NearlyEqual(value, -1)
-                  && NvModemParameterCodec.NearlyEqual(row.Original, -1))) {
+      if (!NvModemParameterCodec.TryParse(fields[1], row.Type, out double value)) {
         invalid++;
       } else {
         imported[row.Name] = (value, row.Type);
@@ -1043,15 +1036,6 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
       }
     }
     bool newParameter = !device.Parameters.ContainsKey(name);
-    double stored = decoded;
-    if (device.Generation == NvModemGeneration.Nv5 && NvModemCatalog.IsNv5KeyByte(name)) {
-      if (NvModemParameterCodec.NearlyEqual(decoded, -1)
-          && device.LocallyKnownKeyBytes.TryGetValue(name, out double known)) {
-        stored = known;
-      } else if (decoded is >= 0 and <= 255) {
-        device.LocallyKnownKeyBytes[name] = decoded;
-      }
-    }
     int legacyWord = NvModemCatalog.Nv4KeyWordIndex(name);
     if (device.Generation == NvModemGeneration.Nv4 && legacyWord >= 0) {
       uint raw = unchecked((uint)BitConverter.SingleToInt32Bits(message.param_value));
@@ -1064,12 +1048,8 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
         device.LegacyKeyFingerprint = Convert.ToHexString(SHA256.HashData(bytes))[..12].ToLowerInvariant();
       }
     }
-    byte storedType = device.Generation == NvModemGeneration.Nv5
-        && NvModemCatalog.IsNv5KeyByte(name)
-        ? (byte)MAVLink.MAV_PARAM_TYPE.UINT32
-        : message.param_type;
-    device.Parameters[name] = stored;
-    device.ParameterTypes[name] = storedType;
+    device.Parameters[name] = decoded;
+    device.ParameterTypes[name] = message.param_type;
     device.ExpectedParameterCount = message.param_count;
     device.ParameterListLastProgressUtc = _utcNow();
     if (device.ParameterListInProgress && message.param_count > 0
@@ -1090,22 +1070,15 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
 
     if (_currentWrite is { Kind: NvWriteKind.Parameter } write
         && ReferenceEquals(write.Device, device) && write.Name == name) {
-      bool protectedAck = device.Generation == NvModemGeneration.Nv5
-          && NvModemCatalog.IsNv5KeyByte(name)
-          && NvModemParameterCodec.NearlyEqual(decoded, -1);
-      double visible = protectedAck ? write.Value : decoded;
-      bool accepted = protectedAck || (NvModemParameterCodec.IsInteger(write.ParameterType)
-          ? decoded == write.Value : NvModemParameterCodec.NearlyEqual(decoded, write.Value));
+      bool accepted = NvModemParameterCodec.IsInteger(write.ParameterType)
+          ? decoded == write.Value : NvModemParameterCodec.NearlyEqual(decoded, write.Value);
       if (!accepted) {
         FailWrites($"Modem rejected {name}: reported {decoded:G9} instead of {write.Value:G9}.");
         return;
       }
-      device.Parameters[name] = visible;
-      if (device.Generation == NvModemGeneration.Nv5 && NvModemCatalog.IsNv5KeyByte(name)) {
-        device.LocallyKnownKeyBytes[name] = visible;
-      }
+      device.Parameters[name] = decoded;
       if (_parameterRows.TryGetValue(name, out var acceptedRow)) {
-        acceptedRow.Accept(visible);
+        acceptedRow.Accept(decoded);
       }
       if (NvModemCatalog.RequiresManualReboot(device.Generation, name)) {
         double saveMs = device.Parameters.GetValueOrDefault("MAV_SAVE_MS", 2000);
@@ -1115,10 +1088,10 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
     } else if (ReferenceEquals(device, SelectedState)) {
       if (_parameterRows.TryGetValue(name, out var row)) {
         if (!row.IsChanged) {
-          row.Accept(stored);
+          row.Accept(decoded);
         }
       } else if (newParameter) {
-        AddParameterRow(name, stored, storedType);
+        AddParameterRow(name, decoded, message.param_type);
       }
     }
   }
@@ -1161,12 +1134,11 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
       }
 
       byte[] key = channel == 1 ? write.Channel1Key : write.Channel2Key;
-      for (int index = 0; index < Math.Min(key.Length, NvModemCatalog.Nv5KeyBytes); index++) {
-        string name = $"CH{channel}_KEY{index:00}";
-        double value = key[index];
+      for (int word = 0; word < NvModemCatalog.Nv5KeyWordCount; word++) {
+        string name = NvModemCatalog.Nv5KeyWordName(channel, word);
+        double value = NvModemCatalog.Nv5KeyWord(key, word);
         device.Parameters[name] = value;
         device.ParameterTypes[name] = (byte)MAVLink.MAV_PARAM_TYPE.UINT32;
-        device.LocallyKnownKeyBytes[name] = value;
         if (_parameterRows.TryGetValue(name, out NvModemParameterRow? row)) {
           row.Accept(value);
         }
@@ -1368,12 +1340,14 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
     }
     int expected = device.Generation == NvModemGeneration.Nv4
         ? NvModemCatalog.Nv4KeyBytes : NvModemCatalog.Nv5KeyBytes;
-    if (!TryDecodeKeyText(KeyText, expected, out byte[] bytes)) {
-      SetStatus($"Enter {expected} printable ASCII characters or hex: followed by "
-          + $"{expected * 2} hexadecimal digits.", true);
+    bool legacy = device.Generation == NvModemGeneration.Nv4;
+    if (!TryDecodeKeyText(KeyText, expected, legacy, out byte[] bytes)) {
+      SetStatus(legacy
+          ? "Enter 32 printable ASCII characters or hex: followed by 64 hexadecimal digits."
+          : "Enter exactly 32 hexadecimal digits without spaces (0-9, A-F).", true);
       return false;
     }
-    if (device.Generation == NvModemGeneration.Nv4) {
+    if (legacy) {
       for (int word = 0; word < 8; word++) {
         string name = $"ENC_KEY_BYTE{word + 1}";
         if (!_parameterRows.ContainsKey(name)) {
@@ -1388,17 +1362,19 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
         }
       }
     } else {
-      for (int index = 0; index < NvModemCatalog.Nv5KeyBytes; index++) {
-        string name = $"CH{channel}_KEY{index:00}";
+      for (int word = 0; word < NvModemCatalog.Nv5KeyWordCount; word++) {
+        string name = NvModemCatalog.Nv5KeyWordName(channel, word);
         if (!_parameterRows.ContainsKey(name)
-            || !StageParameter(name, bytes[index],
-                (byte)MAVLink.MAV_PARAM_TYPE.UINT32, false)) {
-          SetStatus("The selected NV5 did not publish the complete key-byte set.", true);
+            || !StageParameter(name, NvModemCatalog.Nv5KeyWord(bytes, word),
+                device.ParameterTypes.GetValueOrDefault(name,
+                    (byte)MAVLink.MAV_PARAM_TYPE.UINT32), false)) {
+          SetStatus("The selected NV5 did not publish the complete key-word set.", true);
           return false;
         }
       }
     }
     RebuildVisibleParameters();
+    SyncKeyText();
     RefreshControls();
     return true;
   }
@@ -1426,26 +1402,47 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
           ? "Stored fingerprint: unavailable"
           : "Stored fingerprint: " + device.LegacyKeyFingerprint;
     } else {
-      for (int index = 0; index < NvModemCatalog.Nv5KeyBytes; index++) {
-        if (!_parameterRows.TryGetValue($"CH{channel}_KEY{index:00}", out var row)
-            || !row.TryValue(out double numeric) || numeric is < 0 or > 255) {
-          bytes.Clear(); break;
+      var key = new byte[NvModemCatalog.Nv5KeyBytes];
+      bool complete = true;
+      for (int word = 0; word < NvModemCatalog.Nv5KeyWordCount; word++) {
+        if (!_parameterRows.TryGetValue(
+                NvModemCatalog.Nv5KeyWordName(channel, word), out var row)
+            || !TryNv5KeyWord(row, out uint numeric)) {
+          complete = false;
+          break;
         }
-        bytes.Add((byte)numeric);
+        NvModemCatalog.WriteNv5KeyWord(key, word, numeric);
       }
-      KeyHint = "NV5: 16 printable characters, or hex: followed by 32 hexadecimal digits; "
-          + "KEY00 through KEY15 are staged as UINT32 bytes and stored atomically.";
+      if (complete) {
+        bytes.AddRange(key);
+      }
+      KeyHint = "NV5 exposes four unsigned 32-bit words per radio. AES-128 keys are shown as "
+          + "exactly 32 uppercase hexadecimal digits without spaces or a prefix.";
       string hash = $"CH{channel}_KEY_HASH";
       KeyFingerprint = _parameterRows.TryGetValue(hash, out var hashRow)
           ? "Stored fingerprint: " + hashRow.ValueText
           : "Stored fingerprint: unavailable";
     }
-    KeyText = bytes.Count == (device.Generation == NvModemGeneration.Nv4 ? 32 : 16)
-        ? EncodeKeyText(bytes.ToArray()) : "";
+    int expectedBytes = device.Generation == NvModemGeneration.Nv4
+        ? NvModemCatalog.Nv4KeyBytes : NvModemCatalog.Nv5KeyBytes;
+    KeyText = bytes.Count == expectedBytes
+        ? device.Generation == NvModemGeneration.Nv5
+            ? Convert.ToHexString(bytes.ToArray())
+            : EncodeKeyText(bytes.ToArray())
+        : "";
   }
 
-  private static bool TryDecodeKeyText(string text, int expectedBytes, out byte[] bytes) {
+  private static bool TryDecodeKeyText(
+      string text, int expectedBytes, bool legacy, out byte[] bytes) {
     bytes = [];
+    if (!legacy) {
+      if (text.Length != expectedBytes * 2 || !text.All(Uri.IsHexDigit)) {
+        return false;
+      }
+      bytes = Convert.FromHexString(text);
+      return bytes.Length == expectedBytes;
+    }
+
     string hexadecimal = text.StartsWith("hex:", StringComparison.OrdinalIgnoreCase)
         ? text[4..] : text;
     if (hexadecimal.Length == expectedBytes * 2
@@ -1464,6 +1461,16 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
     }
     bytes = Encoding.ASCII.GetBytes(text);
     return bytes.Length == expectedBytes;
+  }
+
+  private static bool TryNv5KeyWord(NvModemParameterRow row, out uint value) {
+    value = 0;
+    if (!row.TryValue(out double numeric) || numeric != Math.Floor(numeric)
+        || numeric is < uint.MinValue or > uint.MaxValue) {
+      return false;
+    }
+    value = (uint)numeric;
+    return true;
   }
 
   private static string EncodeKeyText(byte[] bytes) =>
@@ -1486,8 +1493,9 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
         if (_parameterRows.ContainsKey($"CH{channel}_MOD")) {
           PresetRadios.Add(new NvRadioChoice(channel, $"Radio {channel}"));
         }
-        if (Enumerable.Range(0, NvModemCatalog.Nv5KeyBytes)
-            .All(index => _parameterRows.ContainsKey($"CH{channel}_KEY{index:00}"))) {
+        if (Enumerable.Range(0, NvModemCatalog.Nv5KeyWordCount)
+            .All(word => _parameterRows.ContainsKey(
+                NvModemCatalog.Nv5KeyWordName(channel, word)))) {
           KeyRadios.Add(new NvRadioChoice(channel, $"Radio {channel}"));
         }
       }
@@ -1535,7 +1543,7 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
       }
 
       if (device.Generation == NvModemGeneration.Nv5
-          && NvModemCatalog.IsNv5KeyByte(row.Name)) {
+          && NvModemCatalog.Nv5KeyWordIndex(row.Name) >= 0) {
         nv5KeyChannelMask |= (byte)(row.Name.StartsWith("CH1_", StringComparison.Ordinal)
             ? 0x01 : 0x02);
         any = true;
@@ -1579,15 +1587,15 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
       }
 
       var key = new byte[NvModemCatalog.Nv5KeyBytes];
-      for (int index = 0; index < key.Length; index++) {
-        string name = $"CH{channel}_KEY{index:00}";
+      for (int word = 0; word < NvModemCatalog.Nv5KeyWordCount; word++) {
+        string name = NvModemCatalog.Nv5KeyWordName(channel, word);
         if (!_parameterRows.TryGetValue(name, out NvModemParameterRow? row)
-            || !row.TryValue(out double value) || value is < 0 or > 255) {
+            || !TryNv5KeyWord(row, out uint value)) {
           SetStatus($"Could not build the complete Radio {channel} encryption key: "
               + $"{name} is missing or invalid.", true);
           return false;
         }
-        key[index] = (byte)value;
+        NvModemCatalog.WriteNv5KeyWord(key, word, value);
       }
 
       if (channel == 1) {

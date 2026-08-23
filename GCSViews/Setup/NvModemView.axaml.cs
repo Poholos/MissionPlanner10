@@ -120,7 +120,7 @@ public partial class NvModemView : UserControl {
     string? path = file?.TryGetLocalPath();
     if (path == null || !await Dialogs.ConfirmDangerous(
             "Export NV modem parameters",
-            "The export includes readable encryption key bytes and network settings. "
+            "The export includes readable encryption key words and network settings. "
             + "Save it only to a trusted location and review it before sharing.",
             "EXPORT PARAMETERS")) {
       return;
