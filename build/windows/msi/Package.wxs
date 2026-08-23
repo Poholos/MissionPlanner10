@@ -21,22 +21,7 @@
         <Component Id="MainExecutable" Bitness="always64">
           <File Id="MissionPlannerExecutable"
                 Source="!(bindpath.PublishDir)MissionPlanner.exe"
-                KeyPath="yes">
-            <Shortcut Id="StartMenuShortcut"
-                      Directory="CommonProgramsFolder"
-                      Name="Mission Planner (Avalonia)"
-                      Description="Ground control station for ArduPilot vehicles"
-                      WorkingDirectory="INSTALLFOLDER"
-                      Advertise="yes"
-                      Icon="MissionPlanner.exe" />
-            <Shortcut Id="DesktopShortcut"
-                      Directory="CommonDesktopFolder"
-                      Name="Mission Planner (Avalonia)"
-                      Description="Ground control station for ArduPilot vehicles"
-                      WorkingDirectory="INSTALLFOLDER"
-                      Advertise="yes"
-                      Icon="MissionPlanner.exe" />
-          </File>
+                KeyPath="yes" />
         </Component>
 
         <!-- SQLite's native PE is versioned but language-neutral. LANGID 0 keeps MSI repair
@@ -53,6 +38,43 @@
           <Exclude Files="!(bindpath.PublishDir)e_sqlite3.dll" />
         </Files>
       </Directory>
+    </StandardDirectory>
+
+    <!-- Non-advertised shortcuts must use an HKCU registry value as their component
+         key path (ICE43). Keeping each shortcut in a per-user-only component also
+         avoids mixing it with the per-machine executable component (ICE57). -->
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Component Id="StartMenuShortcutComponent" Bitness="always64">
+        <Shortcut Id="StartMenuShortcut"
+                  Name="Mission Planner (Avalonia)"
+                  Description="Ground control station for ArduPilot vehicles"
+                  Target="[#MissionPlannerExecutable]"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="MissionPlanner.exe" />
+        <RegistryValue Root="HKCU"
+                       Key="Software\Rouniy\MissionPlannerAvalonia"
+                       Name="StartMenuShortcut"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+
+    <StandardDirectory Id="DesktopFolder">
+      <Component Id="DesktopShortcutComponent" Bitness="always64">
+        <Shortcut Id="DesktopShortcut"
+                  Name="Mission Planner (Avalonia)"
+                  Description="Ground control station for ArduPilot vehicles"
+                  Target="[#MissionPlannerExecutable]"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="MissionPlanner.exe" />
+        <RegistryValue Root="HKCU"
+                       Key="Software\Rouniy\MissionPlannerAvalonia"
+                       Name="DesktopShortcut"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+      </Component>
     </StandardDirectory>
   </Package>
 </Wix>

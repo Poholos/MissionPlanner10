@@ -95,8 +95,19 @@ jobs:
 
           $zipRoot = Join-Path $env:RUNNER_TEMP "zip"
           Expand-Archive -Path $zip.FullName -DestinationPath $zipRoot
-          if (-not (Get-ChildItem $zipRoot -Recurse -Filter MissionPlanner.exe)) {
-            throw "Portable ZIP does not contain MissionPlanner.exe"
+          $requiredFiles = @(
+            'MissionPlanner.exe',
+            'e_sqlite3.dll',
+            'airports.csv',
+            'COPYING.txt',
+            'NOTICE.md',
+            'LICENSE',
+            'SimpleBLE-0.7.3-NOTICE.txt'
+          )
+          foreach ($requiredFile in $requiredFiles) {
+            if (-not (Get-ChildItem $zipRoot -Recurse -File -Filter $requiredFile)) {
+              throw "Portable ZIP does not contain $requiredFile"
+            }
           }
 
           $msiRoot = Join-Path $env:RUNNER_TEMP "msi"
@@ -105,8 +116,10 @@ jobs:
             '/a', $msi.FullName, '/qn', "TARGETDIR=$msiRoot"
           )
           if ($process.ExitCode -ne 0) { throw "MSI validation failed: $($process.ExitCode)" }
-          if (-not (Get-ChildItem $msiRoot -Recurse -Filter MissionPlanner.exe)) {
-            throw "MSI does not contain MissionPlanner.exe"
+          foreach ($requiredFile in $requiredFiles) {
+            if (-not (Get-ChildItem $msiRoot -Recurse -File -Filter $requiredFile)) {
+              throw "MSI does not contain $requiredFile"
+            }
           }
 
       - uses: actions/upload-artifact@v7
