@@ -23,7 +23,8 @@ using System.Runtime.InteropServices;
 [assembly: ComCompatibleVersion(1, 0, 3300, 0)]
 //[assembly: AllowPartiallyTrustedCallers]
 
-[assembly: CLSCompliant(true)]
+// The public compatibility surface intentionally exposes SkiaSharp types and is not CLS-compliant.
+[assembly: CLSCompliant(false)]
 //[assembly: AssemblyDelaySign (true)]
 
 //[assembly: AssemblyFileVersion(Consts.FxFileVersion)]

@@ -24,8 +24,10 @@ Updated: **2026-08-24**.
   colliding with a live modem on 14550.
 - Six pinned historical audits are preserved in `Porting/Reference` with a blob manifest. They are
   migration evidence, not a copied source tree.
-- Release build of the test graph succeeds with zero warnings and zero errors. All **1139/1139**
-  imported tests pass on Linux. A 12-second Xvfb launch reaches the normal Avalonia event loop with
+- A clean Release build of the complete test graph succeeds with zero warnings and zero errors
+  after resolving all 156 inherited `ExtLibs` diagnostics without a repository-wide `NoWarn`; the
+  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1142/1142**
+  Avalonia tests pass on Linux. A 12-second Xvfb launch reaches the normal Avalonia event loop with
   no console errors.
 - Informational version is derived from the current native Mission Planner version and formatted as
   `1.3.83+YYYYMMDD.<commit>`; dirty developer builds append `.dirty`.
@@ -36,15 +38,15 @@ Updated: **2026-08-24**.
 
 ## Immediate next step
 
-Commit and publish this verified application/test import. Then audit the 156 warnings seen during a
-clean inherited-`ExtLibs` rebuild, import and rename the packaging/runtime support for the native
-`MissionPlanner` identity, run all four RID publish gates, and produce the Linux portable archive
-and `.deb`. README/CI/CodeQL/release workflow reconciliation follows before any merge to `master`.
+Commit and publish the completed native-dependency warning audit. Then import and rename the
+packaging/runtime support for the native `MissionPlanner` identity, run all four RID publish gates,
+and produce the Linux portable archive and `.deb`. README/CI/CodeQL/release workflow reconciliation
+follows before any merge to `master`.
 
 ## Acceptance baseline
 
-- At least 1139 port tests retained and passing.
-- Release build has zero errors and reviewed warnings.
+- At least 1142 port tests retained and passing.
+- Clean Release build has zero errors and zero warnings.
 - `linux-x64`, `win-x64`, `osx-x64`, and `osx-arm64` publish gates pass.
 - Linux `.deb` and portable archive build and smoke successfully.
 - CodeQL has no untriaged alerts.

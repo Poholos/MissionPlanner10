@@ -552,17 +552,13 @@ namespace MissionPlanner.Utilities
             }
         }
 
-        public static async Task<bool> CheckHTTPFileExistsAsync(string url)
+        public static Task<bool> CheckHTTPFileExistsAsync(string url)
         {
-            return await Task.Run(() =>
-            {
-                return CheckHTTPFileExists(url);
-            });
+            return Task.Run(() => CheckHTTPFileExists(url));
         }
 
         public static bool CheckHTTPFileExists(string url)
         {
-            bool result = false;
             Uri uri;
             Uri.TryCreate(url, UriKind.Absolute, out uri);
 

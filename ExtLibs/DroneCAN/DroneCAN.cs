@@ -1204,7 +1204,6 @@ namespace DroneCAN
             // getfile crc
             using (var stream = File.OpenRead(fileServerList[Path.GetFileName("fw.bin".ToLower())]))
             {
-                string app_descriptor_fmt = "<8cQI";
                 var SHARED_APP_DESCRIPTOR_SIGNATURES = new byte[][]
                 {
                     new byte[] {0xd7, 0xe4, 0xf7, 0xba, 0xd0, 0x0f, 0x9b, 0xee},
@@ -1380,7 +1379,6 @@ namespace DroneCAN
                             Thread.Sleep(1);
                         }
                         */
-                        cmdack = false;
                     }
                 }
                 // var ans = sr.Peek();
@@ -1812,7 +1810,6 @@ velocity_covariance: [1.8525, 0.0000, 0.0000, 0.0000, 1.8525, 0.0000, 0.0000, 0.
             }
             else if (line[0] == 'Z')
             {
-                cmdack = true;
                 return;
             }
             else
@@ -2169,8 +2166,6 @@ velocity_covariance: [1.8525, 0.0000, 0.0000, 0.0000, 1.8525, 0.0000, 0.0000, 0.
         private bool run;
         private Stream logfile;
         private SemaphoreSlim logfilesemaphore = new SemaphoreSlim(1);
-        private bool cmdack;
-
         public int ReadSLCAN(byte b)
         {
             if (b >= '0' && b <= '9' || b >= 'a' && b <= 'f' || b >= 'A' && b <= 'F' || b == 't' || b == 'T' || b == 'n' || b == '\r' || b == '\a' || b == '\n')

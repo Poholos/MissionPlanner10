@@ -6893,6 +6893,7 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
                     }
                     catch (Exception e)
                     {
+                        log.Error(e);
                     }
                 }).Wait();
             }

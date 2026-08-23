@@ -99,7 +99,7 @@ namespace MissionPlanner.Utilities
             {
                 byte[] buffer = new byte[1024 * 1024];
 
-                var lineCount = 0l;
+                var lineCount = 0L;
                 if (binary)
                 {
                     long length = basestream.Length;

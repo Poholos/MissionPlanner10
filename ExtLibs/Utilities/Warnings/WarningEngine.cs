@@ -69,7 +69,7 @@ namespace MissionPlanner.Warnings
         {
             if (run == false)
             {
-                MainLoop();
+                _ = MainLoop();
             }
 
             _speech = speech;

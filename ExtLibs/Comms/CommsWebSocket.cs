@@ -20,8 +20,6 @@ namespace MissionPlanner.Comms
         public ClientWebSocket client = new ClientWebSocket();
         private DateTime lastReconnectTime = DateTime.MinValue;
 
-        private bool reconnectnoprompt;
-
         public int retrys = 3;
 
         public WebSocket()
@@ -189,7 +187,7 @@ namespace MissionPlanner.Comms
         private bool socketio = false;
         private string _url;
 
-        private async void Open(string url)
+        private void Open(string url)
         {
             _url = url;
             client = new ClientWebSocket();
@@ -198,7 +196,7 @@ namespace MissionPlanner.Comms
             {
                 //https://github.com/socketio/engine.io-protocol
                 // socket.io
-                client.SendAsync(new ArraySegment<byte>("2probe".ToCharArray().Select(a => (byte) a).ToArray()),
+                _ = client.SendAsync(new ArraySegment<byte>("2probe".ToCharArray().Select(a => (byte) a).ToArray()),
                     WebSocketMessageType.Text, true, CancellationToken.None);
             }
         }

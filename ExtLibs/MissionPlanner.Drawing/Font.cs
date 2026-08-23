@@ -277,6 +277,7 @@ namespace System.Drawing
             Style = bold;
             Unit = pixel;
             Size = size;
+            this.gdiVerticalFont = gdiVerticalFont;
         }
 
         internal void Initialize(string genericSansSerif, float size, FontStyle bold = FontStyle.Regular,

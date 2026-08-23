@@ -4056,19 +4056,11 @@ namespace MissionPlanner
                     case (uint)MAVLink.MAVLINK_MSG_ID.HIGHRES_IMU:
                         {
                             const ushort HIGHRES_IMU_UPDATED_XACC = 0x01;
-                            const ushort HIGHRES_IMU_UPDATED_YACC = 0x02;
-                            const ushort HIGHRES_IMU_UPDATED_ZACC = 0x04;
                             const ushort HIGHRES_IMU_UPDATED_XGYRO = 0x08;
-                            const ushort HIGHRES_IMU_UPDATED_YGYRO = 0x10;
-                            const ushort HIGHRES_IMU_UPDATED_ZGYRO = 0x20;
                             const ushort HIGHRES_IMU_UPDATED_XMAG = 0x40;
-                            const ushort HIGHRES_IMU_UPDATED_YMAG = 0x80;
-                            const ushort HIGHRES_IMU_UPDATED_ZMAG = 0x100;
                             const ushort HIGHRES_IMU_UPDATED_ABS_PRESSURE = 0x200;
-                            const ushort HIGHRES_IMU_UPDATED_DIFF_PRESSURE = 0x400;
                             const ushort HIGHRES_IMU_UPDATED_PRESSURE_ALT = 0x800;
                             const ushort HIGHRES_IMU_UPDATED_TEMPERATURE = 0x1000;
-                            const ushort HIGHRES_IMU_UPDATED_ALL = 0xFFFF;
 
                             var imu = mavLinkMessage.ToStructure<MAVLink.mavlink_highres_imu_t>();
                             if (imu.id == 0)

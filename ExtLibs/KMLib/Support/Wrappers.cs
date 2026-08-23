@@ -39,7 +39,6 @@ namespace KMLib
 
     public class KmlDouble
     {
-        private double? value;
 
     }
 

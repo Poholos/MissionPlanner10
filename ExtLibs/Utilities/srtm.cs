@@ -52,8 +52,6 @@ namespace MissionPlanner.Utilities
         static object objlock = new object();
         static object extract = new object();
 
-        static Thread requestThread;
-
         static bool requestThreadrun = false;
 
         static List<string> queue = new List<string>();
@@ -408,7 +406,7 @@ namespace MissionPlanner.Utilities
 
         private static void StartQueueProcess()
         {
-            requestRunner();
+            _ = requestRunner();
         }
 
         static double GetAlt(string filename, int x, int y)

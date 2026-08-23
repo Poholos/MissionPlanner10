@@ -352,10 +352,6 @@ namespace MissionPlanner.Comms
         [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         internal static extern bool GetCommModemStatus(SafeFileHandle hFile, ref int lpModemStat);
 
-        // Microsoft.Win32.UnsafeNativeMethods
-        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        internal static extern bool ClearCommError(SafeFileHandle hFile, ref int lpErrors, ref COMSTAT lpStat);
-
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool ReadFile(SafeFileHandle hFile, [Out] byte[] lpBuffer, uint nNumberOfBytesToRead,
             out uint lpNumberOfBytesRead, IntPtr lpOverlapped);
@@ -415,13 +411,6 @@ namespace MissionPlanner.Comms
             public ushort wPacketVersion;
             public ushort wSettableData;
             public ushort wSettableStopParity;
-        }
-
-        internal struct COMSTAT
-        {
-            public uint cbInQue;
-            public uint cbOutQue;
-            public uint Flags;
         }
 
         internal struct DCB

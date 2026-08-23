@@ -241,6 +241,7 @@ namespace MissionPlanner.ArduPilot.Mavlink
         };
 
         gimbal_status_t _status;
+        public gimbal_status_t Status => _status;
         private control_mode_t _control_mode;
 
         /**

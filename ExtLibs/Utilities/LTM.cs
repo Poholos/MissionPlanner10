@@ -337,15 +337,12 @@ namespace MissionPlanner.Utilities
                 switch ((char) line[2])
                 {
                     case 'G':
-                        var lenG = 18;
                         NewGPSMessage?.Invoke(this, line.ByteArrayToStructure<G>(3));
                         break;
                     case 'A':
-                        var lenA = 10;
                         NewAttitudeMessage?.Invoke(this, line.ByteArrayToStructure<A>(3));
                         break;
                     case 'S':
-                        var lenS = 11;
                         NewStatusMessage?.Invoke(this, line.ByteArrayToStructure<S>(3));
                         break;
                     case 'O':

@@ -12,18 +12,15 @@
     <Product>Zeroconf ($(TargetFramework))</Product>
     <IncludeSymbols>true</IncludeSymbols>
     <UseFullSemVerForNuGet>true</UseFullSemVerForNuGet>
-    <GenerateDocumentationFile Condition=" '$(Configuration)' == 'Release' ">true</GenerateDocumentationFile>
+    <!-- Mission Planner consumes this vendored project as an application dependency and does not
+         pack its incomplete upstream XML documentation artifact. -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <DebugType>portable</DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Platforms\**\*.*" />
     <None Include="Platforms\**\*.*" />
     <EmbeddedResource Include="Properties\Zeroconf.rd.xml" />
-    <PackageReference Include="AsyncFixer" Version="1.5.1">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Asyncify" Version="0.9.7" />
     <PackageReference Include="System.Reactive" Version="4.0.0" />
   </ItemGroup>
   <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' ">

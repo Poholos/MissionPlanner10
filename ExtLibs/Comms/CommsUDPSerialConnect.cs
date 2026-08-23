@@ -23,7 +23,6 @@ namespace MissionPlanner.Comms
         private MemoryStream rbuffer = new MemoryStream();
         public IPEndPoint RemoteIpEndPoint = new IPEndPoint(IPAddress.Any, 0);
 
-        private int retrys = 3;
         public IPEndPoint hostEndPoint;
 
         public string ConfigRef { get; set; } = "";
