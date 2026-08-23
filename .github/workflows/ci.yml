@@ -110,12 +110,14 @@ jobs:
             }
           }
 
-          $msiRoot = Join-Path $env:RUNNER_TEMP "msi-install"
+          # Exercise the real per-machine directory authored in Package.wxs. Overriding a
+          # directory property from msiexec does not validate the installer's production path
+          # and can be ignored during maintenance-mode directory resolution.
+          $msiRoot = Join-Path $env:ProgramFiles "MissionPlannerAvalonia"
           $installLog = Join-Path $env:RUNNER_TEMP "msi-install.log"
           try {
             $process = Start-Process msiexec.exe -Wait -PassThru -ArgumentList @(
-              '/i', $msi.FullName, '/qn', '/norestart',
-              "INSTALLFOLDER=$msiRoot", '/L*V', $installLog
+              '/i', $msi.FullName, '/qn', '/norestart', '/L*V', $installLog
             )
             if ($process.ExitCode -ne 0) {
               Get-Content $installLog -Tail 200
