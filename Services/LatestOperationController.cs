@@ -14,11 +14,12 @@ internal sealed class LatestOperationController : IDisposable {
   private bool _disposed;
 
   internal Lease Begin(CancellationToken lifetimeToken) {
-    var source = CancellationTokenSource.CreateLinkedTokenSource(lifetimeToken);
+    CancellationTokenSource source;
     CancellationTokenSource? previous;
     int generation;
     lock (_sync) {
       ObjectDisposedException.ThrowIf(_disposed, this);
+      source = CancellationTokenSource.CreateLinkedTokenSource(lifetimeToken);
       previous = _current;
       _current = source;
       generation = ++_generation;
