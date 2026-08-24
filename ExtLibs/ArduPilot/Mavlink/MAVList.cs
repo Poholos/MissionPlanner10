@@ -72,7 +72,16 @@ namespace MissionPlanner.Mavlink
 
         public void Clear()
         {
-            masterlist.Clear();
+            lock (locker)
+            {
+                foreach (MAVState state in masterlist.Values)
+                    state.Dispose();
+                foreach (MAVState state in hiddenlist.Values)
+                    state.Dispose();
+                masterlist.Clear();
+                hiddenlist.Clear();
+                hiddenlist.Add(0, new MAVState(parent, 0, 0));
+            }
         }
 
         public bool Contains(byte sysid, byte compid, bool includehidden = true)

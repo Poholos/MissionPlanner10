@@ -233,6 +233,12 @@ namespace MissionPlanner
 
         public void Dispose()
         {
+            Camera?.Dispose();
+            Camera = null;
+            Gimbal?.Dispose();
+            Gimbal = null;
+            GimbalManager?.Dispose();
+            GimbalManager = null;
             if (Proximity != null)
                 Proximity.Dispose();
         }

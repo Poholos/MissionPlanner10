@@ -3749,12 +3749,12 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
       bool accepted;
       switch (command.Action) {
         case GimbalVideoPointerAction.TrackPoint:
-          camera.RequestTrackingMessageInterval(5);
+          camera.SubscribeTracking(5);
           accepted = await camera.SetTrackingPointAsync(
               (float)command.End.X, (float)command.End.Y);
           break;
         case GimbalVideoPointerAction.TrackRectangle:
-          camera.RequestTrackingMessageInterval(5);
+          camera.SubscribeTracking(5);
           accepted = await camera.SetTrackingRectangleAsync(
               (float)command.Start.X,
               (float)command.Start.Y,

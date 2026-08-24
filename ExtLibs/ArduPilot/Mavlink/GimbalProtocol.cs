@@ -1,12 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using MissionPlanner.Utilities;
 
 namespace MissionPlanner.ArduPilot.Mavlink
 {
-    public class GimbalProtocol
+    public class GimbalProtocol : IDisposable
     {
+        private MAVLinkInterface _interface;
+        private EventHandler<MAVLink.MAVLinkMessage> _messageHandler;
+        private int _started;
+        private int _disposed;
+
         //Multiple component IDs are reserved for gimbal devices: MAV_COMP_ID_GIMBAL, MAV_COMP_ID_GIMBAL2, MAV_COMP_ID_GIMBAL3, MAV_COMP_ID_GIMBAL4, MAV_COMP_ID_GIMBAL5, MAV_COMP_ID_GIMBAL6
 
         //gsdk - gimbal
@@ -25,13 +31,22 @@ namespace MissionPlanner.ArduPilot.Mavlink
 
         public void Discover(MAVLinkInterface mint)
         {
-            mint.doCommand(0, 0, MAVLink.MAV_CMD.REQUEST_MESSAGE,
-                (float)MAVLink.MAVLINK_MSG_ID.GIMBAL_DEVICE_INFORMATION,
-                0, 0, 0, 0, 0, 0, false);
+            Discover(mint, (byte)mint.sysidcurrent, (byte)mint.compidcurrent);
+        }
 
-            mint.OnPacketReceived += (sender, message) =>
+        public void Discover(MAVLinkInterface mint, byte sysid, byte compid)
+        {
+            if (mint == null)
+                throw new ArgumentNullException(nameof(mint));
+            if (Volatile.Read(ref _disposed) != 0 ||
+                Interlocked.Exchange(ref _started, 1) != 0)
+                return;
+
+            _interface = mint;
+            _messageHandler = (sender, message) =>
             {
-                if (message.msgid == (uint)MAVLink.MAVLINK_MSG_ID.GIMBAL_DEVICE_INFORMATION)
+                if (message.sysid == sysid && message.compid == compid &&
+                    message.msgid == (uint)MAVLink.MAVLINK_MSG_ID.GIMBAL_DEVICE_INFORMATION)
                 {
                     var gi = (MAVLink.mavlink_gimbal_device_information_t)message.data;
 
@@ -41,6 +56,20 @@ namespace MissionPlanner.ArduPilot.Mavlink
                     }
                 }
             };
+            mint.OnPacketReceived += _messageHandler;
+            mint.doCommand(sysid, compid, MAVLink.MAV_CMD.REQUEST_MESSAGE,
+                (float)MAVLink.MAVLINK_MSG_ID.GIMBAL_DEVICE_INFORMATION,
+                0, 0, 0, 0, 0, 0, false);
+        }
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0)
+                return;
+            if (_interface != null && _messageHandler != null)
+                _interface.OnPacketReceived -= _messageHandler;
+            _messageHandler = null;
+            _interface = null;
         }
 
         public bool Reboot(MAVLinkInterface mint, byte sysid, byte compid)

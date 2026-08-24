@@ -1,13 +1,25 @@
 using System;
 using System.Collections.Concurrent;
+using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
+using log4net;
 using MissionPlanner.Utilities;
 
 namespace MissionPlanner.ArduPilot.Mavlink
 {
-    public class GimbalManagerProtocol
+    public class GimbalManagerProtocol : IDisposable
     {
-        CurrentState cs;
+        private static readonly ILog log = LogManager.GetLogger(
+            MethodBase.GetCurrentMethod().DeclaringType);
+        private readonly CurrentState cs;
+        private readonly MAVLinkInterface mavint;
+        private readonly CancellationTokenSource _lifetime = new CancellationTokenSource();
+        private byte _systemId;
+        private byte _componentId;
+        private int _started;
+        private int _disposed;
+        private volatile bool _haveManagerInformation;
 
         // Stores the last GIMBAL_MANAGER_INFORMATION message for each gimbal device/component ID.
         // This index will be 1-6, or MAVLink component IDs 154, 171-175.
@@ -27,32 +39,105 @@ namespace MissionPlanner.ArduPilot.Mavlink
         public ConcurrentDictionary<byte, MAVLink.mavlink_gimbal_device_attitude_status_t> GimbalStatus =
             new ConcurrentDictionary<byte, MAVLink.mavlink_gimbal_device_attitude_status_t>();
 
-        private readonly MAVLinkInterface mavint;
-
         public GimbalManagerProtocol(MAVLinkInterface mavint, CurrentState cs)
         {
             this.mavint = mavint;
             this.cs = cs;
         }
 
-        private bool first_discover = true;
+        [Obsolete("Use StartID")]
         public void Discover()
         {
-            if (first_discover)
-            {
-                first_discover = false;
-                mavint.OnPacketReceived += MessagesHandler;
-            }
+            ObserveFault(StartID((byte)mavint.sysidcurrent, (byte)mavint.compidcurrent));
+        }
 
-            mavint.doCommand(0, 0, MAVLink.MAV_CMD.REQUEST_MESSAGE,
-                (float)MAVLink.MAVLINK_MSG_ID.GIMBAL_MANAGER_INFORMATION,
-                0, 0, 0, 0, 0, 0, false);
+        public async Task StartID(byte sysid, byte compid)
+        {
+            if (Volatile.Read(ref _disposed) != 0)
+                return;
+            if (Interlocked.Exchange(ref _started, 1) != 0)
+                return;
+
+            _systemId = sysid;
+            _componentId = compid;
+            mavint.OnPacketReceived += MessagesHandler;
+
+            const ushort informationId =
+                (ushort)MAVLink.MAVLINK_MSG_ID.GIMBAL_MANAGER_INFORMATION;
+            const float intervalMicroseconds = 30_000_000;
+            int confirmed = 0;
+            int subscription = mavint.SubscribeToPacketType(
+                MAVLink.MAVLINK_MSG_ID.MESSAGE_INTERVAL,
+                message =>
+                {
+                    MAVLink.mavlink_message_interval_t interval =
+                        message.ToStructure<MAVLink.mavlink_message_interval_t>();
+                    if (interval.message_id == informationId)
+                    {
+                        Interlocked.Exchange(ref confirmed, 1);
+                        log.InfoFormat(
+                            "GimbalManager: information interval response {0} us",
+                            interval.interval_us);
+                    }
+                    return true;
+                }, sysid, compid);
+
+            try
+            {
+                for (int attempt = 0; attempt < 3 && !_haveManagerInformation &&
+                     Volatile.Read(ref confirmed) == 0; attempt++)
+                {
+                    SendDiscoveryIntervalRequest(informationId, intervalMicroseconds);
+                    await Task.Delay(5000, _lifetime.Token).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            finally
+            {
+                mavint.UnSubscribeToPacketType(subscription);
+            }
+        }
+
+        private void SendDiscoveryIntervalRequest(ushort messageId, float intervalMicroseconds)
+        {
+            try
+            {
+                ObserveFault(mavint.doCommandAsync(_systemId, _componentId,
+                    MAVLink.MAV_CMD.SET_MESSAGE_INTERVAL,
+                    messageId, intervalMicroseconds,
+                    0, 0, 0, 0, 0, false));
+                ObserveFault(mavint.doCommandAsync(_systemId, _componentId,
+                    MAVLink.MAV_CMD.GET_MESSAGE_INTERVAL,
+                    messageId, 0, 0, 0, 0, 0, 0, false));
+            }
+            catch (Exception ex)
+            {
+                log.Debug("Gimbal manager discovery failed: " + ex.Message);
+            }
+        }
+
+        private static void ObserveFault(Task task)
+        {
+            task?.ContinueWith(faulted =>
+                log.Debug("Gimbal manager request failed: " +
+                          faulted.Exception?.GetBaseException().Message),
+                CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted,
+                TaskScheduler.Default);
         }
 
         private void MessagesHandler(object sender, MAVLink.MAVLinkMessage message)
         {
+            // One protocol instance belongs to one vehicle. Attitude status may come
+            // from a gimbal component, while manager information comes from the manager.
+            if (message.sysid != _systemId)
+                return;
+
             if (message.msgid == (uint)MAVLink.MAVLINK_MSG_ID.GIMBAL_MANAGER_INFORMATION)
             {
+                if (message.compid != _componentId)
+                    return;
                 var gmi = (MAVLink.mavlink_gimbal_manager_information_t)message.data;
 
                 ManagerInfo[gmi.gimbal_device_id] = gmi;
@@ -60,6 +145,7 @@ namespace MissionPlanner.ArduPilot.Mavlink
                 {
                     ManagerInfo[0] = gmi;
                 }
+                _haveManagerInformation = true;
             }
 
             if (message.msgid == (uint)MAVLink.MAVLINK_MSG_ID.GIMBAL_MANAGER_STATUS)
@@ -95,23 +181,24 @@ namespace MissionPlanner.ArduPilot.Mavlink
 
         public bool HasStatusFlag(MAVLink.GIMBAL_DEVICE_FLAGS flags, byte gimbal_device_id = 0)
         {
-            return ManagerStatus.TryGetValue(gimbal_device_id, out var status) && ((status.flags & (uint)flags) != 0);
+            return GimbalStatus.TryGetValue(gimbal_device_id, out var status) &&
+                   ((status.flags & (uint)flags) != 0);
         }
 
         public bool YawInVehicleFrame(byte gimbal_device_id = 0)
         {
-            bool yaw_in_earth_frame = HasStatusFlag(MAVLink.GIMBAL_DEVICE_FLAGS.YAW_IN_EARTH_FRAME, gimbal_device_id);
-            bool yaw_in_vehicle_frame = HasStatusFlag(MAVLink.GIMBAL_DEVICE_FLAGS.YAW_IN_VEHICLE_FRAME, gimbal_device_id);
+            return !GimbalStatus.TryGetValue(gimbal_device_id, out var status) ||
+                   YawIsInVehicleFrame(status.flags);
+        }
 
-            // Some older protocols don't set YAW_IN_EARTH_FRAME or YAW_IN_VEHICLE_FRAME flags,
-            // with those, we have to infer it from whether YAW_LOCK is set.
-            if (!yaw_in_earth_frame && !yaw_in_vehicle_frame)
-            {
-                bool yaw_lock = HasStatusFlag(MAVLink.GIMBAL_DEVICE_FLAGS.YAW_LOCK, gimbal_device_id);
-                yaw_in_vehicle_frame = !yaw_lock;
-            }
-
-            return yaw_in_vehicle_frame;
+        internal static bool YawIsInVehicleFrame(uint statusFlags)
+        {
+            var flags = (MAVLink.GIMBAL_DEVICE_FLAGS)statusFlags;
+            bool earth = (flags & MAVLink.GIMBAL_DEVICE_FLAGS.YAW_IN_EARTH_FRAME) != 0;
+            bool vehicle = (flags & MAVLink.GIMBAL_DEVICE_FLAGS.YAW_IN_VEHICLE_FRAME) != 0;
+            if (!earth && !vehicle)
+                vehicle = (flags & MAVLink.GIMBAL_DEVICE_FLAGS.YAW_LOCK) == 0;
+            return vehicle;
         }
 
         /// <summary>
@@ -212,9 +299,7 @@ namespace MissionPlanner.ArduPilot.Mavlink
                 yaw -= cs.yaw;
             }
 
-            Console.WriteLine("SetAttitudeAsync: pitch={0}, yaw={1}, yaw_lock={2}", pitch, yaw < 0 ? yaw + 360 : yaw, yaw_lock);
             return SetAnglesCommandAsync(pitch, yaw, yaw_lock, gimbal_device_id);
-            //return Task.FromResult(true);
         }
 
         private double wrap_180(double angle)
@@ -352,6 +437,14 @@ namespace MissionPlanner.ArduPilot.Mavlink
                 sysid,
                 gimbal_device_id,
                 0, 0, 0, 0, 0);
+        }
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0)
+                return;
+            _lifetime.Cancel();
+            mavint.OnPacketReceived -= MessagesHandler;
         }
     }
 }

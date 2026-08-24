@@ -282,6 +282,8 @@ namespace MissionPlanner
 
         public bool ReadOnly = false;
 
+        public MessageRateManager RateManager { get; private set; }
+
         public TerrainFollow Terrain;
 
         public event ProgressEventHandler Progress;
@@ -491,6 +493,8 @@ namespace MissionPlanner
             _mavlink2count = 0;
             _mavlink2signed = 0;
 
+            RateManager = new MessageRateManager(this);
+
             AIS.Start(this);
 
             // new hearbeat detected
@@ -505,7 +509,10 @@ namespace MissionPlanner
                     (tuple.Item2 >= (byte) MAVLink.MAV_COMPONENT.MAV_COMP_ID_CAMERA &&
                     tuple.Item2 <= (byte) MAV_COMPONENT.MAV_COMP_ID_CAMERA6))
             {
-                MAVlist[tuple.Item1, tuple.Item2].Camera = new CameraProtocol();
+                MAVState cameraState = MAVlist[tuple.Item1, tuple.Item2];
+                cameraState.Camera?.Dispose();
+                var camera = new CameraProtocol();
+                cameraState.Camera = camera;
                 Task.Run(async () =>
                 {
                     try
@@ -513,19 +520,27 @@ namespace MissionPlanner
                         // Open holds this
                         while (!_openComplete)
                         {
+                            if (Volatile.Read(ref _disposeState) != 0 ||
+                                !ReferenceEquals(cameraState.Camera, camera))
+                                return;
                             await Task.Delay(1000);
                         }
 
                         await Task.Delay(2000);
 
-                        if (MAVlist[tuple.Item1, tuple.Item2].Camera == null)
+                        if (Volatile.Read(ref _disposeState) != 0 ||
+                            !ReferenceEquals(cameraState.Camera, camera))
                             return;
 
                         while(giveComport)
+                        {
+                            if (Volatile.Read(ref _disposeState) != 0 ||
+                                !ReferenceEquals(cameraState.Camera, camera))
+                                return;
                             await Task.Delay(100);
+                        }
 
-                        await MAVlist[tuple.Item1, tuple.Item2]
-                            .Camera.StartID(MAVlist[tuple.Item1, tuple.Item2])
+                        await camera.StartID(cameraState)
                             .ConfigureAwait(false);
                     }
                     catch (Exception e)
@@ -538,7 +553,10 @@ namespace MissionPlanner
             if (tuple.Item2 >= (byte)MAVLink.MAV_COMPONENT.MAV_COMP_ID_GIMBAL &&
                 tuple.Item2 <= (byte)MAV_COMPONENT.MAV_COMP_ID_GIMBAL6)
             {
-                MAVlist[tuple.Item1, tuple.Item2].Gimbal = new GimbalProtocol();
+                MAVState gimbalState = MAVlist[tuple.Item1, tuple.Item2];
+                gimbalState.Gimbal?.Dispose();
+                var gimbal = new GimbalProtocol();
+                gimbalState.Gimbal = gimbal;
                 Task.Run(async () =>
                 {
                     try
@@ -546,13 +564,18 @@ namespace MissionPlanner
                         // Open holds this
                         while (!_openComplete)
                         {
+                            if (Volatile.Read(ref _disposeState) != 0 ||
+                                !ReferenceEquals(gimbalState.Gimbal, gimbal))
+                                return;
                             await Task.Delay(1000);
                         }
 
                         await Task.Delay(2000);
 
-                        MAVlist[tuple.Item1, tuple.Item2]
-                            .Gimbal?.Discover(this);
+                        if (Volatile.Read(ref _disposeState) != 0 ||
+                            !ReferenceEquals(gimbalState.Gimbal, gimbal))
+                            return;
+                        gimbal.Discover(this, tuple.Item1, tuple.Item2);
                     }
                     catch (Exception e)
                     {
@@ -565,7 +588,10 @@ namespace MissionPlanner
                 (tuple.Item2 >= (byte)MAV_COMPONENT.MAV_COMP_ID_MISSIONPLANNER &&
                 tuple.Item2 <= (byte)MAV_COMPONENT.MAV_COMP_ID_ONBOARD_COMPUTER4))
             {
-                MAVlist[tuple.Item1, tuple.Item2].GimbalManager = new GimbalManagerProtocol(this, MAVlist[tuple.Item1, tuple.Item2].cs);
+                MAVState managerState = MAVlist[tuple.Item1, tuple.Item2];
+                managerState.GimbalManager?.Dispose();
+                var manager = new GimbalManagerProtocol(this, managerState.cs);
+                managerState.GimbalManager = manager;
                 Task.Run(async () =>
                 {
                     try
@@ -573,13 +599,20 @@ namespace MissionPlanner
                         // Open holds this
                         while (!_openComplete)
                         {
+                            if (Volatile.Read(ref _disposeState) != 0 ||
+                                !ReferenceEquals(managerState.GimbalManager, manager))
+                                return;
                             await Task.Delay(1000);
                         }
 
                         await Task.Delay(2000);
 
-                        MAVlist[tuple.Item1, tuple.Item2]
-                            .GimbalManager?.Discover();
+                        if (Volatile.Read(ref _disposeState) != 0 ||
+                            !ReferenceEquals(managerState.GimbalManager, manager))
+                            return;
+
+                        await manager.StartID(tuple.Item1, tuple.Item2)
+                            .ConfigureAwait(false);
                     }
                     catch (Exception e)
                     {
@@ -970,6 +1003,7 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
             MAV.packetslost = 0;
             MAV.synclost = 0;
             _openComplete = true;
+            RateManager.OnConnectionOpen();
         }
 
         private string getAppVersion()
@@ -6912,8 +6946,14 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
             return "MAV " + MAV.sysid + " on Ice";
         }
 
+        private int _disposeState;
+
         public void Dispose()
         {
+            if (Interlocked.Exchange(ref _disposeState, 1) != 0)
+                return;
+
+            RateManager?.Dispose();
             if (_bytesReceivedSubj != null)
                 _bytesReceivedSubj.Dispose();
             if (_bytesSentSubj != null)
@@ -6930,6 +6970,7 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
 
             logreadmode = false;
             logplaybackfile = null;
+            GC.SuppressFinalize(this);
         }
 
         public void uAvionixADSBControl(int baroAltMSL,ushort squawk,/*UAVIONIX_ADSB_OUT_CONTROL_STATE*/byte state,/*UAVIONIX_ADSB_EMERGENCY_STATUS*/byte emergencyStatus,byte[] flight_id,byte x_bit)
