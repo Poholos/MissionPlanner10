@@ -77,12 +77,14 @@ public partial class MavFTPUIViewModel : ViewModelBase {
     Roots.Clear();
 
     var root = new FtpDirNode("/", "/", this);
-    var sys = new FtpDirNode("@SYS", "@SYS/", this);
     Roots.Add(root);
-    Roots.Add(sys);
 
     await root.LoadChildrenAsync();
-    await sys.LoadChildrenAsync();
+    if (ShouldAddSystemRoot(root.Children)) {
+      var sys = new FtpDirNode("@SYS", "@SYS/", this);
+      Roots.Add(sys);
+      await sys.LoadChildrenAsync();
+    }
 
     SelectedDir = root;
     Status = "Ready.";
@@ -266,6 +268,15 @@ public partial class MavFTPUIViewModel : ViewModelBase {
 
     return (dir.EndsWith("/") ? dir : dir + "/") + name;
   }
+
+  internal static bool ShouldAddSystemRoot(IEnumerable<FtpDirNode> rootChildren) {
+    foreach (FtpDirNode child in rootChildren) {
+      if (string.Equals(child.Name, "@SYS", StringComparison.OrdinalIgnoreCase)) {
+        return false;
+      }
+    }
+    return true;
+  }
 }
 
 public partial class FtpDirNode : ObservableObject {
@@ -314,8 +325,9 @@ public partial class FtpDirNode : ObservableObject {
     }
 
     Children.Clear();
+    var paths = new HashSet<string>(StringComparer.Ordinal);
     foreach (var info in list) {
-      if (!info.isDirectory || info.Name is "." or "..") {
+      if (!info.isDirectory || info.Name is "." or ".." || !paths.Add(info.FullName)) {
         continue;
       }
 
