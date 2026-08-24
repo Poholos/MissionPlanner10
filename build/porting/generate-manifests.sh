@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+readonly native_baseline_commit="67a3c4f22bd1b38ac499f9756902e04fa4ed8444"
+readonly source_port_commit="8ed19081c972a80a8b6996ed817581bc59cbcb4b"
+
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 repo_root="$(cd "$script_dir/../.." && pwd -P)"
 source_port="${1:-$repo_root/../MissionPlanner-Avalonia}"
@@ -14,6 +17,14 @@ if ! git -C "$source_port" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   echo "Avalonia source repository not found: $source_port" >&2
   exit 1
 fi
+if ! git -C "$repo_root" cat-file -e "$native_baseline_commit^{tree}"; then
+  echo "Native migration baseline is unavailable: $native_baseline_commit" >&2
+  exit 1
+fi
+if ! git -C "$source_port" cat-file -e "$source_port_commit^{tree}"; then
+  echo "Avalonia migration source is unavailable: $source_port_commit" >&2
+  exit 1
+fi
 
 temporary_dir="$(mktemp -d)"
 trap 'rm -rf -- "$temporary_dir"' EXIT
@@ -23,9 +34,14 @@ port_files="$temporary_dir/port-files"
 native_output="$temporary_dir/NATIVE_SURFACE.tsv"
 import_output="$temporary_dir/PORT_SOURCE_IMPORT.tsv"
 
-LC_ALL=C git -C "$repo_root" ls-files -- '*.cs' '*.resx' \
-  ':!ExtLibs/**' ':!MissionPlannerTests/**' | LC_ALL=C sort > "$native_files"
-LC_ALL=C git -C "$source_port" ls-files | LC_ALL=C sort > "$port_files"
+# Always inventory the two frozen migration trees. Reading the current index would make a
+# successfully removed WinForms file disappear from the audit on the next regeneration.
+LC_ALL=C git -C "$repo_root" ls-tree -r --name-only "$native_baseline_commit" |
+  LC_ALL=C awk '($0 ~ /\.cs$/ || $0 ~ /\.resx$/) &&
+      $0 !~ /^ExtLibs\// && $0 !~ /^MissionPlannerTests\//' |
+  LC_ALL=C sort > "$native_files"
+LC_ALL=C git -C "$source_port" ls-tree -r --name-only "$source_port_commit" |
+  LC_ALL=C sort > "$port_files"
 
 canonical_name() {
   local value="${1##*/}"
