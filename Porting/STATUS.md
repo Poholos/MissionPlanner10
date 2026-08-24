@@ -4,10 +4,10 @@ Updated: **2026-08-24**.
 
 ## Current state
 
-- Functional migration is published on `port/avalonia-in-place` at `eaf456665`; the isolated,
-  fully verified cleanup is published on `cleanup/project-audit` at `cd745f4f`. The current
-  `sync/gtu-nv5settings-98e98833` follow-up contains only the later GTU `NV5Settings` synchronization.
-  Rollback remains the untouched native baseline `67a3c4f`; `master` is not modified.
+- The complete in-place Avalonia migration and audited cleanup were merged to `master` through
+  PR #1 at merge commit `eb6cfe28f`. The later GTU `NV5Settings` synchronization was merged through
+  PR #2, producing functional master checkpoint `b5f2ba3ed`. Native baseline `67a3c4f` remains the
+  immutable rollback reference in Git history.
 - The root `MissionPlanner.csproj` is now the net10 Avalonia application with assembly and product
   identity `MissionPlanner`. It builds one main `MissionPlanner.dll` and has no source, build or
   runtime dependency on an `external/MissionPlanner` tree.
@@ -66,6 +66,10 @@ Updated: **2026-08-24**.
   Xamarin/Uno/Blazor/Windows Store application experiments and their manual mobile workflows are
   removed on the cleanup branch; supported packaging remains Avalonia desktop for Linux, Windows
   and both macOS architectures.
+- Post-merge master CI run `32713804092` passed the complete build/test graph, Linux DEB/TAR with
+  lintian and extracted-payload smoke, Windows ZIP/MSI with real install/file validation/uninstall,
+  and both macOS archives. Master CodeQL run `32713804084` also passed; the five open results are
+  the same fully triaged findings recorded before merge, with no new NV5Settings finding.
 - The frozen native inventory remains complete in `NATIVE_SURFACE.tsv`, while replaced WinForms
   sources are explicitly mapped to tested Avalonia artifacts and selected source files whose
   behavior is fully superseded have been removed. RESX translations remain preserved. The manifest
@@ -105,14 +109,15 @@ Updated: **2026-08-24**.
 - Completed functional commit `eaf456665` passed packaging run `32685680444`: real default-path MSI
   install/file checks/uninstall, Linux DEB/TAR with lintian and extracted-payload smoke, and both
   macOS architectures all succeeded. CodeQL run `32685680428` succeeded with zero open alerts.
-- `cleanup/project-audit` is the isolated follow-up branch. It removes closed WinForms sources,
+- `cleanup/project-audit` was the isolated review branch and was merged through PR #1 after the
+  explicit user decision. It removes closed WinForms sources,
   replaced standalone projects, EOL alternate application stacks, generated proprietary API
   clients and obsolete launch/deploy/CI/binary artifacts; exact decisions and retained areas are in
   `PROJECT_CLEANUP_AUDIT.md`.
 - `MissionPlanner.slnx` now names the complete active transitive graph. Its Release build has zero
   warnings/errors, analyzer verification has zero diagnostics (the .NET 10 workspace-loader notices
   are documented separately), NuGet reports no vulnerable packages, the native manifest has zero
-  blockers and all 1253 tests pass after cleanup.
+  blockers and all 1259 tests pass after cleanup plus the later NV5Settings regression coverage.
 - Clean-commit Linux TAR/DEB and Windows ZIP packaging succeeds after cleanup. The DEB passes
   `lintian`, payload assertions and a 12-second Xvfb launch; the Windows archive contains the
   expected self-contained `win-x64` application. CI run `32688021866` also passes Windows ZIP/MSI
@@ -130,12 +135,13 @@ Updated: **2026-08-24**.
 
 ## Immediate next step
 
-Review the isolated `cleanup/project-audit` deletion set and its audit before proposing it for
-merge. Do not merge this destructive cleanup into `master` without an explicit review decision.
+Continue functional parity work from the merged Avalonia `master` in focused feature branches.
+Before a release, repeat physical UDP/TCP/UART acceptance with representative NV4/NV5 hardware
+and recheck both committed and uncommitted GTU `NV5Settings` changes from checkpoint `98e98833`.
 
 ## Acceptance baseline
 
-- At least 1253 port tests retained and passing.
+- At least 1259 port tests retained and passing.
 - Clean Release build has zero errors and zero warnings.
 - `linux-x64`, `win-x64`, `osx-x64`, and `osx-arm64` publish gates pass.
 - Linux `.deb` and portable archive build and smoke successfully.

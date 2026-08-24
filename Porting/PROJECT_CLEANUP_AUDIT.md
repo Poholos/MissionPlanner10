@@ -4,10 +4,11 @@ Updated: **2026-08-24**.
 
 ## Scope and safety rule
 
-Cleanup is isolated on `cleanup/project-audit`; it is not merged into `master`. The branch contains
-the completed `port/avalonia-in-place` work and removes an artifact only when its native manifest
-row is closed, its replacement is present, and the active build/package graph has no reference to
-it. Git history remains the recovery source for every removed file.
+Cleanup was isolated and reviewed on `cleanup/project-audit`, then merged to `master` through PR #1
+after the explicit user decision on 2026-08-24. The review branch contained the completed
+`port/avalonia-in-place` work and removes an artifact only when its native manifest row is closed,
+its replacement is present, and the active build/package graph has no reference to it. Git history
+remains the recovery source for every removed file.
 
 The supported product graph is `MissionPlanner.slnx`: one `net10.0` Avalonia application, its
 portable plugin contract, the exact transitive libraries used by that application, and the active
@@ -186,10 +187,11 @@ make windows-zip
 ```
 
 The latest local audit passes all six structural gates, a zero-warning Release build, analyzer
-verification, the no-vulnerable-package query and all 1253 tests. Linux TAR/DEB and Windows ZIP
-also build from the dirty review tree; the DEB passes `lintian` and both archives pass integrity
-checks. WiX deliberately remains a Windows-runner gate: on Linux it emits its documented
-Windows-only warning before undefined path validation. Published CI checkpoint `32688021866`
-passed Windows ZIP/MSI build plus default-path install/file checks/uninstall, both macOS
-architectures, and Linux build/test/package/smoke; the current commit must repeat that matrix before
-merge.
+verification, the no-vulnerable-package query and all 1259 tests after the NV5Settings follow-up.
+Linux TAR/DEB and Windows ZIP also build from the dirty review tree; the DEB passes `lintian` and
+both archives pass integrity checks. WiX deliberately remains a Windows-runner gate: on Linux it
+emits its documented Windows-only warning before undefined path validation. Published review CI
+checkpoint `32688021866` passed Windows ZIP/MSI build plus default-path install/file
+checks/uninstall, both macOS architectures, and Linux build/test/package/smoke. The final merged
+`master` repeated that complete matrix successfully in run `32713804092`; CodeQL run `32713804084`
+also passed.
