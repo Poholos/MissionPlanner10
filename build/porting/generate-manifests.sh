@@ -197,7 +197,7 @@ declare -A native_replacement_by_logical_path=(
   ["Controls/fftui"]="Views/ConfigFFTWindow.cs;ViewModels/GCSViews/ConfigurationView/ConfigFFTViewModel.cs"
   ["Controls/paramcompare"]="Views/ParamCompareWindow.cs;ViewModels/RawParamsViewModel.cs"
   ["Utilities/GStreamerUI"]="Controls/VideoControl.cs;Services/VideoSourceResolver.cs;Services/MavlinkVideoStreams.cs"
-  ["Utilities/LangUtility"]="Services/ResxTranslationService.cs;Views/TranslationEditorView.axaml;ViewModels/TranslationEditorViewModel.cs"
+  ["Utilities/LangUtility"]="Services/LocalizationService.cs;Services/ResxTranslationService.cs;Views/TranslationEditorView.axaml;ViewModels/TranslationEditorViewModel.cs"
   ["Utilities/LogAnalyzer"]="Services/LogAnalyzer.cs;Views/LogBrowseView.axaml;ViewModels/FlightDataViewModel.cs"
   ["Utilities/OsdTuningSlotProvider"]="Services/OsdTuningSlotService.cs;Views/OsdTuningSlotsWindow.cs;GCSViews/ConfigurationView/ConfigOSDView.axaml"
   ["Utilities/POI"]="Services/PoiStore.cs;Controls/MapView.cs;ViewModels/FlightPlannerViewModel.cs;ViewModels/FlightDataViewModel.cs"
@@ -207,6 +207,7 @@ declare -A native_replacement_by_logical_path=(
   ["Utilities/Update"]="Services/Updater.cs;Services/AppVersion.cs;Views/HelpView.axaml"
   ["Utilities/Win32DeviceMgnt"]="ViewModels/Setup/InstallFirmwareViewModel.cs;ViewModels/GCSViews/ConfigurationView/ConfigFirmwareLegacyViewModel.cs"
   ["Utilities/XMLColor"]="Services/ThemeService.cs;Views/ThemeEditorWindow.cs"
+  ["L10N"]="Services/LocalizationService.cs;Services/ResxTranslationService.cs"
 )
 
 declare -A native_removal_by_logical_path=(

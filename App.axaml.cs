@@ -9,6 +9,7 @@ namespace MissionPlanner;
 
 public partial class App : Application {
   public override void Initialize() {
+    Services.LocalizationService.ApplySaved();
     AvaloniaXamlLoader.Load(this);
   }
 
