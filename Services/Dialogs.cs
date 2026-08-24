@@ -180,13 +180,18 @@ public static class Dialogs {
   }
 
   public static void OpenUrl(string url) {
+    ArgumentException.ThrowIfNullOrWhiteSpace(url);
+    ProcessStartInfo start;
     if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) {
-      Process.Start("xdg-open", url);
+      start = new ProcessStartInfo("xdg-open") { UseShellExecute = false };
+      start.ArgumentList.Add(url);
     } else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
-      Process.Start("open", url);
+      start = new ProcessStartInfo("open") { UseShellExecute = false };
+      start.ArgumentList.Add(url);
     } else {
-      Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+      start = new ProcessStartInfo(url) { UseShellExecute = true };
     }
+    using Process? process = Process.Start(start);
   }
 
   private static StackPanel Shell(string title) => new() {

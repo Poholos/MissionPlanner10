@@ -65,13 +65,17 @@ public partial class PluginManagerViewModel : ViewModelBase, IDisposable {
   private void OpenFolder() {
     try {
       System.IO.Directory.CreateDirectory(PluginDirectory);
+      ProcessStartInfo start;
       if (OperatingSystem.IsLinux()) {
-        Process.Start("xdg-open", PluginDirectory);
+        start = new ProcessStartInfo("xdg-open") { UseShellExecute = false };
+        start.ArgumentList.Add(PluginDirectory);
       } else if (OperatingSystem.IsMacOS()) {
-        Process.Start("open", PluginDirectory);
+        start = new ProcessStartInfo("open") { UseShellExecute = false };
+        start.ArgumentList.Add(PluginDirectory);
       } else {
-        Process.Start(new ProcessStartInfo(PluginDirectory) { UseShellExecute = true });
+        start = new ProcessStartInfo(PluginDirectory) { UseShellExecute = true };
       }
+      using Process? process = Process.Start(start);
     } catch (Exception ex) {
       Status = "Could not open the plugin directory: " + ex.Message;
     }

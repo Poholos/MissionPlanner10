@@ -190,7 +190,7 @@ public static class Updater {
       // Developer ID signature + notarization staple that Gatekeeper checks).
       engine.Apply(changed, staging);
       if (!string.IsNullOrEmpty(exe)) {
-        Process.Start(new ProcessStartInfo(exe) { UseShellExecute = false });
+        StartDetached(new ProcessStartInfo(exe) { UseShellExecute = false });
       }
     }
     Shutdown();
@@ -236,7 +236,7 @@ public static class Updater {
           engine.Apply(files, extracted);
           string exe = Environment.ProcessPath ?? "";
           if (!string.IsNullOrEmpty(exe)) {
-            Process.Start(new ProcessStartInfo(exe) { UseShellExecute = false });
+            StartDetached(new ProcessStartInfo(exe) { UseShellExecute = false });
           }
         }
       }
@@ -277,7 +277,9 @@ public static class Updater {
       "",
     });
     File.WriteAllText(sh, script);
-    Process.Start(new ProcessStartInfo("/bin/sh", $"\"{sh}\"") { UseShellExecute = false });
+    var start = new ProcessStartInfo("/bin/sh") { UseShellExecute = false };
+    start.ArgumentList.Add(sh);
+    StartDetached(start);
   }
 
   private static string Q(string s) => "'" + s.Replace("'", "'\\''") + "'";
@@ -293,10 +295,14 @@ public static class Updater {
         $"start \"\" \"{exe}\"\r\n" +
         "del \"%~f0\"\r\n";
     File.WriteAllText(bat, script);
-    Process.Start(new ProcessStartInfo("cmd.exe", $"/c \"{bat}\"") {
+    StartDetached(new ProcessStartInfo("cmd.exe", $"/c \"{bat}\"") {
       UseShellExecute = false,
       CreateNoWindow = true,
     });
+  }
+
+  private static void StartDetached(ProcessStartInfo startInfo) {
+    using Process? process = Process.Start(startInfo);
   }
 
   private static void Shutdown() {
