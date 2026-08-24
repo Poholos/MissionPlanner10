@@ -27,9 +27,9 @@ public class FlightDataSafetyAndTabTests {
         FlightDataViewModel.ActionConfirmationText("Terminate_Flight"));
     Assert.Contains("permanently erased",
         FlightDataViewModel.ActionConfirmationText("Format_SD_Card"));
-    Assert.Contains("Disable automatic parachute release",
+    Assert.Contains("cannot be undone",
         FlightDataViewModel.ActionConfirmationText("Do_Parachute"));
-    Assert.Equal(MAVLink.PARACHUTE_ACTION.PARACHUTE_DISABLE,
+    Assert.Equal(MAVLink.PARACHUTE_ACTION.PARACHUTE_RELEASE,
         FlightDataViewModel.ParachuteCommandAction);
   }
 
