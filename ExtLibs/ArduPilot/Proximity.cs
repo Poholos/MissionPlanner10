@@ -2,9 +2,8 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
 using System.Reflection;
-using System.Text;
+using System.Threading;
 using MissionPlanner.ArduPilot;
 using static MAVLink;
 
@@ -22,6 +21,7 @@ namespace MissionPlanner.Utilities
         int sub2;
         private byte sysid;
         private byte compid;
+        private int _disposed;
 
         public bool DataAvailable { get; set; } = false;
 
@@ -41,12 +41,13 @@ namespace MissionPlanner.Utilities
 
         ~Proximity()
         {
-            _parent?.parent?.UnSubscribeToPacketType(sub);
-            _parent?.parent?.UnSubscribeToPacketType(sub2);
+            Dispose(false);
         }
 
         private bool messageReceived(MAVLinkMessage arg)
         {
+            if (Volatile.Read(ref _disposed) != 0 || _parent == null)
+                return true;
             //accept any compid, but filter sysid
             if (arg.sysid != _parent.sysid)
                 return true;
@@ -107,13 +108,27 @@ namespace MissionPlanner.Utilities
 
         public void Dispose()
         {
-            if (_parent != null)
-                _parent.parent.UnSubscribeToPacketType(sub);
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        private void Dispose(bool disposing)
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0)
+                return;
+
+            MAVState parent = _parent;
+            _parent = null;
+            if (parent?.parent == null)
+                return;
+            parent.parent.UnSubscribeToPacketType(sub);
+            parent.parent.UnSubscribeToPacketType(sub2);
         }
 
         public class directionState
         {
-            List<data> _dists = new List<data>();
+            private readonly object _sync = new object();
+            private readonly List<data> _dists = new List<data>();
 
             public class data
             {
@@ -151,30 +166,25 @@ namespace MissionPlanner.Utilities
 
             public void Add(uint id, MAV_SENSOR_ORIENTATION orientation, double distance, DateTime received, double age = 1)
             {
-                var existing = _dists.Where((a) => { return a.SensorId == id && a.Orientation == orientation; });
-
-                foreach (var item in existing.ToList())
+                lock (_sync)
                 {
-                    _dists.Remove(item);
+                    _dists.RemoveAll(item =>
+                        item.SensorId == id && item.Orientation == orientation);
+
+                    _dists.Add(new data(id, orientation, distance, received, age));
+                    ExpireLocked();
                 }
-
-                _dists.Add(new data(id, orientation, distance, received, age));
-
-                expire();
             }      
             
             public void Add(uint id, double angle, double size, double distance, DateTime received, double age = 1)
             {
-                var existing = _dists.Where((a) => { return a.SensorId == id && a.Angle == angle; });
-
-                foreach (var item in existing.ToList())
+                lock (_sync)
                 {
-                    _dists.Remove(item);
+                    _dists.RemoveAll(item => item.SensorId == id && item.Angle == angle);
+
+                    _dists.Add(new data(id, angle, size, distance, received, age));
+                    ExpireLocked();
                 }
-
-                _dists.Add(new data(id, angle, size, distance, received, age));
-
-                expire();
             }
 
             /// <summary>
@@ -183,16 +193,15 @@ namespace MissionPlanner.Utilities
             /// <returns></returns>
             public double GetClosest()
             {
-                expire();
-
-                double min = double.MaxValue;
-
-                for (int a = 0; a < _dists.Count; a++)
+                lock (_sync)
                 {
-                    min = Math.Min(min, _dists[a].Distance);
-                }
+                    ExpireLocked();
+                    double min = double.MaxValue;
+                    for (int a = 0; a < _dists.Count; a++)
+                        min = Math.Min(min, _dists[a].Distance);
 
-                return min;
+                    return min;
+                }
             }
 
             /// <summary>
@@ -202,45 +211,36 @@ namespace MissionPlanner.Utilities
             /// <returns>List of directions</returns>
             public List<MAV_SENSOR_ORIENTATION> GetWarnings(double min_distance = 2)
             {
-                expire();
-
-                List<MAV_SENSOR_ORIENTATION> list = new List<MAV_SENSOR_ORIENTATION>();
-
-                for (int a = 0; a < _dists.Count; a++)
+                lock (_sync)
                 {
-                    if (_dists[a].Distance < min_distance)
+                    ExpireLocked();
+                    var list = new List<MAV_SENSOR_ORIENTATION>();
+                    for (int a = 0; a < _dists.Count; a++)
                     {
-                        list.Add(_dists[a].Orientation);
+                        if (_dists[a].Distance < min_distance)
+                            list.Add(_dists[a].Orientation);
                     }
+                    return list;
                 }
-
-                return list;
             }
 
             public List<data> GetRaw()
             {
-                expire();
-
-                return _dists;
+                lock (_sync)
+                {
+                    ExpireLocked();
+                    return new List<data>(_dists);
+                }
             }
 
-            void expire()
+            private void ExpireLocked()
             {
-                lock (this)
+                for (int a = 0; a < _dists.Count; a++)
                 {
-                    for (int a = 0; a < _dists.Count; a++)
+                    if (_dists[a].ExpireTime < DateTime.Now)
                     {
-                        var expireat = _dists[a].ExpireTime;
-
-                        if (expireat < DateTime.Now)
-                        {
-                            // remove it
-                            _dists.RemoveAt(a);
-                            // make sure we dont skip an element
-                            a--;
-                            // move on
-                            continue;
-                        }
+                        _dists.RemoveAt(a);
+                        a--;
                     }
                 }
             }
