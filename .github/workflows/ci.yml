@@ -14,6 +14,11 @@ concurrency:
   group: avalonia-ci-${{ github.ref }}
   cancel-in-progress: true
 
+# A CI checkout is an immutable commit even when restore/build tools create runner-local files.
+# Keep those files from leaking a misleading `.dirty` suffix into packages and app metadata.
+env:
+  MISSIONPLANNER_DIRTY_SUFFIX: ''
+
 jobs:
   build-test-linux:
     runs-on: ubuntu-latest
@@ -46,6 +51,7 @@ jobs:
       - name: Validate and smoke Debian payload
         shell: bash
         run: |
+          test -z "$(find out/packages -maxdepth 1 -type f -name '*.dirty*' -print -quit)"
           DEB=$(find out/packages -maxdepth 1 -type f -name 'missionplanner_*_amd64.deb' -print -quit)
           test -n "$DEB"
           lintian --tag-display-limit 0 "$DEB"
@@ -95,6 +101,9 @@ jobs:
           $zip = Get-ChildItem out/packages/*win-x64.zip | Select-Object -First 1
           $msi = Get-ChildItem out/packages/*win-x64.msi | Select-Object -First 1
           if (-not $zip -or -not $msi) { throw "Windows artifacts are missing" }
+          if ($zip.Name -match '\.dirty' -or $msi.Name -match '\.dirty') {
+            throw "Clean CI artifacts must not contain the .dirty version suffix"
+          }
 
           $zipRoot = Join-Path $env:RUNNER_TEMP "zip"
           Expand-Archive -Path $zip.FullName -DestinationPath $zipRoot
@@ -171,8 +180,13 @@ jobs:
         shell: bash
         run: |
           RID=${{ matrix.rid }}
+          source build/version.sh
           dotnet publish MissionPlanner.csproj -c Release -r "$RID" --self-contained true \
-            -m:1 -p:DebugType=none -p:StripSymbols=true -o "out/$RID"
+            -m:1 -p:DebugType=none -p:StripSymbols=true \
+            -p:MissionPlannerUpstreamVersion="$MP_UPSTREAM_VERSION" \
+            -p:MissionPlannerBuildDate="$MP_BUILD_DATE" \
+            -p:MissionPlannerCommit="$MP_COMMIT" \
+            -o "out/$RID"
           test -x "out/$RID/MissionPlanner"
           test -s "out/$RID/libsimpleble-c.dylib"
           test -s "out/$RID/libsimpleble.0.dylib"
@@ -183,8 +197,10 @@ jobs:
         shell: bash
         run: |
           RID=${{ matrix.rid }}
+          source build/version.sh
+          test "$MP_DIRTY_SUFFIX" = ""
           mkdir -p dist upload
-          ./build/macos/make-app.sh "out/$RID" "$(./build/version.sh | cut -f1)" \
+          ./build/macos/make-app.sh "out/$RID" "$MP_UPSTREAM_VERSION" \
             "dist/Mission Planner.app"
           ditto -c -k --sequesterRsrc --keepParent "dist/Mission Planner.app" \
             "upload/MissionPlanner-${RID}.zip"
