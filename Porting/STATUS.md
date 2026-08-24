@@ -50,8 +50,8 @@ Updated: **2026-08-24**.
 - The frozen native inventory remains complete in `NATIVE_SURFACE.tsv`, while replaced WinForms
   sources are explicitly mapped to tested Avalonia artifacts and selected source files whose
   behavior is fully superseded have been removed. RESX translations remain preserved. The manifest
-  now exposes **13** `unported-blocker` rows: Python scripting; legacy firmware/board detection and
-  firmware selection; the embedded HTTP service; Dowding; the audited `temp` form; and old WiX
+  now exposes **11** `unported-blocker` rows: Python scripting; legacy firmware/board detection and
+  firmware selection; the embedded HTTP service; Dowding; and old WiX
   bootstrap sources. Obsolete directories, standalone projects and other build-system remnants are
   intentionally deferred to `cleanup/project-audit` after these functional blockers are closed.
 - Claude remains temporarily disabled by user instruction.
@@ -68,7 +68,7 @@ Updated: **2026-08-24**.
 
 ## Immediate next step
 
-Close the remaining 13 functional manifest blockers without mixing repository cleanup into this
+Close the remaining 11 functional manifest blockers without mixing repository cleanup into this
 branch. Then require the GitHub run to perform a real default-path MSI install/uninstall, build/sign
 both `.app` archives on macOS, repeat Linux package smoke and complete CodeQL. Once functional and
 packaging gates are green, run the conservative unused-file/directory/build-system audit on the

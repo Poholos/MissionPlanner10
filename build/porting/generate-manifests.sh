@@ -101,6 +101,7 @@ declare -A native_replacement_by_logical_path=(
   ["SikRadio/Terminal"]="GCSViews/Setup/SikRadioView.axaml;ViewModels/Setup/SetupActionPages.cs"
   ["SikRadio/Terminal.Designer"]="GCSViews/Setup/SikRadioView.axaml"
   ["SikRadio/ThemeManager"]="Theme/MpTheme.axaml;Services/ThemeService.cs"
+  ["temp"]="Views/ActionPageView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigDeveloperToolsViewModel.cs;Porting/Reference/TEMP_HANDLER_AUDIT.md"
   ["Plugin/Plugin"]="Plugin/LegacyCompatibility/PluginCompatibility.cs;Plugin/PortableApi/Plugin.cs;Plugin/PortableApi/PluginHost.cs"
   ["Plugin/PluginLoader"]="Services/PluginRuntime.cs;Services/PluginService.cs"
   ["Plugin/PluginUI"]="Views/PluginManagerWindow.axaml;ViewModels/PluginManagerViewModel.cs"

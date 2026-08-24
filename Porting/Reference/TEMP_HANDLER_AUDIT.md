@@ -51,6 +51,7 @@ Status meanings:
 | `but_trimble_Click` | `ported` | Tools > Swarm Sequence. |
 | `myButton_vlc_Click` | `replaced` | Flight Data custom libVLC video source. |
 | `but_agemapdata_Click` | `ported` | Map Cache removes cached map data older than 30 days. |
+| `myButton1_Click_2` | `ported` | Developer Tools > Split DataFlash Log. |
 | `but_signkey_Click` | `ported` | MAVLink Signing Key management. |
 | `but_optflowcalib_Click` | `ported` | PX4Flow live frame/calibration page. |
 | `but_gpsinj_Click` | `ported` | Developer Tools > Extract GPS Corrections. |
@@ -87,6 +88,6 @@ Status meanings:
 | `BUT_forcecal_accel_Click` | `replaced` | Confirmed recovery-only Developer Tools > Force Accel Calibrated. |
 | `BUT_forcecal_mag_Click` | `replaced` | Confirmed recovery-only Developer Tools > Force Compass Calibrated. |
 
-The pinned source contains 67 click handlers and every one appears exactly once above. There are no
+The pinned source contains 68 click handlers and every one appears exactly once above. There are no
 open handlers in this registry. Broader format, release-channel and native-platform gaps remain
 tracked in [`PORT_STATUS.md`](PORT_STATUS.md).

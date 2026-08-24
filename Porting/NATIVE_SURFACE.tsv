@@ -1613,8 +1613,8 @@ resedit/Properties/AssemblyInfo.cs	csharp	replace	MissionPlanner.csproj	Mapped t
 resedit/Properties/Resources.Designer.cs	csharp	replace	Services/ResxTranslationService.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 resedit/Properties/Resources.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 resedit/Properties/Settings.Designer.cs	csharp	replace	ViewModels/TranslationEditorViewModel.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
-temp.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-temp.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+temp.Designer.cs	csharp	replace	Views/ActionPageView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigDeveloperToolsViewModel.cs;Porting/Reference/TEMP_HANDLER_AUDIT.md	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+temp.cs	csharp	replace	Views/ActionPageView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigDeveloperToolsViewModel.cs;Porting/Reference/TEMP_HANDLER_AUDIT.md	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 temp.ko-KR.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 temp.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 temp.uk.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
