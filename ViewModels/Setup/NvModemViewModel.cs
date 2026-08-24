@@ -1928,13 +1928,14 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
 
       var row = RadioStatuses[channel - 1];
       bool receives = status.Role != 1;
-      bool rssiValid = receives && (status.Flags & (1 << 6)) != 0
-          && status.PacketRssiDbmX10 != short.MinValue;
-      bool snrValid = receives && (status.Flags & (1 << 7)) != 0
-          && status.PacketSnrDbX10 != short.MinValue;
       bool locked = receives && (status.Flags & (1 << 2)) != 0;
-      string rssi = receives ? rssiValid ? $"{status.PacketRssiDbmX10 / 10.0:F1}" : "—" : "n/a";
-      string snr = receives ? snrValid ? $"{status.PacketSnrDbX10 / 10.0:F1}" : "—" : "n/a";
+      short? currentRssi = receives ? CurrentNv5Rssi(status, locked) : null;
+      short? currentSnr = receives && locked && status.PacketSnrDbX10 != short.MinValue
+          ? status.PacketSnrDbX10 : null;
+      string rssi = receives ? currentRssi is { } rssiValue
+          ? $"{rssiValue / 10.0:F1}" : "—" : "n/a";
+      string snr = receives ? currentSnr is { } snrValue
+          ? $"{snrValue / 10.0:F1}" : "—" : "n/a";
       string quality = receives ? $"{status.LinkQuality}%" : "n/a";
       double sample = Math.Max(1, status.SampleMs);
       double txKbps = status.TxRadioBytes * 8 / sample;
@@ -1956,6 +1957,18 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
           + $"SNR: {snr} dB\nQuality: {quality}\nQueues: {status.TxQueueBytes}/{status.RxQueueBytes} B\n"
           + $"FEC recovered: {status.FecRecovered}; hop missed: {status.HopMissed}; sync lost: {status.SyncLost}";
     }
+  }
+
+  private static short? CurrentNv5Rssi(Nv5LinkStatusMessage status, bool locked) {
+    if (!locked) {
+      return status.ChannelRssiDbmX10 == short.MinValue
+          ? null : status.ChannelRssiDbmX10;
+    }
+    if (status.PacketRssiDbmX10 != short.MinValue) {
+      return status.PacketRssiDbmX10;
+    }
+    return status.ChannelRssiDbmX10 == short.MinValue
+        ? null : status.ChannelRssiDbmX10;
   }
 
   private void ResetRadioRows() {
