@@ -58,6 +58,26 @@ public class RawParamsImportTests {
   }
 
   [Fact]
+  public void Compare_ignores_real32_rounding_noise_but_keeps_integer_changes_exact() {
+    var real = new ParamRow("ATC_RAT_PIT_P", 0.135000005, 0.135, "", "", "",
+        double.MinValue, double.MaxValue, MAVLink.MAV_PARAM_TYPE.REAL32);
+    var integer = new ParamRow("DEVICE_CODE", 60180513, null, "", "", "",
+        double.MinValue, double.MaxValue, MAVLink.MAV_PARAM_TYPE.UINT32);
+
+    var comparison = RawParamsViewModel.BuildComparison(
+        new[] { real, integer },
+        new Dictionary<string, double> {
+          ["ATC_RAT_PIT_P"] = 0.135,
+          ["DEVICE_CODE"] = 60180512,
+        });
+
+    var changed = Assert.Single(comparison);
+    Assert.Equal("DEVICE_CODE", changed.Name);
+    Assert.False(real.IsDirty);
+    Assert.False(real.IsNonDefault);
+  }
+
+  [Fact]
   public void Compare_never_exposes_or_stages_protected_parameters() {
     var normal = Row("RTL_ALT", 1000);
     var protectedRow = Row("FORMAT_VERSION", 120);
