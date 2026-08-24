@@ -69,6 +69,79 @@ while IFS= read -r source_path; do
   esac
 done < "$port_files"
 
+# Native WinForms setup/configuration classes were frequently renamed or consolidated while
+# retaining their user workflow in the Avalonia port. Keep the mapping explicit so deleting the
+# replaced C# files cannot erase the evidence from the frozen native-surface inventory.
+declare -A native_replacement_by_logical_path=(
+  ["GCSViews/ConfigurationView/ConfigAC_Fence"]="GCSViews/ConfigurationView/ConfigAC_FenceView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigAC_FenceViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigADSB"]="GCSViews/ConfigurationView/ConfigADSBView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigADSBViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigAccelerometerCalibration"]="GCSViews/ConfigurationView/ConfigAccelCalibrationView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigCalibrationPages.cs"
+  ["GCSViews/ConfigurationView/ConfigAdvanced"]="Views/ActionPageView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigAdvancedViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigAntennaTracker"]="GCSViews/ConfigurationView/ConfigAntennaTrackerParamView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigAntennaTrackerParamViewModel.cs;GCSViews/ConfigurationView/ConfigAntennaTrackerView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigAntennaTrackerViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigArducopter"]="GCSViews/ConfigurationView/ConfigBasicTuningView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigBasicTuningViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigArduplane"]="GCSViews/ConfigurationView/ConfigArduplaneView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigArduplaneViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigArdurover"]="GCSViews/ConfigurationView/ConfigArduroverView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigArduroverViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigBatteryMonitoring"]="GCSViews/ConfigurationView/ConfigBatteryMonitoringView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigBatteryMonitoringViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigBatteryMonitoring2"]="GCSViews/ConfigurationView/ConfigBatteryMonitoring2View.axaml;ViewModels/GCSViews/ConfigurationView/ConfigBatteryMonitoring2ViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigCompassMot"]="GCSViews/ConfigurationView/ConfigCompassMotView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigCompassMotViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigCubeID"]="GCSViews/ConfigurationView/ConfigCubeIDView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigCubeIDViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigDroneCAN"]="GCSViews/ConfigurationView/ConfigDroneCanView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigDroneCanViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigESCCalibration"]="GCSViews/ConfigurationView/ConfigESCCalibrationView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigCalibrationPages.cs"
+  ["GCSViews/ConfigurationView/ConfigFFT"]="GCSViews/ConfigurationView/ConfigFFTView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigFFTViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigFailSafe"]="GCSViews/ConfigurationView/ConfigFailSafeView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigFailSafeViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigFirmware"]="GCSViews/Setup/InstallFirmwareView.axaml;ViewModels/Setup/InstallFirmwareViewModel.cs;GCSViews/ConfigurationView/ConfigFirmwareLegacyView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigFirmwareLegacyViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigFirmwareManifest"]="GCSViews/Setup/InstallFirmwareView.axaml;ViewModels/Setup/InstallFirmwareViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigFlightModes"]="GCSViews/ConfigurationView/ConfigFlightModesView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigFlightModesViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigFrameClassType"]="GCSViews/ConfigurationView/ConfigFrameClassTypeView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigFrameClassTypeViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigFrameType"]="GCSViews/ConfigurationView/ConfigFrameTypeView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigFrameTypeViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigFriendlyParams"]="GCSViews/ConfigurationView/ConfigFriendlyParamsView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigFriendlyParamsViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigFriendlyParamsAdv"]="GCSViews/ConfigurationView/ConfigFriendlyParamsView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigFriendlyParamsViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigGPSOrder"]="GCSViews/ConfigurationView/ConfigGPSOrderView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigGPSOrderViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigHWAirspeed"]="GCSViews/ConfigurationView/ConfigAirspeedView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigAirspeedViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigHWBT"]="GCSViews/ConfigurationView/ConfigHWBTView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigHWBTViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigHWCAN"]="GCSViews/ConfigurationView/ConfigHWCANView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigHWCANViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigHWCompass"]="GCSViews/ConfigurationView/ConfigCompassLegacyView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigCompassLegacyViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigHWCompass2"]="GCSViews/ConfigurationView/ConfigCompassView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigCalibrationPages.cs"
+  ["GCSViews/ConfigurationView/ConfigHWIDs"]="GCSViews/ConfigurationView/ConfigHWIDView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigHWIDViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigHWOSD"]="GCSViews/ConfigurationView/ConfigHWOSDView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigHWOSDViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigHWOptFlow"]="GCSViews/ConfigurationView/ConfigOptFlowView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigOptFlowViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigHWPX4Flow"]="GCSViews/ConfigurationView/ConfigPX4FlowView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigPX4FlowViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigHWParachute"]="GCSViews/ConfigurationView/ConfigParachuteView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigParachuteViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigHWRangeFinder"]="GCSViews/ConfigurationView/ConfigRangeFinderView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigRangeFinderViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigHWesp8266"]="GCSViews/ConfigurationView/ConfigHWESP8266View.axaml;ViewModels/GCSViews/ConfigurationView/ConfigHWESP8266ViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigInitialParams"]="GCSViews/ConfigurationView/ConfigInitialParamsView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigInitialParamsViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigMandatory"]="GCSViews/SetupView.axaml;ViewModels/SetupViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigMotorTest"]="GCSViews/ConfigurationView/ConfigMotorTestView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigCalibrationPages.cs"
+  ["GCSViews/ConfigurationView/ConfigMount"]="GCSViews/ConfigurationView/ConfigMountView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigMountViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigOSD"]="GCSViews/ConfigurationView/ConfigOSDView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigOSDViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigOptional"]="GCSViews/SetupView.axaml;ViewModels/SetupViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigParamLoading"]="GCSViews/ConfigurationView/ConfigParamLoadingView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigParamLoadingViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigPlanner"]="GCSViews/ConfigurationView/ConfigPlannerView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigPlannerViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigPlannerAdv"]="GCSViews/ConfigurationView/ConfigPlannerAdvView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigPlannerAdvViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigREPL"]="GCSViews/ConfigurationView/ConfigOnboardReplView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigOnboardReplViewModel.cs;GCSViews/ConfigurationView/ConfigScriptReplView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigScriptReplViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigRadioInput"]="GCSViews/ConfigurationView/ConfigRadioInputView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigRadioInputViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigRadioOutput"]="GCSViews/ConfigurationView/ConfigRadioOutputView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigRadioOutputViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigRawParams"]="Views/RawParamsView.axaml;ViewModels/RawParamsViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigSecure"]="GCSViews/ConfigurationView/ConfigSecureView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigSecureViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigSecureAP"]="GCSViews/ConfigurationView/ConfigSecureApView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigSecureApViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigSerial"]="GCSViews/ConfigurationView/ConfigSerialView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigSerialViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigSerialInjectGPS"]="GCSViews/ConfigurationView/ConfigGpsInjectView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigGpsInjectViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigSimplePids"]="GCSViews/ConfigurationView/ConfigBasicTuningView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigBasicTuningViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigTerminal"]="GCSViews/ConfigurationView/ConfigTerminalView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigTerminalViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigTradHeli"]="GCSViews/ConfigurationView/ConfigTradHeliView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigTradHeliViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigTradHeli4"]="GCSViews/ConfigurationView/ConfigTradHeli4View.axaml;ViewModels/GCSViews/ConfigurationView/ConfigTradHeli4ViewModel.cs"
+  ["GCSViews/ConfigurationView/ConfigUserDefined"]="GCSViews/ConfigurationView/ConfigUserDefinedView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigUserDefinedViewModel.cs"
+  ["GCSViews/ConfigurationView/DeviceInfo"]="GCSViews/ConfigurationView/ConfigDroneCanView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigDroneCanViewModel.cs"
+  ["GCSViews/ConfigurationView/DroneCANModel"]="GCSViews/ConfigurationView/ConfigDroneCanView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigDroneCanViewModel.cs"
+  ["GCSViews/ConfigurationView/uitype"]="GCSViews/ConfigurationView/ConfigDroneCanView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigDroneCanViewModel.cs"
+)
+
+declare -A native_removal_by_logical_path=(
+  ["GCSViews/ConfigurationView/ConfigAteryx"]="Ateryx-specific setup is retired with the legacy Ateryx HIL path; PORT_STATUS records SITL as its supported replacement."
+  ["GCSViews/ConfigurationView/ConfigAteryxSensors"]="Ateryx-specific sensor setup is retired with the legacy Ateryx HIL path; PORT_STATUS records SITL as its supported replacement."
+  ["GCSViews/ConfigurationView/ConfigFirmwareDisabled"]="The Avalonia setup navigation hides unavailable firmware actions instead of opening a WinForms disabled-placeholder page."
+)
+
 find_candidates() {
   local wanted
   wanted="$(canonical_name "$1")"
@@ -95,31 +168,45 @@ while IFS= read -r native_path; do
       ;;
     Properties/AssemblyInfo.cs)
       status="merge"
-      candidates="src/MissionPlannerAvalonia/MissionPlannerAvalonia.csproj;src/MissionPlannerAvalonia/Services/AppVersion.cs"
+      candidates="MissionPlanner.csproj;Services/AppVersion.cs"
       evidence="Keep official version and add build date plus canonical commit hash."
       ;;
     Program.cs)
       status="replace"
-      candidates="src/MissionPlannerAvalonia/Program.cs"
+      candidates="Program.cs"
       evidence="Replace WinForms startup with the tested Avalonia entry point."
       ;;
     MainV2.cs|MainV2.Designer.cs)
       status="replace"
-      candidates="src/MissionPlannerAvalonia/Views/MainWindow.axaml;src/MissionPlannerAvalonia/Views/MainWindow.axaml.cs;src/MissionPlannerAvalonia/ViewModels/MainWindowViewModel.cs"
+      candidates="Views/MainWindow.axaml;Views/MainWindow.axaml.cs;ViewModels/MainWindowViewModel.cs"
       evidence="Main application shell replacement; legacy plugin ABI must be merged into the main assembly first."
       ;;
     GCSViews/FlightData.cs|GCSViews/FlightData.Designer.cs)
       status="replace"
-      candidates="src/MissionPlannerAvalonia/Views/FlightDataView.axaml;src/MissionPlannerAvalonia/Views/FlightDataView.axaml.cs;src/MissionPlannerAvalonia/ViewModels/FlightDataViewModel.cs"
+      candidates="GCSViews/FlightDataView.axaml;GCSViews/FlightDataView.axaml.cs;ViewModels/FlightDataViewModel.cs"
       evidence="Flight Data Avalonia replacement with splitter/session/airport fixes."
       ;;
     GCSViews/FlightPlanner.cs|GCSViews/FlightPlanner.Designer.cs)
       status="replace"
-      candidates="src/MissionPlannerAvalonia/Views/FlightPlannerView.axaml;src/MissionPlannerAvalonia/Views/FlightPlannerView.axaml.cs;src/MissionPlannerAvalonia/ViewModels/FlightPlannerViewModel.cs"
+      candidates="GCSViews/FlightPlannerView.axaml;GCSViews/FlightPlannerView.axaml.cs;ViewModels/FlightPlannerViewModel.cs"
       evidence="Flight Planner Avalonia replacement."
       ;;
     *)
-      candidates="$(find_candidates "$native_path")"
+      logical_path="$native_path"
+      logical_path="${logical_path%.Designer.cs}"
+      logical_path="${logical_path%.designer.cs}"
+      logical_path="${logical_path%.cs}"
+      if [[ -v 'native_replacement_by_logical_path[$logical_path]' ]]; then
+        status="replace"
+        candidates="${native_replacement_by_logical_path[$logical_path]}"
+        evidence="Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md."
+      elif [[ -v 'native_removal_by_logical_path[$logical_path]' ]]; then
+        status="remove"
+        candidates="Porting/Reference/PORT_STATUS.md"
+        evidence="${native_removal_by_logical_path[$logical_path]}"
+      else
+        candidates="$(find_candidates "$native_path")"
+      fi
       ;;
   esac
 

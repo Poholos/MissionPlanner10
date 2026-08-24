@@ -75,6 +75,29 @@ fi
 
 blockers="$(awk -F '\t' 'NR > 1 && $3 == "unported-blocker" { count++ } END { print count + 0 }' "$manifest")"
 
+missing_candidates=0
+while IFS=$'\t' read -r native_path kind status candidates evidence; do
+  [[ "$native_path" == "native_path" ]] && continue
+  if [[ "$status" == "replace" || "$status" == "merge" || "$status" == "remove" ]]; then
+    if [[ -z "$candidates" ]]; then
+      echo "Mapped row has no replacement/evidence path: $native_path" >&2
+      missing_candidates=$((missing_candidates + 1))
+      continue
+    fi
+    IFS=';' read -r -a candidate_paths <<< "$candidates"
+    for candidate in "${candidate_paths[@]}"; do
+      if [[ ! -e "$repo_root/$candidate" ]]; then
+        echo "Mapped candidate does not exist for $native_path: $candidate" >&2
+        missing_candidates=$((missing_candidates + 1))
+      fi
+    done
+  fi
+done < "$manifest"
+if (( missing_candidates != 0 )); then
+  echo "Native surface has $missing_candidates missing mapped candidate(s)." >&2
+  exit 1
+fi
+
 if [[ "$require_closed" == true ]]; then
   if (( blockers != 0 )); then
     echo "Native surface is not closed: $blockers unported blocker(s) remain." >&2
