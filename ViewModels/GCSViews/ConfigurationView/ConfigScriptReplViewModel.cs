@@ -8,7 +8,7 @@ using MissionPlanner.Services;
 
 namespace MissionPlanner.ViewModels.GCSViews.ConfigurationView;
 
-public partial class ConfigScriptReplViewModel : ViewModelBase {
+public partial class ConfigScriptReplViewModel : ViewModelBase, IDisposable {
   private readonly StringBuilder _buffer = new();
   private readonly LuaScriptHost _host = new();
 
@@ -79,5 +79,10 @@ public partial class ConfigScriptReplViewModel : ViewModelBase {
     _buffer.Append(text);
     _buffer.Append(Environment.NewLine);
     Output = _buffer.ToString();
+  }
+
+  public void Dispose() {
+    _host.Output -= OnHostOutput;
+    _host.Dispose();
   }
 }

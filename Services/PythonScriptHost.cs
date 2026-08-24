@@ -21,9 +21,7 @@ public sealed class PythonScriptHost : IDisposable {
   private readonly Func<IReadOnlyList<MAVLinkInterface>> _ports;
   private readonly Func<object?> _flightData;
   private readonly Func<object?> _flightPlanner;
-  private CancellationTokenSource? _cancellation;
-  private int _running;
-  private int _disposed;
+  private readonly ExclusiveOperationController _operation = new();
 
   public PythonScriptHost()
       : this(
@@ -46,7 +44,7 @@ public sealed class PythonScriptHost : IDisposable {
 
   public event Action<string>? Output;
 
-  public bool IsRunning => Volatile.Read(ref _running) != 0;
+  public bool IsRunning => _operation.IsRunning;
 
   public Task RunFileAsync(string path) {
     ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -64,31 +62,27 @@ public sealed class PythonScriptHost : IDisposable {
         code, sourceName, Microsoft.Scripting.SourceCodeKind.File));
   }
 
-  public void Abort() {
-    try {
-      _cancellation?.Cancel();
-    } catch (ObjectDisposedException) {
-    }
-  }
+  public void Abort() => _operation.CancelCurrent();
 
-  public void Dispose() {
-    if (Interlocked.Exchange(ref _disposed, 1) != 0) {
-      return;
-    }
-
-    Abort();
-  }
+  public void Dispose() => _operation.Dispose();
 
   private Task RunCoreAsync(Func<ScriptEngine, ScriptSource> sourceFactory) {
-    ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
-    if (Interlocked.Exchange(ref _running, 1) != 0) {
+    ExclusiveOperationController.Lease? operation = _operation.TryBegin();
+    if (operation is null) {
       Emit($"Python script is already running.{Environment.NewLine}");
       return Task.CompletedTask;
     }
 
-    var cancellation = new CancellationTokenSource();
-    _cancellation = cancellation;
-    return Task.Run(() => RunCore(sourceFactory, cancellation.Token), CancellationToken.None);
+    try {
+      return Task.Run(() => {
+        using (operation) {
+          RunCore(sourceFactory, operation.Token);
+        }
+      }, CancellationToken.None);
+    } catch {
+      operation.Dispose();
+      throw;
+    }
   }
 
   private void RunCore(Func<ScriptEngine, ScriptSource> sourceFactory, CancellationToken token) {
@@ -142,9 +136,6 @@ public sealed class PythonScriptHost : IDisposable {
         engine?.Runtime.Shutdown();
       } catch {
       }
-      Volatile.Write(ref _running, 0);
-      CancellationTokenSource? cancellation = Interlocked.Exchange(ref _cancellation, null);
-      cancellation?.Dispose();
     }
   }
 
