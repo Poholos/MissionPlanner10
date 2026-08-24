@@ -97,7 +97,7 @@ public partial class TrackerHomeModuleViewModel : ViewModelBase, IDisposable {
   private void RefreshInputs() {
     string? selected = SelectedInput;
     Inputs.Clear();
-    foreach (string port in System.IO.Ports.SerialPort.GetPortNames()
+    foreach (string port in MissionPlanner.Comms.SerialPort.GetPortNames()
                  .Distinct(StringComparer.Ordinal).OrderBy(item => item, StringComparer.Ordinal)) {
       Inputs.Add(port);
     }

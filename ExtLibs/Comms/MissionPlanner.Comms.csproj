@@ -51,6 +51,7 @@
 
   <ItemGroup>
     <Compile Update="CommsSerialPort.cs" />
+    <InternalsVisibleTo Include="MissionPlanner.Tests" />
   </ItemGroup>
 
   <ItemGroup>

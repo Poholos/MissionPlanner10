@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using log4net;
+using Microsoft.Win32;
 using Microsoft.Win32.SafeHandles;
 
 namespace MissionPlanner.Comms
@@ -206,6 +207,13 @@ namespace MissionPlanner.Comms
 
         private static string portnamenice = "";
 
+        private const int SystemPortEnumerationTimeoutMs = 2000;
+        private const int RegistryPortEnumerationTimeoutMs = 500;
+        private static readonly BoundedPortNameEnumerator systemPortEnumerator =
+            new BoundedPortNameEnumerator(System.IO.Ports.SerialPort.GetPortNames);
+        private static readonly BoundedPortNameEnumerator registryPortEnumerator =
+            new BoundedPortNameEnumerator(GetWindowsRegistryPortNames);
+
         public static string[] GetPortNames()
         {
             // prevent hammering
@@ -215,9 +223,6 @@ namespace MissionPlanner.Comms
 
                 if (Directory.Exists("/dev/"))
                 {
-                    // cleanup now
-                    GC.Collect();
-                    // mono is failing in here on linux "too many open files"
                     try
                     {
                         if (Directory.Exists("/dev/serial/by-id/"))
@@ -280,7 +285,7 @@ namespace MissionPlanner.Comms
 
                 try
                 {
-                    ports = System.IO.Ports.SerialPort.GetPortNames();
+                    ports = GetSystemPortNames();
                     // any exceptions will still result in a list
                     ports = ports.Select(p => p?.TrimEnd()).ToArray();
                     ports = ports.Select(FixBlueToothPortNameBug).ToArray();
@@ -305,8 +310,58 @@ namespace MissionPlanner.Comms
                     }
                 }
 
-                return allPorts.Distinct().ToArray();
+                return allPorts
+                    .Where(port => !string.IsNullOrWhiteSpace(port))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
             }
+        }
+
+        private static string[] GetSystemPortNames()
+        {
+            PortNameEnumerationResult system =
+                systemPortEnumerator.TryEnumerate(SystemPortEnumerationTimeoutMs);
+            if (system.Succeeded)
+                return system.Ports;
+
+            if (system.TimedOut)
+                log.Warn($"System serial-port enumeration timed out after {SystemPortEnumerationTimeoutMs} ms.");
+            else if (system.Error != null)
+                log.Error("System serial-port enumeration failed.", system.Error);
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                PortNameEnumerationResult registry =
+                    registryPortEnumerator.TryEnumerate(RegistryPortEnumerationTimeoutMs);
+                if (registry.Succeeded && registry.Ports.Length != 0)
+                    return registry.Ports;
+                if (registry.TimedOut)
+                    log.Warn($"Windows registry serial-port enumeration timed out after {RegistryPortEnumerationTimeoutMs} ms.");
+                else if (registry.Error != null)
+                    log.Error("Windows registry serial-port enumeration failed.", registry.Error);
+            }
+
+            // A failed refresh must not make an already known removable device disappear.
+            return system.Ports;
+        }
+
+        private static string[] GetWindowsRegistryPortNames()
+        {
+            var ports = new List<string>();
+            using (RegistryKey subkey = Registry.LocalMachine.OpenSubKey(
+                       @"HARDWARE\DEVICEMAP\SERIALCOMM"))
+            {
+                if (subkey == null)
+                    return ports.ToArray();
+
+                foreach (string valueName in subkey.GetValueNames())
+                {
+                    string port = subkey.GetValue(valueName)?.ToString();
+                    if (!string.IsNullOrWhiteSpace(port))
+                        ports.Add(port);
+                }
+            }
+            return ports.ToArray();
         }
 
         public static Func<List<string>> GetCustomPorts;

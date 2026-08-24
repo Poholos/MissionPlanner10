@@ -278,7 +278,7 @@ public partial class OpenDroneIdViewModel : ViewModelBase, IDisposable {
   private void RefreshInputs() {
     string? selected = SelectedInput;
     Inputs.Clear();
-    foreach (string port in System.IO.Ports.SerialPort.GetPortNames()
+    foreach (string port in MissionPlanner.Comms.SerialPort.GetPortNames()
                  .Distinct().OrderBy(item => item)) {
       Inputs.Add(port);
     }
