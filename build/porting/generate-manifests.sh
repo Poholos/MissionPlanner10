@@ -73,6 +73,9 @@ done < "$port_files"
 # retaining their user workflow in the Avalonia port. Keep the mapping explicit so deleting the
 # replaced C# files cannot erase the evidence from the frozen native-surface inventory.
 declare -A native_replacement_by_logical_path=(
+  ["Plugin/Plugin"]="Plugin/LegacyCompatibility/PluginCompatibility.cs;Plugin/PortableApi/Plugin.cs;Plugin/PortableApi/PluginHost.cs"
+  ["Plugin/PluginLoader"]="Services/PluginRuntime.cs;Services/PluginService.cs"
+  ["Plugin/PluginUI"]="Views/PluginManagerWindow.axaml;ViewModels/PluginManagerViewModel.cs"
   ["Plugins/AnonymizeBinlogPlugin"]="Services/DataFlashLogAnonymizer.cs;ViewModels/GCSViews/ConfigurationView/ConfigAdvancedViewModel.cs"
   ["GCSViews/ConfigurationView/ConfigAC_Fence"]="GCSViews/ConfigurationView/ConfigAC_FenceView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigAC_FenceViewModel.cs"
   ["GCSViews/ConfigurationView/ConfigADSB"]="GCSViews/ConfigurationView/ConfigADSBView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigADSBViewModel.cs"
@@ -267,6 +270,30 @@ while IFS= read -r native_path; do
         status="remove"
         candidates="Porting/Reference/PORT_STATUS.md"
         evidence="${native_removal_by_logical_path[$logical_path]}"
+      elif [[ "$logical_path" == Plugins/OpenDroneID2/* ]]; then
+        status="replace"
+        candidates="Views/OpenDroneIdView.axaml;ViewModels/OpenDroneIdViewModel.cs;Services/OpenDroneIdMessageFactory.cs;Services/NmeaGgaParser.cs"
+        evidence="The native Avalonia Open Drone ID workflow ports identity/configuration, serial and network NMEA input, map status, emergency state and target-bound MAVLink transmission with lifecycle tests."
+      elif [[ "$logical_path" == Plugins/TerrainMakerPlugin/* ]]; then
+        status="replace"
+        candidates="Views/TerrainMakerWindow.axaml;ViewModels/TerrainMakerViewModel.cs;Services/TerrainDataService.cs"
+        evidence="The native Avalonia Terrain Maker ports the official DAT geometry, elevation priority and binary format with cancellable atomic output and regression tests."
+      elif [[ "$logical_path" == plugins/FaceMap/* ]]; then
+        status="replace"
+        candidates="Views/FaceMapView.axaml;ViewModels/FaceMapViewModel.cs;ViewModels/FaceMapMissionBuilder.cs;Services/FaceMapSupport.cs"
+        evidence="The native Avalonia FaceMap workflow ports geometry, preview, mission generation, split flights, camera triggers and persisted file compatibility with regression tests."
+      elif [[ "$logical_path" == plugins/Shortcuts/Plugin ]]; then
+        status="replace"
+        candidates="Services/FlightCommandShortcuts.cs;GCSViews/ConfigurationView/ConfigPlannerView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigPlannerViewModel.cs"
+        evidence="Every active official Shortcuts command is exposed through opt-in, target-bound Avalonia shortcuts with safety confirmations and regression tests."
+      elif [[ "$logical_path" == plugins/InitialParamsCalculator ]]; then
+        status="replace"
+        candidates="GCSViews/ConfigurationView/ConfigInitialParamsView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigInitialParamsViewModel.cs"
+        evidence="The legacy loose-source calculator is superseded by the newer native Initial Parameters page with reviewable, selected existing-parameter writes."
+      elif [[ "$logical_path" == Plugins/example* || "$logical_path" == plugins/example* || "$logical_path" == plugins/generator ]]; then
+        status="remove"
+        candidates="Porting/Reference/PLUGINS.md"
+        evidence="This is a development/plugin-SDK sample rather than a shipped operator workflow. The portable plugin lifecycle, API, trust model and buildable source pattern are documented in Porting/Reference/PLUGINS.md; runtime compilation of loose trusted C# is deliberately not shipped."
       elif [[ "$logical_path" == "Antenna/TrackerGeneric" ]]; then
         status="replace"
         candidates="Services/AntennaTrackerOutputs.cs;ViewModels/AntennaTrackerUIViewModel.cs"
