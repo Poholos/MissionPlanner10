@@ -10,6 +10,7 @@ using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using MissionPlanner.Utilities;
 
@@ -56,6 +57,10 @@ public class SitlLauncher {
   private const string _host = "127.0.0.1";
   private const int _baseTcpPort = 5760;
   private const int _baseRcOverridePort = 5501;
+  internal const long MaximumBinaryDownloadBytes = 1024L * 1024 * 1024;
+  internal const long MaximumMetadataDownloadBytes = 16L * 1024 * 1024;
+  internal const long MaximumManifestCompressedBytes = 32L * 1024 * 1024;
+  internal const long MaximumManifestExpandedBytes = 256L * 1024 * 1024;
 
   private static readonly string[] _cygwinDlls = {
     "cygatomic-1.dll", "cyggcc_s-1.dll", "cyggcc_s-seh-1.dll", "cyggomp-1.dll",
@@ -449,7 +454,8 @@ public class SitlLauncher {
       return;
     }
     try {
-      await DownloadAsync(url, destination).ConfigureAwait(false);
+      await DownloadAsync(url, destination, MaximumMetadataDownloadBytes)
+          .ConfigureAwait(false);
     } catch when (File.Exists(destination)) {
       Emit($"Using cached {Path.GetFileName(destination)} after refresh failed.");
     }
@@ -673,9 +679,24 @@ public class SitlLauncher {
   }
 
   private async Task<string?> ResolveLinuxUrlAsync(string platform, string exeName) {
-    using var stream = await _http.GetStreamAsync(_manifestUrl).ConfigureAwait(false);
-    using var gz = new GZipStream(stream, CompressionMode.Decompress);
-    using var doc = await JsonDocument.ParseAsync(gz).ConfigureAwait(false);
+    var manifestUri = new Uri(_manifestUrl);
+    using HttpResponseMessage response = await _http.GetAsync(
+        manifestUri, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+    response.EnsureSuccessStatusCode();
+    ValidateHttpsResponse(manifestUri, response);
+    if (response.Content.Headers.ContentLength is long compressedLength
+        && compressedLength > MaximumManifestCompressedBytes) {
+      throw new InvalidDataException(
+          $"SITL manifest exceeds the {MaximumManifestCompressedBytes}-byte compressed limit.");
+    }
+    await using Stream responseStream = await response.Content.ReadAsStreamAsync()
+        .ConfigureAwait(false);
+    await using var compressed = new SizeLimitedReadStream(
+        responseStream, MaximumManifestCompressedBytes, leaveOpen: true);
+    await using var gzip = new GZipStream(compressed, CompressionMode.Decompress);
+    await using var expanded = new SizeLimitedReadStream(
+        gzip, MaximumManifestExpandedBytes, leaveOpen: true);
+    using var doc = await JsonDocument.ParseAsync(expanded).ConfigureAwait(false);
 
     if (!doc.RootElement.TryGetProperty("firmware", out var firmware)) {
       return null;
@@ -713,20 +734,63 @@ public class SitlLauncher {
     return fallback;
   }
 
-  private async Task DownloadAsync(string url, string destination) {
-    var tmp = destination + ".part";
-    using (var resp = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead)
-               .ConfigureAwait(false)) {
-      resp.EnsureSuccessStatusCode();
-      using var src = await resp.Content.ReadAsStreamAsync().ConfigureAwait(false);
-      using var dst = File.Create(tmp);
-      await src.CopyToAsync(dst).ConfigureAwait(false);
-    }
-    if (File.Exists(destination)) {
-      File.Delete(destination);
+  private Task DownloadAsync(
+      string url,
+      string destination,
+      long maximumBytes = MaximumBinaryDownloadBytes) =>
+      DownloadToFileAsync(_http, new Uri(url), destination, maximumBytes);
+
+  internal static async Task DownloadToFileAsync(
+      HttpClient http,
+      Uri uri,
+      string destination,
+      long maximumBytes,
+      CancellationToken cancellationToken = default) {
+    ArgumentNullException.ThrowIfNull(http);
+    ArgumentNullException.ThrowIfNull(uri);
+    ArgumentException.ThrowIfNullOrWhiteSpace(destination);
+    ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumBytes);
+    if (!uri.IsAbsoluteUri || !uri.Scheme.Equals(Uri.UriSchemeHttps,
+            StringComparison.OrdinalIgnoreCase)) {
+      throw new InvalidDataException("SITL downloads require an absolute HTTPS URL.");
     }
 
-    File.Move(tmp, destination);
+    string partial = destination + "." + Guid.NewGuid().ToString("N") + ".part";
+    try {
+      using HttpResponseMessage response = await http.GetAsync(
+          uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+      response.EnsureSuccessStatusCode();
+      ValidateHttpsResponse(uri, response);
+      if (response.Content.Headers.ContentLength is long declared && declared > maximumBytes) {
+        throw new InvalidDataException(
+            $"SITL response exceeds the {maximumBytes}-byte safety limit: {uri}");
+      }
+
+      await using Stream source = await response.Content.ReadAsStreamAsync(cancellationToken)
+          .ConfigureAwait(false);
+      await using var limited = new SizeLimitedReadStream(
+          source, maximumBytes, leaveOpen: true);
+      await using (var output = new FileStream(
+          partial, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+          bufferSize: 64 * 1024, FileOptions.Asynchronous)) {
+        await limited.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
+        await output.FlushAsync(cancellationToken).ConfigureAwait(false);
+      }
+      File.Move(partial, destination, overwrite: true);
+    } catch {
+      try {
+        File.Delete(partial);
+      } catch {
+      }
+      throw;
+    }
+  }
+
+  private static void ValidateHttpsResponse(Uri requested, HttpResponseMessage response) {
+    Uri finalUri = response.RequestMessage?.RequestUri ?? requested;
+    if (!finalUri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)) {
+      throw new InvalidDataException("SITL download was redirected to a non-HTTPS URL.");
+    }
   }
 
   private void MakeExecutable(string path) {
