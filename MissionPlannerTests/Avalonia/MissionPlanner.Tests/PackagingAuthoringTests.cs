@@ -27,6 +27,25 @@ public class PackagingAuthoringTests {
         StringComparison.Ordinal);
   }
 
+  [Fact]
+  public void Windows_driver_catalog_recognizes_both_Pixhawk6C_interfaces() {
+    string inf = File.ReadAllText(Path.Combine(FindRepoRoot(), "Drivers", "Holybro.inf"));
+
+    Assert.Equal(2, Count(inf, @"USB\VID_3162&PID_0053&MI_00"));
+    Assert.Equal(2, Count(inf, @"USB\VID_3162&PID_0053&MI_02"));
+    Assert.Contains("DESCRIPTION53=\"Pixhawk6C-MAVLink\"", inf, StringComparison.Ordinal);
+    Assert.Contains("DESCRIPTION53SL=\"Pixhawk6C-SLCAN\"", inf, StringComparison.Ordinal);
+  }
+
+  private static int Count(string text, string value) {
+    int count = 0;
+    for (int index = 0; (index = text.IndexOf(value, index, StringComparison.Ordinal)) >= 0;
+         index += value.Length) {
+      count++;
+    }
+    return count;
+  }
+
   private static void AssertPayload(
       XElement feature, XNamespace wix, string id, string expectedName) {
     XElement file = Assert.Single(feature.Descendants(wix + "File"),
