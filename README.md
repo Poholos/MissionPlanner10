@@ -145,6 +145,14 @@ NativeAOT can be produced experimentally with `-p:EnableNativeAot=true`, but it 
 release mode on any target: upstream log4net and several reflection/serialization paths are not
 NativeAOT-compatible. Use the self-contained CoreCLR artifacts for operational builds.
 
+## macOS packages
+
+The native release jobs build Intel (`osx-x64`) and Apple Silicon (`osx-arm64`) packages. Each
+architecture is published as both a complete portable `.app` ZIP and a compressed DMG containing
+the same signed application plus an Applications shortcut. The ZIP is also the in-app updater
+payload. When Developer ID and notarization secrets are configured, the app is signed and stapled
+before both artifacts are finalized, and the DMG is notarized and stapled separately.
+
 ## Windows packages
 
 The Windows target creates both a portable ZIP and an x64 MSI from one self-contained publish:
@@ -208,6 +216,11 @@ native convention on every supported platform:
 SRTM terrain, SITL binaries, parameter definitions, log metadata and updater downloads are caches.
 Existing files from legacy `Mission Planner` folders are copied on first use without deleting the
 old copy.
+
+Map tiles use the filesystem below the cache root at `map-tiles/<provider>/<z>/<x>/<y>.tile`; no
+SQLite tile database is used. GTU/Hermes uses these same platform paths and provider identifiers
+for compatible Google Satellite, Google Hybrid, Bing Satellite and OpenStreetMap tiles, allowing
+both applications to reuse downloaded tiles without changing either application's other data.
 
 Portable plugin DLLs live under the user-data `plugins` directory and can be managed from
 **Tools > Plugin Manager** (`Ctrl+P`). They run as trusted in-process code with full application

@@ -165,14 +165,25 @@ jobs:
           ZIP="upload/MissionPlanner-$MP_RELEASE_ARTIFACT-$RID.zip"
           (cd dist && ditto -c -k --sequesterRsrc --keepParent "Mission Planner.app" "../$ZIP")
 
+          NOTARY_KEY_PATH=""
           if [[ -n "$MACOS_NOTARY_KEY" && -n "$MACOS_NOTARY_KEY_ID" && -n "$MACOS_NOTARY_ISSUER" ]]; then
-            printf '%s' "$MACOS_NOTARY_KEY" | base64 -D > "$RUNNER_TEMP/notary.p8"
-            xcrun notarytool submit "$ZIP" --key "$RUNNER_TEMP/notary.p8" \
+            NOTARY_KEY_PATH="$RUNNER_TEMP/notary.p8"
+            printf '%s' "$MACOS_NOTARY_KEY" | base64 -D > "$NOTARY_KEY_PATH"
+            xcrun notarytool submit "$ZIP" --key "$NOTARY_KEY_PATH" \
               --key-id "$MACOS_NOTARY_KEY_ID" --issuer "$MACOS_NOTARY_ISSUER" --wait
-            rm -f "$RUNNER_TEMP/notary.p8"
             xcrun stapler staple "dist/Mission Planner.app"
             rm -f "$ZIP"
             (cd dist && ditto -c -k --sequesterRsrc --keepParent "Mission Planner.app" "../$ZIP")
+          fi
+
+          DMG="upload/MissionPlanner-$MP_RELEASE_ARTIFACT-$RID.dmg"
+          ./build/macos/make-dmg.sh "dist/Mission Planner.app" "$DMG"
+          if [[ -n "$NOTARY_KEY_PATH" ]]; then
+            xcrun notarytool submit "$DMG" --key "$NOTARY_KEY_PATH" \
+              --key-id "$MACOS_NOTARY_KEY_ID" --issuer "$MACOS_NOTARY_ISSUER" --wait
+            xcrun stapler staple "$DMG"
+            xcrun stapler validate "$DMG"
+            rm -f "$NOTARY_KEY_PATH"
           fi
 
       - name: Build signed GitHub-release update manifest
