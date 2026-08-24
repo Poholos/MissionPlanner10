@@ -62,6 +62,24 @@ public partial class FlightPlannerView : UserControl {
 
   internal void SwitchDocking() => ApplyDockingLayout(!_actionDockBottom, persist: true);
 
+  internal static bool BlocksClosedMissionCommandKey(
+      bool isDropDownOpen, Key key, KeyModifiers modifiers) =>
+      !isDropDownOpen && modifiers == KeyModifiers.None
+      && key is Key.Up or Key.Down or Key.PageUp or Key.PageDown or Key.Home or Key.End;
+
+  private void OnMissionCommandKeyDown(object? sender, KeyEventArgs e) {
+    if (sender is ComboBox combo
+        && BlocksClosedMissionCommandKey(combo.IsDropDownOpen, e.Key, e.KeyModifiers)) {
+      e.Handled = true;
+    }
+  }
+
+  private void OnMissionCommandPointerWheelChanged(object? sender, PointerWheelEventArgs e) {
+    if (sender is ComboBox { IsDropDownOpen: false }) {
+      e.Handled = true;
+    }
+  }
+
   internal void ApplyDockingLayout(bool actionBottom, bool persist) {
     _actionDockBottom = actionBottom;
 

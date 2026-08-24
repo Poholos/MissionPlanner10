@@ -84,6 +84,8 @@
                   <ComboBox
                     ItemsSource="{x:Static vm:WpRow.CommandList}"
                     SelectedItem="{Binding CommandName, Mode=TwoWay}"
+                    KeyDown="OnMissionCommandKeyDown"
+                    PointerWheelChanged="OnMissionCommandPointerWheelChanged"
                     HorizontalAlignment="Stretch"
                     HorizontalContentAlignment="Stretch"
                     Width="180"
