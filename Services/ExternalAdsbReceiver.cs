@@ -411,12 +411,19 @@ internal sealed class ExternalAdsbDecoder {
     internal string CallSign = "";
     internal double Heading;
     internal double Speed;
+    internal ushort Squawk;
+    internal DateTime SquawkAtUtc = DateTime.MinValue;
   }
 
+  private static readonly TimeSpan _squawkLifetime = TimeSpan.FromSeconds(30);
   private static readonly object _modeSLock = new();
   private static readonly FieldInfo? _groundSpeed = typeof(adsb.Plane).GetField("ground_speed",
       BindingFlags.Instance | BindingFlags.NonPublic);
   private readonly Dictionary<string, SbsState> _sbs = new(StringComparer.OrdinalIgnoreCase);
+  private readonly Func<DateTime> _utcNow;
+
+  internal ExternalAdsbDecoder(Func<DateTime>? utcNow = null) =>
+      _utcNow = utcNow ?? (() => DateTime.UtcNow);
 
   internal bool TryDecodeLine(string line, out adsb.PointLatLngAltHdg plane) {
     plane = null!;
@@ -458,6 +465,13 @@ internal sealed class ExternalAdsbDecoder {
       state = new SbsState();
       _sbs[id] = state;
     }
+    DateTime now = _utcNow();
+    if (fields.Length > 17 && !string.IsNullOrWhiteSpace(fields[17])
+        && ushort.TryParse(fields[17], NumberStyles.HexNumber,
+            CultureInfo.InvariantCulture, out ushort reportedSquawk)) {
+      state.Squawk = reportedSquawk;
+      state.SquawkAtUtc = now;
+    }
     switch (fields[1]) {
       case "1":
       case "5":
@@ -487,10 +501,12 @@ internal sealed class ExternalAdsbDecoder {
             CultureInfo.InvariantCulture, out double altitudeFeet);
         double.TryParse(fields[16], NumberStyles.Float, CultureInfo.InvariantCulture,
             out double verticalFeetPerMinute);
-        ushort.TryParse(fields[17], NumberStyles.HexNumber, CultureInfo.InvariantCulture,
-            out ushort squawk);
+        TimeSpan squawkAge = now - state.SquawkAtUtc;
+        ushort squawk = squawkAge >= TimeSpan.Zero && squawkAge <= _squawkLifetime
+            ? state.Squawk
+            : (ushort)0;
         plane = new adsb.PointLatLngAltHdg(lat, lng, altitudeFeet * 0.3048,
-            (float)state.Heading, state.Speed, id, DateTime.UtcNow) {
+            (float)state.Heading, state.Speed, id, now) {
           CallSign = state.CallSign,
           VerticalSpeed = verticalFeetPerMinute / 1.968,
           Squawk = squawk,
