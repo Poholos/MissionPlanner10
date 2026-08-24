@@ -406,7 +406,7 @@ public class NvModemTests {
   }
 
   [Fact]
-  public void Nv5_diversity_set_key_atomically_mirrors_the_key_to_both_radios() {
+  public void Nv5_diversity_keeps_keys_independent_and_targets_only_the_selected_radio() {
     var transport = new FakeTransport();
     using var viewModel = new NvModemViewModel(transport, () => DateTime.UtcNow,
         startTimer: false);
@@ -415,8 +415,11 @@ public class NvModemTests {
         new Nv5LinkStatusMessage { Channel = 1, RadioChip = 0, Role = 0 }, 15, 68));
     viewModel.HandlePacket(source, ParameterPacket("DIVERSITY", 1,
         (byte)MAVLink.MAV_PARAM_TYPE.UINT32, 9, 15, 68));
-    DeliverNv5KeyWords(viewModel, source, 15, 68, 1, new byte[16], 9);
-    DeliverNv5KeyWords(viewModel, source, 15, 68, 2, new byte[16], 9);
+    byte[] radio1Key = Enumerable.Repeat((byte)0x11, 16).ToArray();
+    byte[] radio2Key = Enumerable.Repeat((byte)0x22, 16).ToArray();
+    DeliverNv5KeyWords(viewModel, source, 15, 68, 1, radio1Key, 9);
+    DeliverNv5KeyWords(viewModel, source, 15, 68, 2, radio2Key, 9);
+    viewModel.SelectedKeyRadio = viewModel.KeyRadios.Single(radio => radio.Channel == 2);
     transport.Sent.Clear();
     byte[] replacement = Convert.FromHexString("80FFEEDDCCBBAA998877665544332211");
     viewModel.KeyText = Convert.ToHexString(replacement);
@@ -424,13 +427,17 @@ public class NvModemTests {
     viewModel.SetKeyCommand.Execute(null);
 
     var write = Assert.IsType<NvEncryptionKeysSetMessage>(Assert.Single(transport.Sent).Packet);
-    Assert.Equal(0x03, write.ChannelMask);
-    Assert.Equal(replacement, write.Channel1Key);
+    Assert.Equal(0x02, write.ChannelMask);
+    Assert.Equal(new byte[16], write.Channel1Key);
     Assert.Equal(replacement, write.Channel2Key);
-    Assert.Equal(NvModemCatalog.Nv5SignedKeyWord(replacement, 0),
-        double.Parse(viewModel.Parameters.Single(row => row.Name == "CH1_KEY_W0").ValueText));
-    Assert.Equal(NvModemCatalog.Nv5SignedKeyWord(replacement, 0),
-        double.Parse(viewModel.Parameters.Single(row => row.Name == "CH2_KEY_W0").ValueText));
+    NvModemParameterRow channel1 = viewModel.Parameters.Single(
+        row => row.Name == "CH1_KEY_W0");
+    NvModemParameterRow channel2 = viewModel.Parameters.Single(
+        row => row.Name == "CH2_KEY_W0");
+    Assert.True(channel1.TryValue(out double channel1Word));
+    Assert.True(channel2.TryValue(out double channel2Word));
+    Assert.Equal(NvModemCatalog.Nv5SignedKeyWord(radio1Key, 0), channel1Word);
+    Assert.Equal(NvModemCatalog.Nv5SignedKeyWord(replacement, 0), channel2Word);
   }
 
   [Fact]

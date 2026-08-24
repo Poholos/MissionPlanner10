@@ -40,11 +40,13 @@ Updated: **2026-08-24**.
 - Stable and beta auto-updates now select signed manifests directly from this fork's GitHub
   Releases. The matching Ed25519 private key is present only as the repository secret
   `UPDATE_SIGNING_KEY`; the committed public key is verified again during release.
-- NV key handling is synchronized with GTU commit `98e98833`. NV5 accepts exactly 32 hexadecimal
+- NV key handling is synchronized with GTU committed baseline `98e98833` plus the later local
+  `NV5Settings` worktree behavior described below. NV5 accepts exactly 32 hexadecimal
   digits, displays uppercase, and maps the 16 raw bytes to four big-endian MAVLink `INT32` words.
   Ordinary Save writes edited words as exact typed `PARAM_SET` operations; explicit SET KEY uses
-  the idempotent post-persistence `NV_ENCRYPTION_KEYS_SET`/`NV_ENCRYPTION_KEYS_ACK` transaction and
-  mirrors the selected key to both radios when diversity is enabled. NV4 generation now uses 32
+  the idempotent post-persistence `NV_ENCRYPTION_KEYS_SET`/`NV_ENCRYPTION_KEYS_ACK` transaction.
+  Receive diversity does not mirror or couple keys: generation, staging and SET KEY target only
+  the selected radio, allowing different keys on Radio 1 and Radio 2. NV4 generation now uses 32
   random bytes displayed as 64 uppercase hexadecimal digits, retains compatible printable/hex
   input, writes eight signed words plus singular `REFRESH_SETTING`, and locks ineffective
   `ENC_KEY_BITS` edits to 128.
@@ -94,11 +96,13 @@ Updated: **2026-08-24**.
 
 ## GTU synchronization checkpoint
 
-- NV modem behavior was last compared with `/home/alex/src/AgroSky/GTU` at commit
-  `98e9883335fad3e03f8f9127f854da9f7ae4a196` (`fix: wait for NV5 parameter persistence`). The GTU
-  worktree was clean and its local `master` matched freshly fetched `origin/master`. The additional
-  firmware-reference repositories named by GTU (`../nv5-proto4` and `../nv5-hub`) were not present
-  in the local AgroSky workspace at this checkpoint.
+- NV modem behavior was last compared with `/home/alex/src/AgroSky/GTU` at committed baseline
+  `98e9883335fad3e03f8f9127f854da9f7ae4a196` plus its local uncommitted `NV5Settings` worktree.
+  That worktree explicitly makes encryption-key targets independent of `DIVERSITY`; unrelated
+  local Revert-control edits were not copied. Freshly fetched `origin/master` was `b9b03e12` and
+  had no committed `NV5Settings` change after the baseline. The additional firmware-reference
+  repositories named by GTU (`../nv5-proto4` and `../nv5-hub`) were not present in the local
+  AgroSky workspace at this checkpoint.
 - Before each later NV modem change and before a release, recheck both committed and uncommitted
   GTU changes with `git status`, then compare every newer change to `hermes-gui/include/nv5settings.h`,
   `hermes-gui/src/nv5settings.cpp` and `hermes-gui/test/testnv5settings.cpp`. Update this commit and
