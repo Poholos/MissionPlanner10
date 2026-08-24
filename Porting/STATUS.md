@@ -102,17 +102,22 @@ Updated: **2026-08-24**.
   blockers and all 1224 tests pass after cleanup.
 - Clean-commit Linux TAR/DEB and Windows ZIP packaging succeeds after cleanup. The DEB passes
   `lintian`, payload assertions and a 12-second Xvfb launch; the Windows archive contains the
-  expected self-contained `win-x64` application. Native Windows MSI and macOS packages remain CI
-  gates because they require their host operating systems.
+  expected self-contained `win-x64` application. CI run `32688021866` also passes Windows ZIP/MSI
+  build, default-path install/file checks/uninstall, both macOS architectures and all Linux gates;
+  all five named artifact bundles are present.
+- CodeQL run `32688021913` succeeds. The branch has five open but fully reviewed alerts and zero
+  untriaged alerts: one unreachable vendored netDxf writer, three explicit operator-selected local
+  export flows already protected by reject-by-default warnings, and the required AES block
+  primitive in SharpZipLib's WinZip AES-CTR construction. `PROJECT_CLEANUP_AUDIT.md` records the
+  current alert numbers and exact decisions; none was dismissed merely to empty the dashboard.
 - `Scripts/`, localization RESX, NoFly data, the X-Plane/HIL bridge, `ExtLibs/mono` and independently
   meaningful remaining library/generator projects are deliberately retained; non-inclusion in the
   active solution alone is not deletion evidence.
 
 ## Immediate next step
 
-Push `cleanup/project-audit`, then require the Windows MSI/macOS runners plus CodeQL before
-proposing the cleanup for merge. Do not merge this destructive cleanup into `master` without an
-explicit review decision.
+Review the isolated `cleanup/project-audit` deletion set and its audit before proposing it for
+merge. Do not merge this destructive cleanup into `master` without an explicit review decision.
 
 ## Acceptance baseline
 

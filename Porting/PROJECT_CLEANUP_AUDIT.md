@@ -72,6 +72,26 @@ matching metadata reference` for inherited netstandard project-reference edges; 
 resolve, compile and audit successfully in the authoritative build. These loader notices are not
 suppressed or misreported as source warnings.
 
+## Security scan triage
+
+CodeQL run `32688021913` completes successfully for cleanup commit `c66b5335b`. Its branch-specific
+API result contains five open but reviewed alerts and no untriaged alert:
+
+- #1 is a generic writer in vendored netDxf. The Avalonia application reads DXF overlays and has no
+  path to `DxfDocument.Save`; retain the reader and re-evaluate this flow if DXF export is added.
+- #2 and #3 are the two overload paths of intentional operator-selected parameter-file export.
+  Raw Parameters and DroneCAN both require `Dialogs.ConfirmDangerous` with reject as the default.
+- #4 is intentional operator-selected decoded tlog export. Every UI entry point uses the same
+  reject-by-default warning for precise coordinates, identifiers, missions, network details and
+  parameters before the service writes a local file.
+- #5 is the required ECB block primitive inside SharpZipLib's interoperable WinZip AES-CTR
+  construction. It encrypts an incrementing nonce into a keystream and authenticates ciphertext;
+  application data is not encrypted as plain ECB.
+
+The alerts are not dismissed or hidden merely to produce an empty dashboard. Any GitHub dismissal
+must preserve these reasons and remains a separate explicitly authorized review action. The older
+source-port alert numbering and decisions remain immutable in `Reference/CODEQL_TRIAGE.md`.
+
 ## Intentionally retained
 
 - `Scripts/` contains 19 official Mission Planner IronPython examples. They are operator scripts,
@@ -114,5 +134,6 @@ make linux-packages
 make windows-zip
 ```
 
-Windows MSI install/uninstall and both native macOS architectures remain CI gates because their
-toolchains must run on their host operating systems.
+CI run `32688021866` passes all host-native gates: Windows ZIP/MSI build plus default-path
+install/file checks/uninstall, both macOS architectures, and Linux build/test/package/smoke. Its
+five named artifact bundles are present in GitHub Actions.
