@@ -134,6 +134,10 @@ declare -A native_replacement_by_logical_path=(
   ["GCSViews/ConfigurationView/DeviceInfo"]="GCSViews/ConfigurationView/ConfigDroneCanView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigDroneCanViewModel.cs"
   ["GCSViews/ConfigurationView/DroneCANModel"]="GCSViews/ConfigurationView/ConfigDroneCanView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigDroneCanViewModel.cs"
   ["GCSViews/ConfigurationView/uitype"]="GCSViews/ConfigurationView/ConfigDroneCanView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigDroneCanViewModel.cs"
+  ["GCSViews/Help"]="Views/HelpView.axaml;ViewModels/HelpViewModel.cs"
+  ["GCSViews/InitialSetup"]="GCSViews/SetupView.axaml;ViewModels/SetupViewModel.cs"
+  ["GCSViews/SITL"]="Views/SimulationView.axaml;ViewModels/SimulationViewModel.cs;Services/SitlLauncher.cs"
+  ["GCSViews/SoftwareConfig"]="Views/ConfigView.axaml;ViewModels/ConfigViewModel.cs"
 )
 
 declare -A native_removal_by_logical_path=(
@@ -204,6 +208,38 @@ while IFS= read -r native_path; do
         status="remove"
         candidates="Porting/Reference/PORT_STATUS.md"
         evidence="${native_removal_by_logical_path[$logical_path]}"
+      elif [[ "$logical_path" == "Antenna/TrackerGeneric" ]]; then
+        status="replace"
+        candidates="Services/AntennaTrackerOutputs.cs;ViewModels/AntennaTrackerUIViewModel.cs"
+        evidence="All three official antenna-tracker output protocols are implemented by the cross-platform tracker service and covered by protocol/lifecycle tests."
+      elif [[ "$logical_path" == "Antenna/TrackerUI" ]]; then
+        status="replace"
+        candidates="Views/AntennaTrackerUIView.axaml;ViewModels/AntennaTrackerUIViewModel.cs;Services/AntennaTrackerOutputs.cs"
+        evidence="The native Avalonia tracker view ports live target tracking and all official output interfaces; see Porting/Reference/PORT_STATUS.md."
+      elif [[ "$logical_path" == Grid/* ]]; then
+        status="replace"
+        candidates="Views/GridUIView.axaml;ViewModels/GridUIViewModel.cs;ViewModels/SurveyMissionBuilder.cs;Services/SurveyGridSupport.cs"
+        evidence="Survey Grid UI, mission generation, split flights, camera profiles and grid persistence are ported and regression-tested; see Porting/Reference/PORT_STATUS.md."
+      elif [[ "$logical_path" == Joystick/* ]]; then
+        status="replace"
+        candidates="GCSViews/ConfigurationView/ConfigJoystickView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigJoystickViewModel.cs;Services/JoystickControl.cs;Services/JoystickInput.cs"
+        evidence="Joystick setup/actions and the application-level sender have native Linux, Windows and macOS backends with lifecycle/mapping tests; see Porting/Reference/PORT_STATUS.md."
+      elif [[ "$logical_path" == Log/* ]]; then
+        status="replace"
+        candidates="Views/LogBrowseView.axaml;ViewModels/LogBrowseViewModel.cs;Views/MavlinkLogWindow.axaml;ViewModels/MavlinkLogConvertViewModel.cs;Services/TlogExportService.cs"
+        evidence="DataFlash browsing, download/index and telemetry-log conversion/export workflows are implemented by native Avalonia views/services and tested; see Porting/Reference/PORT_STATUS.md."
+      elif [[ "$logical_path" == GeoRef/* ]]; then
+        status="replace"
+        candidates="Views/GeoRefView.axaml;ViewModels/GeoRefViewModel.cs"
+        evidence="The GeoRef workflow, matching modes, reports and EXIF output are ported and tested; see Porting/Reference/PORT_STATUS.md."
+      elif [[ "$logical_path" == "MagCalib" ]]; then
+        status="replace"
+        candidates="Views/OfflineMagFitWindow.axaml;ViewModels/OfflineMagFitViewModel.cs;Services/OfflineMagFitService.cs"
+        evidence="Offline magnetometer calibration for tlog/bin/log is implemented and tested; see Porting/Reference/PORT_STATUS.md."
+      elif [[ "$logical_path" == Swarm/* ]]; then
+        status="replace"
+        candidates="Views/FormationControlWindow.axaml;ViewModels/FormationControlViewModel.cs;Views/SwarmFollowPathWindow.axaml;ViewModels/SwarmFollowPathViewModel.cs;Views/SwarmFollowLeaderWindow.axaml;ViewModels/SwarmFollowLeaderViewModel.cs;Views/SwarmWaypointLeaderWindow.axaml;ViewModels/SwarmWaypointLeaderViewModel.cs;Views/SwarmSequenceWindow.axaml;ViewModels/SwarmSequenceViewModel.cs"
+        evidence="Formation, Follow Path, Follow Leader, Waypoint Leader and Sequence workflows are ported with exact-link safety and controller tests; see Porting/Reference/PORT_STATUS.md."
       else
         candidates="$(find_candidates "$native_path")"
       fi
