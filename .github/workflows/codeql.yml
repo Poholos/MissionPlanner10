@@ -20,6 +20,9 @@ concurrency:
 jobs:
   analyze:
     runs-on: ubuntu-latest
+    env:
+      # Overlay databases require no-build extraction; this workflow deliberately traces the full solution.
+      CODEQL_OVERLAY_DATABASE_MODE: 'none'
     steps:
       - uses: actions/checkout@v7
 
