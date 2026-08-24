@@ -31,7 +31,7 @@ Updated: **2026-08-24**.
   migration evidence, not a copied source tree.
 - A clean Release build of the complete test graph succeeds with zero warnings and zero errors
   after resolving all 156 inherited `ExtLibs` diagnostics without a repository-wide `NoWarn`; the
-  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1263/1263**
+  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1264/1264**
   Avalonia tests pass on Linux. A 12-second Xvfb launch reaches the normal Avalonia event loop with
   no console errors.
 - Informational version is derived from the current native Mission Planner version and formatted as
@@ -156,6 +156,10 @@ Updated: **2026-08-24**.
   Mission Planner/Xamarin/Cesium history. At the user's explicit request they are resolved as
   `wont_fix`, not falsely marked revoked; the audit comments preserve the origin and the decision
   not to rewrite published upstream-derived history.
+- Every inbound UDP listener now enables address sharing/reuse before bind. This lets one modem
+  broadcast reach Mission Planner and GTU/Hermes listeners bound to the same local port; a
+  regression test opens two real sockets and proves that both receive the same datagram. Ordinary
+  unicast fan-out remains explicitly unsupported without separate ports or a MAVLink router.
 - `Scripts/`, localization RESX, NoFly data, the X-Plane/HIL bridge and independently meaningful
   remaining library/generator projects are deliberately retained; non-inclusion in the active
   solution alone is not deletion evidence. The former `ExtLibs/mono` submodule was removed only
@@ -169,7 +173,7 @@ and recheck GTU `NV5Settings` changes newer than clean checkpoint `6c2a4b04`.
 
 ## Acceptance baseline
 
-- At least 1263 port tests retained and passing.
+- At least 1264 port tests retained and passing.
 - Clean Release build has zero errors and zero warnings.
 - `linux-x64`, `win-x64`, `osx-x64`, and `osx-arm64` publish gates pass.
 - Linux `.deb` and portable archive build and smoke successfully.
