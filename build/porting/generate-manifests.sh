@@ -175,6 +175,7 @@ declare -A native_replacement_by_logical_path=(
   ["Controls/RAW_Sensor"]="Views/FlightDataDialogs.cs;GCSViews/FlightDataView.axaml"
   ["Controls/RelayOptions"]="GCSViews/FlightDataView.axaml;ViewModels/FlightDataViewModel.cs"
   ["Controls/ScriptConsole"]="GCSViews/ConfigurationView/ConfigScriptReplView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigScriptReplViewModel.cs;Services/LuaScriptHost.cs"
+  ["Controls/SB"]="Services/CubeServiceBulletin.cs;ViewModels/ConnectionViewModel.cs"
   ["Controls/SerialOutputCoT"]="Views/SerialOutputCotView.axaml;ViewModels/SerialOutputCotViewModel.cs"
   ["Controls/SerialOutputMD"]="Views/MicrodroneDownlinkView.axaml;ViewModels/MicrodroneDownlinkViewModel.cs;Services/MicrodroneDownlinkEncoder.cs"
   ["Controls/SerialOutputNMEA"]="Views/SerialOutputNMEAView.axaml;ViewModels/SerialOutputNMEAViewModel.cs"
@@ -258,7 +259,7 @@ while IFS= read -r native_path; do
       if [[ -v 'native_replacement_by_logical_path[$logical_path]' ]]; then
         status="replace"
         candidates="${native_replacement_by_logical_path[$logical_path]}"
-        evidence="Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md."
+        evidence="Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md."
       elif [[ -v 'native_removal_by_logical_path[$logical_path]' ]]; then
         status="remove"
         candidates="Porting/Reference/PORT_STATUS.md"

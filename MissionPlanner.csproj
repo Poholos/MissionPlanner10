@@ -71,6 +71,7 @@
     <Compile Include="Radio/Uploader.cs" />
     <Compile Include="Radio/IHex.cs" />
     <Compile Include="Grid/GridData.cs" />
+    <Compile Include="Services/CubeServiceBulletin.cs" />
   </ItemGroup>
 
   <ItemGroup>

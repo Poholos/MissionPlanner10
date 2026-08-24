@@ -177,6 +177,8 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
   private readonly SemaphoreSlim _connectGate = new(1, 1);
 
   private readonly Lock _readerSync = new();
+  private readonly HashSet<string> _serviceBulletinProbes = new(StringComparer.Ordinal);
+  private readonly HashSet<string> _serviceBulletinsShown = new(StringComparer.Ordinal);
   private CancellationTokenSource? _readerCts;
   private int _readerGeneration;
   private DateTime _connectedAtUtc = DateTime.MinValue;
@@ -530,8 +532,53 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
       Status = error == null
           ? $"Selected {choice.Label}. {mav.param.Count} params."
           : $"Selected {choice.Label}; parameter load failed: {error.Message}";
+      if (error == null) {
+        StartCubeServiceBulletinChecks(choice.Link, mav);
+      }
       AppState.RaiseConnectionChanged();
     });
+  }
+
+  private void StartCubeServiceBulletinChecks(MAVLinkInterface link, MAVState mav) {
+    if (!Services.CubeServiceBulletin.IsAffectedCubeBlack(mav.SerialString)) {
+      return;
+    }
+    string identity = string.IsNullOrWhiteSpace(mav.SerialString)
+        ? $"{mav.sysid}:{mav.compid}"
+        : mav.SerialString;
+    if (_serviceBulletinsShown.Contains(identity)) {
+      return;
+    }
+
+    double? Parameter(string name) =>
+        mav.param.ContainsKey(name) ? mav.param[name].Value : null;
+    if (Services.CubeServiceBulletin.RequiresParameterScan(mav.SerialString, Parameter)) {
+      ShowCubeServiceBulletinOnce(identity, mav, "parameter scan");
+      return;
+    }
+    if (!_serviceBulletinProbes.Add(identity)) {
+      return;
+    }
+
+    _ = Task.Run(() => Services.CubeServiceBulletin.ProbeSpi(link, mav)).ContinueWith(task =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+          _serviceBulletinProbes.Remove(identity);
+          if (task.Status != TaskStatus.RanToCompletion || !task.Result
+              || !ReferenceEquals(AppState.comPort, link)
+              || link.BaseStream?.IsOpen != true
+              || link.sysidcurrent != mav.sysid || link.compidcurrent != mav.compid) {
+            return;
+          }
+          ShowCubeServiceBulletinOnce(identity, mav, "SPI scan");
+        }), TaskScheduler.Default);
+  }
+
+  private void ShowCubeServiceBulletinOnce(string identity, MAVState mav, string detectedVia) {
+    if (!_serviceBulletinsShown.Add(identity)) {
+      return;
+    }
+    _ = Services.CubeServiceBulletin.ShowAsync(
+        Services.CubeServiceBulletin.Capture(mav), detectedVia);
   }
 
   private bool IsReaderSessionActive(int generation) {
@@ -619,6 +666,9 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
         Status = error == null
             ? $"Connected. {_comPort.MAV.param.Count} params loaded in background."
             : "Connected, but background parameter load failed: " + error.Message;
+        if (error == null) {
+          StartCubeServiceBulletinChecks(_comPort, _comPort.MAV);
+        }
         AppState.RaiseConnectionChanged();
       });
     });
@@ -1216,6 +1266,8 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
 
         if (backgroundParamLoad) {
           StartBackgroundParameterLoad(generation);
+        } else {
+          StartCubeServiceBulletinChecks(_comPort, _comPort.MAV);
         }
         RaiseConnected();
 
