@@ -611,7 +611,8 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
         ? NvModemCatalog.Nv4KeyBytes : NvModemCatalog.Nv5KeyBytes;
     KeyText = Convert.ToHexString(RandomNumberGenerator.GetBytes(keyBytes));
     if (StageEncryptionKey()) {
-      SetStatus("Generated and staged a new encryption key. Nothing was sent.");
+      SetStatus($"Generated and staged a new Radio {SelectedKeyRadio?.Channel} encryption key. "
+          + "Nothing was sent.");
     }
   }
 
@@ -630,12 +631,12 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
         return;
       }
     } else {
-      byte channelMask = StagedValue("DIVERSITY", 0) != 0
-          ? (byte)0x03 : (byte)(1 << (channel - 1));
+      // Receive diversity does not couple encryption keys. Each explicit SET KEY
+      // targets only the radio selected in the key editor.
+      byte channelMask = (byte)(1 << (channel - 1));
       if (!QueueEncryptionKeyWrite(device, channelMask)) {
         return;
       }
-      channel = channelMask == 0x03 ? 0 : channel;
     }
     BeginQueuedWrites(device, keyOnly: true, keyChannel: channel);
   }
@@ -1370,20 +1371,14 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
         }
       }
     } else {
-      bool diversity = StagedValue("DIVERSITY", 0) != 0;
-      for (int targetChannel = 1; targetChannel <= 2; targetChannel++) {
-        if (targetChannel != channel && !diversity) {
-          continue;
-        }
-        for (int word = 0; word < NvModemCatalog.Nv5KeyWordCount; word++) {
-          string name = NvModemCatalog.Nv5KeyWordName(targetChannel, word);
-          if (!_parameterRows.ContainsKey(name)
-              || !StageParameter(name, NvModemCatalog.Nv5SignedKeyWord(bytes, word),
-                  device.ParameterTypes.GetValueOrDefault(name,
-                      (byte)MAVLink.MAV_PARAM_TYPE.INT32), false)) {
-            SetStatus("The selected NV5 did not publish the complete key-word set.", true);
-            return false;
-          }
+      for (int word = 0; word < NvModemCatalog.Nv5KeyWordCount; word++) {
+        string name = NvModemCatalog.Nv5KeyWordName(channel, word);
+        if (!_parameterRows.ContainsKey(name)
+            || !StageParameter(name, NvModemCatalog.Nv5SignedKeyWord(bytes, word),
+                device.ParameterTypes.GetValueOrDefault(name,
+                    (byte)MAVLink.MAV_PARAM_TYPE.INT32), false)) {
+          SetStatus("The selected NV5 did not publish the complete key-word set.", true);
+          return false;
         }
       }
     }
@@ -1432,7 +1427,8 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
         bytes.AddRange(key);
       }
       KeyHint = "NV5 exposes four INT32 words (-2147483648..2147483647) per radio. AES-128 keys "
-          + "are shown as exactly 32 uppercase hexadecimal digits without spaces or a prefix.";
+          + "are shown as exactly 32 uppercase hexadecimal digits without spaces or a prefix. "
+          + "Only the selected radio is targeted; DIVERSITY never copies or couples keys.";
       string hash = $"CH{channel}_KEY_HASH";
       KeyFingerprint = _parameterRows.TryGetValue(hash, out var hashRow)
           ? "Stored fingerprint: " + hashRow.ValueText

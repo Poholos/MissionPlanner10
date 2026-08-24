@@ -1,9 +1,11 @@
 # NV Modem setup
 
 Setup > NV Modem is the Avalonia port of the `NV5Settings` widget from the local AgroSky GTU tree.
-The implementation was compared with the current clean GTU `master` at commit
-`98e9883335fad3e03f8f9127f854da9f7ae4a196`. The relevant source specification is
-`hermes-gui/include/nv5settings.h` plus `hermes-gui/src/nv5settings.cpp`.
+The committed baseline is GTU `98e9883335fad3e03f8f9127f854da9f7ae4a196`. The later explicit
+per-radio diversity-key behavior was synchronized from the local uncommitted `NV5Settings`
+worktree based on that commit; fetched `origin/master` `b9b03e12` has no intervening committed
+change to these files. The relevant source specification is `hermes-gui/include/nv5settings.h`
+plus `hermes-gui/src/nv5settings.cpp` and its regression tests.
 
 ## Connection and device identity
 
@@ -52,7 +54,9 @@ The page includes:
   typed `PARAM_SET` values, while **SET KEY** persists a complete key snapshot atomically through
   `NV_ENCRYPTION_KEYS_SET` (`53017`) with idempotent retries and a post-persistence
   `NV_ENCRYPTION_KEYS_ACK` (`53018`);
-- diversity mode stages and atomically writes the same selected AES key to both radio channels;
+- receive diversity never mirrors or couples encryption keys: staging, generation and atomic
+  **SET KEY** affect only the explicitly selected radio, so Radio 1 and Radio 2 may use different
+  AES keys;
 - NV4 `ENC_KEY_BITS` is restricted to the only effective firmware value, 128 bits, while all eight
   signed key words and the singular `REFRESH_SETTING` write remain compatible with legacy units;
 - RTSP path get/set and transport presets for supported LR2021 configurations;
@@ -73,7 +77,8 @@ target selector is locked, and a target/link change during confirmation prevents
 ## Acceptance boundary
 
 The shared Mission Planner parser, custom CRC/layouts, multi-link target isolation, NV4 apply
-transaction, both NV5 key-write paths, exact typed echoes, diversity mirroring, RTSP dirty-state
+transaction, both NV5 key-write paths, exact typed echoes, independent diversity key targeting,
+RTSP dirty-state
 handling, preset staging, parameter-file roundtrip and slow/silent-device handling are covered by
 automated tests. A representative physical NV4 and NV5
 modem on UDP/TCP/UART still require an operator acceptance run, including reboot/reappearance and
