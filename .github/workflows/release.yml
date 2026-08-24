@@ -192,7 +192,7 @@ jobs:
           UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
         run: |
           test -n "$UPDATE_SIGNING_KEY" || {
-            echo "::error::UPDATE_SIGNING_KEY is required for a tagged release"; exit 1; }
+            echo "::error::UPDATE_SIGNING_KEY is required for release validation"; exit 1; }
           RID=${{ matrix.rid }}
           case "$RID" in
             linux-x64) PUB="out/MissionPlanner-$MP_RELEASE_ARTIFACT-linux-x64" ;;
@@ -207,7 +207,9 @@ jobs:
           fi
           BUNDLE_NAME=$(basename "$BUNDLE")
           BUNDLE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/$BUNDLE_NAME"
-          BUNDLE_SHA=$(shasum -a 256 "$BUNDLE" | awk '{print $1}')
+          BUNDLE_SHA=$(python3 -c \
+            'import hashlib,sys; print(hashlib.file_digest(open(sys.argv[1], "rb"), "sha256").hexdigest())' \
+            "$BUNDLE")
           BUNDLE_SIZE=$(python3 -c 'import os,sys; print(os.path.getsize(sys.argv[1]))' "$BUNDLE")
           NOTES="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${GITHUB_REF_NAME}"
           python3 build/gen-manifest.py "$PUB" "$MP_RELEASE_VERSION" "$NOTES" \
