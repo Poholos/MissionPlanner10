@@ -14,6 +14,9 @@ public partial class SikRadioView : UserControl {
   private static readonly FilePickerFileType ProfileFiles = new("SiK/RFD settings profile") {
     Patterns = ["*.ini", "*.txt", "*.cfg"],
   };
+  private static readonly FilePickerFileType FirmwareFiles = new("SiK/RFD firmware") {
+    Patterns = ["*.hex", "*.ihx", "*.bin", "*.gbl"],
+  };
 
   private SikRadioViewModel? _vm;
   private readonly LivePlot? _plot;
@@ -30,6 +33,7 @@ public partial class SikRadioView : UserControl {
         await SaveProfile(remote: true);
     this.FindControl<Button>("LoadRemoteProfileButton")!.Click += async (_, _) =>
         await LoadProfile(remote: true);
+    this.FindControl<Button>("UploadCustomFirmwareButton")!.Click += UploadCustomFirmware;
   }
 
   private void InitializeComponent() {
@@ -115,5 +119,27 @@ public partial class SikRadioView : UserControl {
     } catch (Exception ex) {
       await Dialogs.Alert("Load SiK/RFD settings", ex.Message);
     }
+  }
+
+  private async void UploadCustomFirmware(object? sender, Avalonia.Interactivity.RoutedEventArgs e) {
+    TopLevel? top = TopLevel.GetTopLevel(this);
+    if (top == null || _vm == null || _vm.IsBusy) {
+      return;
+    }
+    var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions {
+      Title = "Select SiK/RFD firmware image",
+      AllowMultiple = false,
+      FileTypeFilter = [FirmwareFiles],
+    });
+    string? path = files.FirstOrDefault()?.TryGetLocalPath();
+    if (path == null || !await Dialogs.ConfirmDangerous(
+            "Program radio firmware",
+            "Programming interrupts the radio link and loss of power can leave the modem in its "
+                + "bootloader. The image model and country-lock marker will be checked before any "
+                + "erase or upload begins.",
+            "PROGRAM FIRMWARE")) {
+      return;
+    }
+    await _vm.UploadFirmwareFromFile(path);
   }
 }

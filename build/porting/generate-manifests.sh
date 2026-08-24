@@ -73,6 +73,7 @@ done < "$port_files"
 # retaining their user workflow in the Avalonia port. Keep the mapping explicit so deleting the
 # replaced C# files cannot erase the evidence from the frozen native-surface inventory.
 declare -A native_replacement_by_logical_path=(
+  ["Radio/XModem"]="Services/SikRadioFirmwareService.cs;GCSViews/Setup/SikRadioView.axaml;ViewModels/Setup/SetupActionPages.cs"
   ["Plugin/Plugin"]="Plugin/LegacyCompatibility/PluginCompatibility.cs;Plugin/PortableApi/Plugin.cs;Plugin/PortableApi/PluginHost.cs"
   ["Plugin/PluginLoader"]="Services/PluginRuntime.cs;Services/PluginService.cs"
   ["Plugin/PluginUI"]="Views/PluginManagerWindow.axaml;ViewModels/PluginManagerViewModel.cs"

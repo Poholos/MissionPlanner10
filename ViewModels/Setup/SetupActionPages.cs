@@ -120,6 +120,9 @@ public partial class SikRadioViewModel : ViewModelBase {
   private string _freqBand = "";
 
   [ObservableProperty]
+  private string _countryCode = "";
+
+  [ObservableProperty]
   private string _rssiInfo = "";
 
   [ObservableProperty]
@@ -267,6 +270,13 @@ public partial class SikRadioViewModel : ViewModelBase {
 
         var ati2 = DoCommand(sp, "ATI2").Trim();
         Ui(() => BoardType = ati2);
+        if (SikRadioFirmwareService.TryParseBoard(ati2, out var loadedBoard)
+            && SikRadioFirmwareService.CountryRegister(loadedBoard) is int countryRegister) {
+          var country = StripMultipointPrefix(DoCommand(sp, "AT+C" + countryRegister + "?").Trim());
+          Ui(() => CountryCode = country);
+        } else {
+          Ui(() => CountryCode = "");
+        }
         var ati3 = DoCommand(sp, "ATI3").Trim();
         Ui(() => FreqBand = ati3);
         var ati7 = DoCommand(sp, "ATI7").Trim();
@@ -486,7 +496,11 @@ public partial class SikRadioViewModel : ViewModelBase {
   private bool _betaFirmware;
 
   [RelayCommand(CanExecute = nameof(NotBusy))]
-  private async Task UploadFirmware() {
+  private async Task UploadFirmware() => await UploadFirmwareFile(null);
+
+  public async Task UploadFirmwareFromFile(string path) => await UploadFirmwareFile(path);
+
+  private async Task UploadFirmwareFile(string? selectedFile) {
     if (!GuardLink()) {
       return;
     }
@@ -495,11 +509,13 @@ public partial class SikRadioViewModel : ViewModelBase {
     var baud = SelectedBaud;
     IsBusy = true;
     Status = "Programming firmware…";
-    AppendLog("=== Upload Firmware (" + (BetaFirmware ? "beta" : "stable") + ") ===");
+    AppendLog("=== Upload Firmware (" + (selectedFile == null
+        ? (BetaFirmware ? "beta" : "stable") : "selected file") + ") ===");
 
     await Task.Run(() => {
       SerialPort? atsp = null;
       MissionPlanner.Comms.SerialPort? boot = null;
+      string? temporaryFirmware = null;
       try {
         atsp = Connect(port, baud, out var used);
         if (atsp == null) {
@@ -507,7 +523,55 @@ public partial class SikRadioViewModel : ViewModelBase {
           AppendLog("Could not enter AT command mode — cannot reflash.");
           return;
         }
-        AppendLog("In AT mode @ " + used + " baud. Rebooting into bootloader (AT&UPDATE)…");
+        AppendLog("In AT mode @ " + used + " baud. Identifying modem before bootloader entry…");
+        string boardReply = DoCommand(atsp, "ATI2").Trim();
+        if (!SikRadioFirmwareService.TryParseBoard(boardReply, out var board)) {
+          SetStatus("Unable to identify radio board");
+          AppendLog("ATI2 returned an unsupported board code: " + boardReply);
+          return;
+        }
+        Ui(() => BoardType = board.ToString());
+
+        bool countryLocked = false;
+        if (SikRadioFirmwareService.CountryRegister(board) is int countryRegister) {
+          string country = StripMultipointPrefix(
+              DoCommand(atsp, "AT+C" + countryRegister + "?").Trim());
+          countryLocked = SikRadioFirmwareService.IsCountryLocked(country);
+          Ui(() => CountryCode = country);
+          AppendLog("Country lock: " + (countryLocked ? country : "not locked"));
+        }
+
+        string firmwarePath;
+        if (selectedFile == null) {
+          string? url = SikRadioFirmwareService.StableFirmwareUrl(board, BetaFirmware);
+          if (url == null) {
+            SetStatus(BetaFirmware && SikRadioFirmwareService.UsesXModem(board)
+                ? "No vendor beta channel — uncheck Beta or choose a file"
+                : "Board not supported by SiK/RFD uploader");
+            AppendLog($"No verified {(BetaFirmware ? "beta" : "stable")} image is configured for {board}.");
+            return;
+          }
+          temporaryFirmware = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+              Guid.NewGuid().ToString("N") + "-" + System.IO.Path.GetFileName(new Uri(url).LocalPath));
+          firmwarePath = temporaryFirmware;
+          AppendLog("Downloading verified upstream image " + url);
+          if (!MissionPlanner.Utilities.Download.getFilefromNet(url, firmwarePath)) {
+            SetStatus("Firmware download failed");
+            AppendLog("Could not download firmware — aborted before bootloader entry.");
+            return;
+          }
+        } else {
+          firmwarePath = selectedFile;
+        }
+
+        if (!SikRadioFirmwareService.ValidateImage(
+                board, firmwarePath, countryLocked, out string validationError)) {
+          SetStatus("Firmware image rejected");
+          AppendLog(validationError + " Aborted before bootloader entry.");
+          return;
+        }
+
+        AppendLog("Image matches " + board + ". Rebooting into bootloader (AT&UPDATE)…");
         atsp.DiscardInBuffer();
         atsp.Write("\r\n");
         Thread.Sleep(100);
@@ -516,13 +580,35 @@ public partial class SikRadioViewModel : ViewModelBase {
         ClosePort(atsp);
         atsp = null;
 
+        bool xModem = SikRadioFirmwareService.UsesXModem(board);
         boot = new MissionPlanner.Comms.SerialPort {
           PortName = port,
-          BaudRate = 115200,
+          BaudRate = xModem ? 57600 : 115200,
           ReadTimeout = 3000,
         };
         boot.Open();
         Thread.Sleep(300);
+
+        if (xModem) {
+          AppendLog("Using RFDesign X-series XModem bootloader.");
+          bool uploaded = SikRadioFirmwareService.UploadXModem(
+              firmwarePath, boot, SikRadioFirmwareService.UsesHighSpeedXModem(board),
+              (message, progress) => {
+                if (!string.IsNullOrEmpty(message)) {
+                  AppendLog(message);
+                }
+                if (!double.IsNaN(progress)) {
+                  SetStatus($"Programming… {progress * 100:0}%");
+                }
+              });
+          if (!uploaded) {
+            SetStatus("XModem upload failed — power-cycle and retry");
+            return;
+          }
+          SetStatus("Firmware programmed");
+          AppendLog("Firmware uploaded; modem reboot requested.");
+          return;
+        }
 
         var up = new MissionPlanner.Radio.Uploader();
         up.LogEvent += (m, _) => AppendLog(m.TrimEnd());
@@ -530,29 +616,19 @@ public partial class SikRadioViewModel : ViewModelBase {
         up.port = boot;
         up.connect_and_sync();
 
-        var board = MissionPlanner.Radio.Uploader.Board.FAILED;
+        var bootBoard = MissionPlanner.Radio.Uploader.Board.FAILED;
         var freq = MissionPlanner.Radio.Uploader.Frequency.FREQ_NONE;
-        up.getDevice(ref board, ref freq);
-        AppendLog($"Bootloader: board={board} freq={freq}");
-
-        var url = FirmwareUrl(board, BetaFirmware);
-        if (url == null) {
-          SetStatus("Board not supported by SiK uploader");
-          AppendLog($"Board {board} is not flashable via the SiK .ihx path (RFD900x/ux use the "
-              + "vendor RFD tool). Aborted before erase.");
-          return;
-        }
-
-        var fw = System.IO.Path.GetTempFileName();
-        AppendLog("Downloading " + url);
-        if (!MissionPlanner.Utilities.Download.getFilefromNet(url, fw)) {
-          SetStatus("Firmware download failed");
-          AppendLog("Could not download firmware — aborted before erase.");
+        up.getDevice(ref bootBoard, ref freq);
+        AppendLog($"Bootloader: board={bootBoard} freq={freq}");
+        if (bootBoard != board) {
+          SetStatus("Bootloader board mismatch");
+          AppendLog($"Firmware mode reported {bootBoard}, but AT mode reported {board}. "
+              + "Aborted before erase.");
           return;
         }
 
         var ihex = new MissionPlanner.Radio.IHex();
-        ihex.load(fw);
+        ihex.load(firmwarePath);
         AppendLog($"Loaded {ihex.Count} hex blocks. Erasing + programming…");
         up.upload(boot, ihex);
 
@@ -570,33 +646,20 @@ public partial class SikRadioViewModel : ViewModelBase {
         } catch {
 
         }
+        if (temporaryFirmware != null) {
+          try {
+            System.IO.File.Delete(temporaryFirmware);
+          } catch {
+          }
+        }
       }
     });
 
     IsBusy = false;
   }
 
-  private static string? FirmwareUrl(MissionPlanner.Radio.Uploader.Board board, bool beta) {
-    string ch = beta ? "beta" : "stable";
-    return board switch {
-      MissionPlanner.Radio.Uploader.Board.DEVICE_ID_HM_TRP =>
-          $"https://firmware.ardupilot.org/SiK/{ch}/radio~hm_trp.ihx",
-      MissionPlanner.Radio.Uploader.Board.DEVICE_ID_RFD900 =>
-          $"https://firmware.ardupilot.org/SiK/{ch}/radio~rfd900.ihx",
-      MissionPlanner.Radio.Uploader.Board.DEVICE_ID_RFD900A =>
-          $"https://firmware.ardupilot.org/SiK/{ch}/radio~rfd900a.ihx",
-      MissionPlanner.Radio.Uploader.Board.DEVICE_ID_RFD900U => beta
-          ? "http://files.rfdesign.com.au/Files/firmware/MPSiK%20V2.6%20rfd900u.ihx"
-          : "http://files.rfdesign.com.au/Files/firmware/RFDSiK%20V1.9%20rfd900u.ihx",
-      MissionPlanner.Radio.Uploader.Board.DEVICE_ID_RFD900P => beta
-          ? "http://files.rfdesign.com.au/Files/firmware/MPSiK%20V2.6%20rfd900p.ihx"
-          : "http://files.rfdesign.com.au/Files/firmware/RFDSiK%20V1.9%20rfd900p.ihx",
-      _ => null,
-    };
-  }
-
   public string UploadFirmwareTooltip { get; } =
-      "Reflash SiK firmware (HM_TRP / RFD900/a/p/u). Disconnect MAVLink first.";
+      "Reflash SiK/RFD firmware (HM_TRP, RFD900/a/p/u/x/ux/X2). Disconnect MAVLink first.";
 
   [RelayCommand]
   private void RandomAesKey() {

@@ -1444,7 +1444,7 @@ Radio/Sikradio.zh-Hans.resx	resx	retain		Preserve neutral/culture resource until
 Radio/Sikradio.zh-Hant.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Radio/Sikradio.zh-TW.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Radio/Uploader.cs	csharp	retain	Radio/Uploader.cs	The tested port compiled this exact native source through a temporary compatibility copy; compile it directly in-place.
-Radio/XModem.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Radio/XModem.cs	csharp	replace	Services/SikRadioFirmwareService.cs;GCSViews/Setup/SikRadioView.axaml;ViewModels/Setup/SetupActionPages.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 ResEdit.Designer.cs	csharp	replace	Views/TranslationEditorWindow.axaml;Views/TranslationEditorView.axaml;ViewModels/TranslationEditorViewModel.cs;Services/ResxTranslationService.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 ResEdit.cs	csharp	replace	Views/TranslationEditorWindow.axaml;Views/TranslationEditorView.axaml;ViewModels/TranslationEditorViewModel.cs;Services/ResxTranslationService.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 ResEdit.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.

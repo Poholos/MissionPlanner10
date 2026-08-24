@@ -48,6 +48,17 @@ submodule. UI-only changes were translated to Avalonia where applicable:
 
 ## Features restored during this synchronization
 
+- The SiK Radio setup page consolidates the official embedded and standalone tools into one native
+  Avalonia workflow: classic and RFD `ATI5` settings, `ATI10`/`ATI5?` ranges, local/remote writes,
+  separate AES keys, factory reset, compatible `NAME = VALUE` profiles, PPM failsafe capture, live
+  RSSI and an AT terminal. Firmware programming validates the `ATI2` board and image identity before
+  bootloader entry, uses the legacy SiK uploader for Intel HEX radios and the RFDesign XModem path
+  for x/ux/X2 `.bin`/`.gbl` radios, including X2 high-speed upload and country-lock checks. Automatic
+  downloads use verified HTTPS ArduPilot/RFDesign images. RFDesign exposes no unambiguous beta
+  channel, so X-series automatic programming fails closed when Beta is selected; a custom image
+  requires a reject-by-default warning and model validation. X2 GBL images have no inspectable model
+  token, so custom files retain the official filename/model check and the modem bootloader remains
+  responsible for its signed-image enforcement.
 - Setup contains an **NV Modem** child page immediately below SiK Radio. It ports the dirty
   `NV5Settings` source from AgroSky GTU, including NV4/NV5 discovery, generation-specific parameter
   descriptions, typed MAVLink parameter encoding, live dual-radio status, radio/RTSP presets,

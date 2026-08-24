@@ -50,6 +50,13 @@
         ToolTip.Tip="{Binding UploadFirmwareTooltip}"
         Margin="0,0,8,0"
       />
+      <Button
+        x:Name="UploadCustomFirmwareButton"
+        Content="Upload Firmware File…"
+        IsEnabled="{Binding !IsBusy}"
+        ToolTip.Tip="Select a model-specific .hex/.ihx/.bin/.gbl image; it is validated before bootloader entry."
+        Margin="0,0,8,0"
+      />
       <CheckBox Content="Beta" IsChecked="{Binding BetaFirmware}" VerticalAlignment="Center"
                 ToolTip.Tip="Download beta channel firmware instead of stable" />
     </WrapPanel>
@@ -63,6 +70,7 @@
       <TextBlock Classes="fieldlbl" Text="{Binding RemoteVersion, StringFormat='Remote: {0}'}" Margin="0,0,20,0" />
       <TextBlock Classes="fieldlbl" Text="{Binding BoardType, StringFormat='Board (ATI2): {0}'}" Margin="0,0,20,0" />
       <TextBlock Classes="fieldlbl" Text="{Binding FreqBand, StringFormat='Freq (ATI3): {0}'}" Margin="0,0,20,0" />
+      <TextBlock Classes="fieldlbl" Text="{Binding CountryCode, StringFormat='Country lock: {0}'}" Margin="0,0,20,0" />
       <TextBlock Classes="fieldlbl" Text="{Binding RssiInfo, StringFormat='RSSI (ATI7): {0}'}" />
     </WrapPanel>
 
