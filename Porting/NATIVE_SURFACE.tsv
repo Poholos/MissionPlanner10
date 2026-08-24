@@ -1619,6 +1619,6 @@ temp.ko-KR.resx	resx	retain		Preserve neutral/culture resource until AXAML local
 temp.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 temp.uk.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 test/FirmwareSelection.xaml.cs	csharp	replace	GCSViews/ConfigurationView/ConfigFirmwareLegacyView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigFirmwareLegacyViewModel.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
-wix/Drivers.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-wix/Program.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/Program.cs	Requires code-level classification before project exclusion or deletion.
-wix/Properties/AssemblyInfo.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+wix/Drivers.cs	csharp	replace	build/windows/msi/Package.wxs;build/windows/package.sh;README.md;Porting/RELEASE.md	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+wix/Program.cs	csharp	replace	build/windows/msi/Package.wxs;build/windows/msi/MissionPlanner.Installer.wixproj;build/windows/package.sh;build/version.sh;.github/workflows/ci.yml;.github/workflows/release.yml	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+wix/Properties/AssemblyInfo.cs	csharp	replace	MissionPlanner.csproj;build/version.sh	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
