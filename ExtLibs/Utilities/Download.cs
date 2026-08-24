@@ -38,8 +38,6 @@ namespace MissionPlanner.Utilities
         string _uri = "";
         public int chunksize { get; set; } = 1000 * 250;
 
-        static HttpClient client = new HttpClient();
-
         private static object _lock = new object();
         /// <summary>
         /// static global cache of instance cache
@@ -94,8 +92,6 @@ namespace MissionPlanner.Utilities
         static DownloadStream()
         {
             _timer = new Timer(a => { expireCache(); }, null, 1000 * 30, 1000 * 30);
-            if (!String.IsNullOrEmpty(Settings.Instance.UserAgent))
-                client.DefaultRequestHeaders.Add("User-Agent", Settings.Instance.UserAgent);
         }
 
         public DownloadStream(string uri)
@@ -240,19 +236,35 @@ namespace MissionPlanner.Utilities
                 var end = Math.Min(Length, start + chunksize);
 
                 // cache it
-                var request = new HttpRequestMessage() {RequestUri = new Uri(_uri)};
-                request.Headers.Range = new RangeHeaderValue(start, end);
-
-                Console.WriteLine("{0}: {1} - {2} {3}", _uri, start, end, end-start);
-
-                MemoryStream ms = new MemoryStream();
-                using (Stream stream = client.SendAsync(request).GetAwaiter().GetResult().Content.ReadAsStreamAsync().GetAwaiter().GetResult())
+                using (var request = new HttpRequestMessage(HttpMethod.Get, _uri))
                 {
-                    stream.CopyTo(ms);
+                    request.Headers.Range = new RangeHeaderValue(start, end);
 
-                    lock (_lock)
+                    Console.WriteLine("{0}: {1} - {2} {3}", _uri, start, end, end-start);
+
+                    MemoryStream ms = null;
+                    try
                     {
-                        _chunks[start] = ms;
+                        using (HttpResponseMessage response = Download.SharedClient.SendAsync(
+                                   request, HttpCompletionOption.ResponseHeadersRead).GetAwaiter().GetResult())
+                        {
+                            response.EnsureSuccessStatusCode();
+                            using (Stream stream = response.Content.ReadAsStreamAsync().GetAwaiter().GetResult())
+                            {
+                                ms = new MemoryStream();
+                                stream.CopyTo(ms);
+                            }
+
+                            lock (_lock)
+                            {
+                                _chunks[start] = ms;
+                                ms = null;
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        ms?.Dispose();
                     }
                 }
             }
@@ -303,22 +315,54 @@ namespace MissionPlanner.Utilities
         private static readonly ILog log =
             LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
+        internal static readonly HttpClient SharedClient = CreateSharedClient();
+
+        private static HttpClient CreateSharedClient()
+        {
+            var httpClient = new HttpClient {Timeout = TimeSpan.FromSeconds(30)};
+            if (!String.IsNullOrWhiteSpace(Settings.Instance.UserAgent))
+                httpClient.DefaultRequestHeaders.TryAddWithoutValidation(
+                    "User-Agent", Settings.Instance.UserAgent);
+            return httpClient;
+        }
+
         public static async Task<string> PostAsync(string uri, string data)
         {
-            var httpClient = new HttpClient();
-            var response = await httpClient.PostAsync(uri, new StringContent(data));
+            return await PostAsync(SharedClient, uri, data).ConfigureAwait(false);
+        }
 
-            response.EnsureSuccessStatusCode();
-
-            string content = await response.Content.ReadAsStringAsync();
-            return await Task.Run(() => (content));
+        internal static async Task<string> PostAsync(HttpClient httpClient, string uri, string data)
+        {
+            if (httpClient == null)
+                throw new ArgumentNullException(nameof(httpClient));
+            using (var request = new HttpRequestMessage(HttpMethod.Post, uri))
+            {
+                request.Content = new StringContent(data ?? "");
+                using (HttpResponseMessage response =
+                       await httpClient.SendAsync(request).ConfigureAwait(false))
+                {
+                    response.EnsureSuccessStatusCode();
+                    return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                }
+            }
         }
 
         public static async Task<string> GetAsync(string uri)
         {
-            var httpClient = new HttpClient();
-            var content = await httpClient.GetStringAsync(uri);
-            return await Task.Run(() => (content));
+            return await GetAsync(SharedClient, uri).ConfigureAwait(false);
+        }
+
+        internal static async Task<string> GetAsync(HttpClient httpClient, string uri)
+        {
+            if (httpClient == null)
+                throw new ArgumentNullException(nameof(httpClient));
+            using (var request = new HttpRequestMessage(HttpMethod.Get, uri))
+            using (HttpResponseMessage response =
+                   await httpClient.SendAsync(request).ConfigureAwait(false))
+            {
+                response.EnsureSuccessStatusCode();
+                return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            }
         }
 
         public struct HTTPResult
@@ -332,104 +376,159 @@ namespace MissionPlanner.Utilities
         /// </summary>
         public static async Task<HTTPResult> GetAsyncWithStatus(string uri)
         {
-            var httpClient = new HttpClient();
-            var response = await httpClient.GetAsync(uri);
-            var content = await response.Content.ReadAsStringAsync();
-            return await Task.Run(() => (new HTTPResult() { content = content, status = response.StatusCode }));
+            return await GetAsyncWithStatus(SharedClient, uri, null).ConfigureAwait(false);
+        }
+
+        internal static async Task<HTTPResult> GetAsyncWithStatus(
+            string uri, Action<HttpRequestMessage> configureRequest)
+        {
+            return await GetAsyncWithStatus(
+                SharedClient, uri, configureRequest).ConfigureAwait(false);
+        }
+
+        internal static async Task<HTTPResult> GetAsyncWithStatus(
+            HttpClient httpClient, string uri, Action<HttpRequestMessage> configureRequest = null)
+        {
+            if (httpClient == null)
+                throw new ArgumentNullException(nameof(httpClient));
+            using (var request = new HttpRequestMessage(HttpMethod.Get, uri))
+            {
+                configureRequest?.Invoke(request);
+                using (HttpResponseMessage response =
+                       await httpClient.SendAsync(request).ConfigureAwait(false))
+                {
+                    string content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    return new HTTPResult {content = content, status = response.StatusCode};
+                }
+            }
         }
 
         public static event EventHandler<HttpRequestMessage> RequestModification;
 
         public static async Task<bool> getFilefromNetAsync(string url, string saveto, Action<int, string> status = null)
         {
+            string temporaryPath = saveto + ".new";
+            bool completed = false;
+
             try
             {
                 log.Info("Get " + url);
 
-                var request = new HttpRequestMessage(HttpMethod.Get, url);
+                string parent = Path.GetDirectoryName(Path.GetFullPath(saveto));
+                if (!Directory.Exists(parent))
+                    Directory.CreateDirectory(parent);
 
-                RequestModification?.Invoke(url, request);
+                if (File.Exists(temporaryPath))
+                    File.Delete(temporaryPath);
 
-                using (var response = await client.SendAsync(request, completionOption: HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false))
+                using (var request = new HttpRequestMessage(HttpMethod.Get, url))
                 {
-                    lock (log)
-                        log.Info(url + " " +(response).StatusCode.ToString());
-                    if ((response).StatusCode != HttpStatusCode.OK)
-                        return false;
+                    RequestModification?.Invoke(url, request);
 
-                    if (File.Exists(saveto))
+                    using (var response = await SharedClient.SendAsync(
+                               request, completionOption: HttpCompletionOption.ResponseHeadersRead)
+                           .ConfigureAwait(false))
                     {
-                        DateTime lastfilewrite = new FileInfo(saveto).LastWriteTime;
-                        DateTime lasthttpmod = response.Content.Headers.LastModified.HasValue
-                            ? response.Content.Headers.LastModified.Value.DateTime
-                            : DateTime.MinValue;
+                        lock (log)
+                            log.Info(url + " " + response.StatusCode);
+                        if (!response.IsSuccessStatusCode)
+                            return false;
 
-                        if (lasthttpmod < lastfilewrite)
+                        if (File.Exists(saveto))
                         {
-                            if ((response).Content.Headers.ContentLength == new FileInfo(saveto).Length)
+                            FileInfo existingFile = new FileInfo(saveto);
+                            DateTime lastHttpModification = response.Content.Headers.LastModified.HasValue
+                                ? response.Content.Headers.LastModified.Value.DateTime
+                                : DateTime.MinValue;
+
+                            if (lastHttpModification < existingFile.LastWriteTime &&
+                                response.Content.Headers.ContentLength == existingFile.Length)
                             {
                                 lock (log)
                                     log.Info(url + " " + "got LastModified " + saveto + " " +
-                                             (response).Content.Headers.LastModified +
-                                             " vs " + new FileInfo(saveto).LastWriteTime);
-                                response.Dispose();
+                                             response.Content.Headers.LastModified +
+                                             " vs " + existingFile.LastWriteTime);
+                                completed = true;
                                 return true;
                             }
                         }
-                    }
 
-                    int size = 0;
-                    using (Stream resstream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
-                    using (FileStream fs = new FileStream(saveto + ".new", FileMode.Create))
-                    {
-                        byte[] buf1 = new byte[1024];
-
-                        DateTime lastupdate = DateTime.MinValue;
-                        DateTime starttime = DateTime.Now;
-                        var contlen = response.Content.Headers.ContentLength;
-
-                        while (resstream.CanRead)
+                        long size = 0;
+                        long? contentLength = response.Content.Headers.ContentLength;
+                        using (Stream responseStream =
+                               await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+                        using (FileStream fileStream = new FileStream(
+                                   temporaryPath, FileMode.Create, FileAccess.Write, FileShare.None,
+                                   bufferSize: 81920, useAsync: true))
                         {
-                            int len = await resstream.ReadAsync(buf1, 0, 1024).ConfigureAwait(false);
-                            if (len == 0)
-                                break;
-                            fs.Write(buf1, 0, len);
+                            byte[] buffer = new byte[81920];
+                            DateTime lastUpdate = DateTime.MinValue;
+                            DateTime startTime = DateTime.UtcNow;
 
-                            size += len;
-
-                            var elapsed = (DateTime.Now - starttime).TotalSeconds;
-                            var percent = ((size / (float) contlen) * 100.0f);
-                            if (lastupdate.Second != DateTime.Now.Second)
+                            while (true)
                             {
-                                lastupdate = DateTime.Now;
-                                log.InfoFormat("{0} bps {1} {2}s {3}% of {4}     \r", size / elapsed, size, elapsed,
-                                    percent, contlen);
-                                var timeleft = TimeSpan.FromSeconds(((elapsed / percent) * (100 - percent)));
-                                status?.Invoke((int) percent,
-                                    "Downloading.. ETA: " +
-                                    //DateTime.Now.AddSeconds(((elapsed / percent) * (100 - percent))).ToShortTimeString()
-                                    formatTimeSpan(timeleft)
-                                );
+                                int length = await responseStream.ReadAsync(
+                                    buffer, 0, buffer.Length).ConfigureAwait(false);
+                                if (length == 0)
+                                    break;
+
+                                await fileStream.WriteAsync(
+                                    buffer, 0, length).ConfigureAwait(false);
+                                size += length;
+
+                                DateTime now = DateTime.UtcNow;
+                                if ((now - lastUpdate).TotalSeconds < 1)
+                                    continue;
+
+                                lastUpdate = now;
+                                double elapsedSeconds = Math.Max(
+                                    (now - startTime).TotalSeconds, 0.001);
+                                if (contentLength.GetValueOrDefault() > 0)
+                                {
+                                    double percent = Math.Min(
+                                        100.0, size * 100.0 / contentLength.Value);
+                                    double remainingSeconds = percent > 0
+                                        ? elapsedSeconds / percent * (100 - percent)
+                                        : 0;
+                                    log.InfoFormat(
+                                        "{0} bps {1} {2}s {3}% of {4}     \r",
+                                        size / elapsedSeconds, size, elapsedSeconds, percent,
+                                        contentLength.Value);
+                                    status?.Invoke((int)percent,
+                                        "Downloading.. ETA: " +
+                                        formatTimeSpan(TimeSpan.FromSeconds(remainingSeconds)));
+                                }
+                                else
+                                {
+                                    log.InfoFormat(
+                                        "{0} bps {1} {2}s (unknown length)     \r",
+                                        size / elapsedSeconds, size, elapsedSeconds);
+                                    status?.Invoke(-1, "Downloading.. " + size + " bytes");
+                                }
                             }
                         }
 
-                        fs.Flush();
-                        fs.Close();
+                        if (contentLength.HasValue && size != contentLength.Value)
+                        {
+                            log.Info("getFilefromNetAsync(): File size mismatch " + size +
+                                     " vs " + contentLength.Value);
+                            return false;
+                        }
+
+                        log.Info("Got " + url + " " + size);
+
+                        if (File.Exists(saveto))
+                        {
+                            File.SetAttributes(saveto, FileAttributes.Normal);
+                            File.Delete(saveto);
+                        }
+
+                        File.Move(temporaryPath, saveto);
+                        status?.Invoke(100, "Complete");
+                        completed = true;
+
+                        return true;
                     }
-
-                    log.Info("Got " + url + " " + size);
-
-                    if (File.Exists(saveto))
-                    {
-                        // try prevent System.UnauthorizedAccessException: Access to the path
-                        GC.Collect();
-                        File.SetAttributes(saveto, FileAttributes.Normal);
-                        File.Delete(saveto);
-                    }
-
-                    File.Move(saveto + ".new", saveto);
-
-                    return true;
                 }
             }
             catch (Exception ex)
@@ -438,139 +537,51 @@ namespace MissionPlanner.Utilities
                     log.Info("getFilefromNetAsync(): " + ex.ToString());
                 return false;
             }
+            finally
+            {
+                if (!completed && File.Exists(temporaryPath))
+                {
+                    try
+                    {
+                        File.Delete(temporaryPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        log.Debug("Unable to remove incomplete download " + temporaryPath, ex);
+                    }
+                }
+            }
         }
 
-        static Download()
-        {
-            if (!String.IsNullOrEmpty(Settings.Instance.UserAgent))
-                client.DefaultRequestHeaders.Add("User-Agent", Settings.Instance.UserAgent);
-        }
-
-        static HttpClient client = new HttpClient();
         public static bool getFilefromNet(string url, string saveto, Action<int, string> status = null)
         {
+            return getFilefromNetAsync(url, saveto, status).GetAwaiter().GetResult();
+        }
+
+        public static async Task<bool> CheckHTTPFileExistsAsync(string url)
+        {
+            Uri uri;
+            if (String.IsNullOrWhiteSpace(url) ||
+                !Uri.TryCreate(url, UriKind.Absolute, out uri))
+                return false;
+
             try
             {
-                lock (log)
-                    log.Info(url);
-                var client = new HttpClient();
-                client.DefaultRequestHeaders.Add("User-Agent", Settings.Instance.UserAgent);
-                client.Timeout = TimeSpan.FromSeconds(30);
-
-                // Get the response.
-                var response = client.GetAsync(url, completionOption: HttpCompletionOption.ResponseHeadersRead).Result;
-                // Display the status.
-                lock (log)
-                    log.Info(response.ReasonPhrase);
-                if (!response.IsSuccessStatusCode)
-                    return false;
-
-                if (File.Exists(saveto))
-                {
-                    DateTime lastfilewrite = new FileInfo(saveto).LastWriteTime;
-                    DateTime lasthttpmod = response.Content.Headers.LastModified();
-
-                    if (lasthttpmod < lastfilewrite)
-                    {
-                        if (response.Content.Headers.ContentLength() == new FileInfo(saveto).Length)
-                        {
-                            lock (log)
-                                log.Info("got LastModified " + saveto + " " + (response.Content.Headers).LastModified() +
-                                     " vs " + new FileInfo(saveto).LastWriteTime);
-                            return true;
-                        }
-                    }
-                }
-
-                // Get the stream containing content returned by the server.
-                Stream dataStream = response.Content.ReadAsStreamAsync().Result;
-
-                long bytes = response.Content.Headers.ContentLength();
-                long contlen = bytes;
-
-                byte[] buf1 = new byte[1024];
-
-                if (!Directory.Exists(Path.GetDirectoryName(saveto)))
-                    Directory.CreateDirectory(Path.GetDirectoryName(saveto));
-
-                FileStream fs = new FileStream(saveto + ".new", FileMode.Create);
-
-                DateTime lastupdate = DateTime.MinValue;
-                DateTime starttime = DateTime.Now;
-                int got = 0;
-
-                while (dataStream.CanRead && bytes > 0)
-                {
-                    int len = dataStream.Read(buf1, 0, buf1.Length);
-                    bytes -= len;
-                    got += len;
-                    fs.Write(buf1, 0, len);
-
-                    var elapsed = (DateTime.Now - starttime).TotalSeconds;
-                    var percent = ((got / (float)contlen) * 100.0f);
-                    if (lastupdate.Second != DateTime.Now.Second)
-                    {
-                        lastupdate = DateTime.Now;
-                        Console.WriteLine("{0} bps {1} {2}s {3}% of {4}     \r", got / elapsed, got, elapsed,
-                            percent, contlen);
-                        var timeleft = TimeSpan.FromSeconds(((elapsed / percent) * (100 - percent)));
-                        status?.Invoke((int)percent,
-                            "Downloading.. ETA: " +
-                            //DateTime.Now.AddSeconds(((elapsed / percent) * (100 - percent))).ToShortTimeString()
-                            formatTimeSpan(timeleft)
-                        );
-                    }
-                }
-
-                if (fs.Length != contlen)
-                {
-                    lock (log)
-                        log.Info("getFilefromNet(): " + "File size mismatch " + fs.Length + " vs " + contlen);
-                    fs.Close();
-                    dataStream.Close();
-                    return false;
-                }
-                else
-                {
-                    fs.Close();
-                    dataStream.Close();
-                }
-                
-                if (File.Exists(saveto))
-                {
-                    File.Delete(saveto);
-                }
-                File.Move(saveto + ".new", saveto);
-
-                return true;
+                using (var request = new HttpRequestMessage(HttpMethod.Head, uri))
+                using (HttpResponseMessage response =
+                       await SharedClient.SendAsync(request).ConfigureAwait(false))
+                    return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
             {
-                lock (log)
-                    log.Info("getFilefromNet(): " + ex.ToString());
+                log.Debug("HTTP existence check failed for " + url, ex);
                 return false;
             }
-        }
-
-        public static Task<bool> CheckHTTPFileExistsAsync(string url)
-        {
-            return Task.Run(() => CheckHTTPFileExists(url));
         }
 
         public static bool CheckHTTPFileExists(string url)
         {
-            Uri uri;
-            Uri.TryCreate(url, UriKind.Absolute, out uri);
-
-            if (url == null || url == "" || uri == null)
-                return false;
-
-            var client = new HttpClient();
-            client.DefaultRequestHeaders.Add("User-Agent", Settings.Instance.UserAgent);
-            client.Timeout = TimeSpan.FromSeconds(30);
-            var resp = client.SendAsync(new HttpRequestMessage(HttpMethod.Head, url)).Result;
-            return resp.IsSuccessStatusCode;
-
+            return CheckHTTPFileExistsAsync(url).GetAwaiter().GetResult();
         }
 
         //https://stackoverflow.com/questions/13606523/retrieving-partial-content-using-multiple-http-requsets-to-fetch-data-via-parlle
@@ -672,11 +683,15 @@ namespace MissionPlanner.Utilities
                 if (fileSizeCache.ContainsKey(uri) && fileSizeCache[uri] > 0)
                     return fileSizeCache[uri];
 
-                var responce = client.GetAsync(uri);
-                var len = responce.GetAwaiter().GetResult().Content.Headers.ContentLength();
-                fileSizeCache[uri] = len;
-                responce.Result.Dispose();
-                return len;
+                using (var request = new HttpRequestMessage(HttpMethod.Get, uri))
+                using (HttpResponseMessage response = SharedClient.SendAsync(
+                           request, HttpCompletionOption.ResponseHeadersRead).GetAwaiter().GetResult())
+                {
+                    response.EnsureSuccessStatusCode();
+                    long len = response.Content.Headers.ContentLength();
+                    fileSizeCache[uri] = len;
+                    return len;
+                }
             }
         }
 

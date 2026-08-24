@@ -90,6 +90,10 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="MissionPlanner.Tests" />
+  </ItemGroup>
+
 
 
 </Project>
