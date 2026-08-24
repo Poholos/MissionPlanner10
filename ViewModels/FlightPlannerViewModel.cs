@@ -65,6 +65,7 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
       Dispatcher.UIThread.Post(RefreshDisplayView);
 
   private void OnConnectionChanged() => Dispatcher.UIThread.Post(() => {
+    OnPropertyChanged(nameof(ShowWpRadius));
     OnPropertyChanged(nameof(ShowLoiterRadius));
     OnPropertyChanged(nameof(VehicleFirmware));
   });
@@ -716,10 +717,15 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
 
   public Firmwares VehicleFirmware => _comPort.MAV.cs.firmware;
 
+  public bool ShowWpRadius => SupportsGlobalWaypointRadius(VehicleFirmware);
+
   public bool ShowLoiterRadius => SupportsGlobalLoiterRadius(VehicleFirmware);
 
+  internal static bool SupportsGlobalWaypointRadius(Firmwares firmware) =>
+      firmware is not (Firmwares.ArduCopter2 or Firmwares.ArduRover);
+
   internal static bool SupportsGlobalLoiterRadius(Firmwares firmware) =>
-      firmware != Firmwares.ArduCopter2;
+      firmware is not (Firmwares.ArduCopter2 or Firmwares.ArduRover);
 
   [ObservableProperty]
   private bool _verifyHeight;
@@ -1476,8 +1482,10 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
         _comPort.setParam(name, (float)(value / CurrentState.multiplierdist));
       }
     }
-    Set("WP_RADIUS", WpRadius);
-    Set("WP_RADIUS_M", WpRadius);
+    if (SupportsGlobalWaypointRadius(VehicleFirmware)) {
+      Set("WP_RADIUS", WpRadius);
+      Set("WP_RADIUS_M", WpRadius);
+    }
     if (SupportsGlobalLoiterRadius(VehicleFirmware)) {
       Set("WP_LOITER_RAD", LoiterRadius);
       Set("LOITER_RAD", LoiterRadius);

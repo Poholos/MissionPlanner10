@@ -37,11 +37,12 @@ internal sealed class LogMetadataWindow : Window {
   }
 
   internal static void ShowParameters(
-      Window owner, IReadOnlyList<DataFlashParameter> parameters, string suggestedName) {
-    var table = Table(parameters);
-    table.Columns.Add(TextColumn("Parameter", nameof(DataFlashParameter.Name), null));
-    table.Columns.Add(TextColumn("Value", nameof(DataFlashParameter.Value), 180));
-    table.Columns.Add(TextColumn("Default", nameof(DataFlashParameter.DefaultValue), 180));
+      Window owner, DataFlashParameterHistory history, string suggestedName) {
+    var table = Table(history.Changes);
+    table.Columns.Add(TextColumn("Time (s)", nameof(DataFlashParameterChange.TimeText), 100));
+    table.Columns.Add(TextColumn("Parameter", nameof(DataFlashParameterChange.Name), null));
+    table.Columns.Add(TextColumn("Value", nameof(DataFlashParameterChange.Value), 160));
+    table.Columns.Add(TextColumn("Default", nameof(DataFlashParameterChange.DefaultValue), 160));
     var save = new Button { Content = "Save .param…" };
     var close = new Button { Content = "Close" };
     var buttons = new StackPanel {
@@ -50,7 +51,8 @@ internal sealed class LogMetadataWindow : Window {
       HorizontalAlignment = HorizontalAlignment.Right,
       Children = { save, close },
     };
-    var window = new LogMetadataWindow($"Log Parameters ({parameters.Count})", table, buttons);
+    var window = new LogMetadataWindow(
+        $"Log Parameter Changes ({history.Changes.Count})", table, buttons);
     close.Click += (_, _) => window.Close();
     save.Click += async (_, _) => {
       var file = await window.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions {
@@ -62,7 +64,7 @@ internal sealed class LogMetadataWindow : Window {
         ],
       });
       if (file?.TryGetLocalPath() is { } path) {
-        DataFlashLog.ExportParameters(parameters, path);
+        DataFlashLog.ExportParameters(history.FinalValues, path);
       }
     };
     window.Show(owner);

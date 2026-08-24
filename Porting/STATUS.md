@@ -15,8 +15,11 @@ Updated: **2026-08-24**.
   rollback reference in Git history.
 - Upstream safety/reliability PR #13 is merged at `b24238dbc`; its complete Linux, Windows and
   macOS package matrix and CodeQL run passed, and release `v1.3.83-20260824.b24238db` contains all
-  19 expected DEB/TAR/MSI/ZIP/DMG, signed update-manifest and checksum assets. The next upstream
-  issue audit is isolated on `fix/upstream-issues-round-2` until its own CI and review complete.
+  19 expected DEB/TAR/MSI/ZIP/DMG, signed update-manifest and checksum assets. Round 2 was merged
+  through PR #14 at master checkpoint `0266a2878`; its master package run `32764653113` and CodeQL
+  run `32764653058` passed with zero open alerts. Round 3 remains isolated on
+  `fix/upstream-issues-round-3` until its own CI and review complete; no new tag or release may be
+  created until every round-3 check has passed on `master`.
 - The root `MissionPlanner.csproj` is now the net10 Avalonia application with assembly and product
   identity `MissionPlanner`. It builds one main `MissionPlanner.dll` and has no source, build or
   runtime dependency on an `external/MissionPlanner` tree.
@@ -194,15 +197,51 @@ Updated: **2026-08-24**.
   projects report no known vulnerable direct or transitive NuGet packages. Cross-platform package
   and CodeQL gates remain required on the draft PR before merge.
 
+## Upstream issue audit round 3
+
+- Eleven atomic changes on `fix/upstream-issues-round-3` address confirmed reports and narrowly
+  applicable upstream PRs. #3535 now sends the irreversible `PARACHUTE_RELEASE` action instead of
+  disabling the parachute. #2923 hides Plane-only waypoint and loiter radii for both Copter and
+  Rover and prevents those pages from writing the hidden parameters. #3358 prevents a closed
+  mission-command selector from changing commands through navigation keys or the mouse wheel.
+- Parameter handling now preserves protocol and file precision. #3284/#2842 comparisons use
+  `MAV_PARAM_TYPE`: integer values compare exactly, while REAL32 values tolerate only C
+  `FLT_EPSILON`; explicit compare dialogs also expose parameters missing from either side without
+  allowing a missing row to be staged. #2884 honours explicit bytewise parameter encoding ahead
+  of firmware-family heuristics, so values such as `UINT32` 60180513 survive both PARAM_SET and
+  parameter-list decoding exactly. The applicable validation from upstream PR #2644 rejects
+  DroneCAN numeric values outside the node-reported range while leaving string parameters intact.
+- #3366 retains the latest non-empty SBS transponder squawk for a bounded 30-second interval.
+  #2758 changes DataFlash parameter browsing from a final-value dictionary to the complete
+  chronological `PARM` history while retaining final-value `.param` export. The functional part of
+  upstream PR #3735 adds Pixhawk 6C Windows USB MAVLink and SLCAN interfaces to both driver
+  architectures, with packaging authoring coverage.
+- #2363 needs no port change: survey speed is already a `double` edited in 0.1 m/s increments and
+  emitted unchanged as `DO_CHANGE_SPEED`. The pre/post concurrent batch allocation described by
+  #2986 is also already represented by separate ISBH instance slots `0/1/3/4`, with an additional
+  bounds guard absent from the legacy viewer; the issue's two old Dropbox links now return HTML
+  rather than the logs, so no unverified spectral rewrite was made.
+- A release-time GTU comparison found newer clean checkpoint `f196ea689`. Its NV5 signal semantics
+  are now mirrored: an unlocked receiver displays current channel RSSI and suppresses stale packet
+  RSSI/SNR; a locked receiver prefers packet RSSI and safely falls back to channel RSSI. SX127x and
+  LR11xx cases plus locked fallback are covered by regression tests.
+- Round-3 local verification: Release solution build **0 warnings / 0 errors**, **1400/1400**
+  tests, all six migration/inventory checks pass (708/708 pinned source paths, 1623 native-manifest
+  rows and **0 blockers**), and all 28 active projects report no known vulnerable direct or
+  transitive NuGet package. Clean `linux-x64` TAR/DEB packages build, `lintian` emits no diagnostic,
+  payload assertions pass, and the extracted DEB reaches the normal Avalonia event loop during a
+  12-second Xvfb smoke test. Native Windows and macOS packaging plus CodeQL remain mandatory CI
+  gates before merge and release.
+
 ## GTU synchronization checkpoint
 
 - NV modem behavior was last compared with `/home/alex/src/AgroSky/GTU` at clean local and fetched
-  `origin/master` `6c2a4b04f03fa4e693d8e6adc2b39b734e817856`. The only `NV5Settings`
-  source/header/UI/test change after `98e98833` is committed GTU refinement
-  `77af510a47f8cbe7ea02fcc047019b07fb2c0c26`: selected-radio key targeting remains independent
-  of `DIVERSITY`, and **Revert selected** restores one staged parameter locally without sending
-  MAVLink. Both behaviors and their regression tests are ported. `REFRESH_SETTING` remains a
-  typed `UINT32`; NV5 key words remain signed `INT32` values preserving the same raw bytes.
+  `origin/master` `f196ea689ba0f30eb3b16a76bbf8041ee21a23de`. GTU refinement
+  `77af510a47f8cbe7ea02fcc047019b07fb2c0c26` keeps selected-radio key targeting independent of
+  `DIVERSITY`, and **Revert selected** restores one staged parameter locally without sending
+  MAVLink. Both behaviors and their regression tests are ported. Checkpoint `f196ea689` additionally
+  supplies current unlocked-channel RSSI semantics, now ported with matching tests. `REFRESH_SETTING`
+  remains a typed `UINT32`; NV5 key words remain signed `INT32` values preserving the same raw bytes.
 - Before each later NV modem change and before a release, recheck both committed and uncommitted
   GTU changes with `git status`, then compare every newer change to `hermes-gui/include/nv5settings.h`,
   `hermes-gui/src/nv5settings.cpp` and `hermes-gui/test/testnv5settings.cpp`. Update this commit and
@@ -249,16 +288,18 @@ Updated: **2026-08-24**.
 
 ## Immediate next step
 
-Build clean local Linux DEB/TAR artifacts, push `fix/upstream-issues-round-2`, and run its complete
-CI/package and CodeQL gates in a draft PR. Merge only after those checks pass, then tag the merge
-commit and verify the full 19-asset release. The remaining acceptance work still requires
+Push `fix/upstream-issues-round-3` and run its complete CI/package and CodeQL gates in a PR. Merge
+only after Linux, Windows, both macOS architectures and CodeQL pass; then repeat those gates on the
+actual master merge commit. Only after the master checks and zero-alert API audit pass may the
+master commit be tagged and its full 19-asset release verified. The remaining hardware acceptance
+work still requires
 representative physical NV4/NV5 hardware: repeat UDP/TCP/UART switching, disconnect and
 key-programming checks, and recheck GTU `NV5Settings` changes newer than clean checkpoint
-`6c2a4b04` before declaring hardware acceptance complete.
+`f196ea689` before declaring hardware acceptance complete.
 
 ## Acceptance baseline
 
-- At least 1379 port tests retained and passing.
+- At least 1400 port tests retained and passing.
 - Clean Release build has zero errors and zero warnings.
 - `linux-x64`, `win-x64`, `osx-x64`, and `osx-arm64` publish gates pass.
 - Linux `.deb`/portable archive, Windows ZIP/MSI and both macOS ZIP/DMG pairs build and pass their

@@ -1699,8 +1699,9 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
 
             Array.Resize(ref temp, 16);
             req.param_id = temp.ToByteArray();
-            if ((MAVlist[sysid, compid].cs.capabilities & (uint) MAV_PROTOCOL_CAPABILITY.PARAM_FLOAT) > 0 ||
-                MAVlist[sysid, compid].apname == MAV_AUTOPILOT.ARDUPILOTMEGA)
+            if (!UsesBytewiseParameterEncoding(
+                    MAVlist[sysid, compid].cs.capabilities,
+                    MAVlist[sysid, compid].apname))
             {
                 req.param_value = new MAVLinkParam(paramname, value, (MAV_PARAM_TYPE.REAL32)).float_value;
             }
@@ -2090,8 +2091,9 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
                     //Console.WriteLine(DateTime.Now.Millisecond + " gp2a ");
 
                     // item uses float based param system
-                    if ((MAVlist[sysid, compid].cs.capabilities & (uint) MAV_PROTOCOL_CAPABILITY.PARAM_FLOAT) > 0 ||
-                        MAVlist[sysid, compid].apname == MAV_AUTOPILOT.ARDUPILOTMEGA)
+                    if (!UsesBytewiseParameterEncoding(
+                            MAVlist[sysid, compid].cs.capabilities,
+                            MAVlist[sysid, compid].apname))
                     {
                         var offset = Marshal.OffsetOf(typeof(mavlink_param_value_t), "param_value");
                         newparamlist[paramID] = new MAVLinkParam(paramID, BitConverter.GetBytes(par.param_value),
@@ -2319,6 +2321,25 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
         public float GetParam(byte sysid, byte compid, string name = "", short index = -1, bool requireresponce = true)
         {
             return GetParamAsync(sysid, compid, name, index, requireresponce).AwaitSync();
+        }
+
+        internal static bool UsesBytewiseParameterEncoding(
+            uint capabilities, MAV_AUTOPILOT autopilot)
+        {
+            // The current flags are authoritative. In particular, a peripheral may identify its
+            // firmware as ArduPilot while still using the byte-wise protocol required to preserve
+            // UINT32/INT32 bits in the float-shaped PARAM_VALUE and PARAM_SET fields.
+            if ((capabilities & (uint) MAV_PROTOCOL_CAPABILITY.PARAM_ENCODE_BYTEWISE) != 0)
+                return true;
+            if ((capabilities & (uint) MAV_PROTOCOL_CAPABILITY.PARAM_ENCODE_C_CAST) != 0)
+                return false;
+#pragma warning disable CS0612 // Legacy devices advertised PARAM_FLOAT before the encoding flags.
+            if ((capabilities & (uint) MAV_PROTOCOL_CAPABILITY.PARAM_FLOAT) != 0)
+                return false;
+#pragma warning restore CS0612
+
+            // ArduPilot historically used C-cast encoding without advertising a capability.
+            return autopilot != MAV_AUTOPILOT.ARDUPILOTMEGA;
         }
 
         /// <summary>

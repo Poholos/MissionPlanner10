@@ -301,6 +301,63 @@ public class NvModemTests {
         item.Label.Contains("NV5 88:222", StringComparison.Ordinal));
   }
 
+  [Theory]
+  [InlineData((byte)0, (byte)4)]
+  [InlineData((byte)1, (byte)1)]
+  public void Nv5_unlocked_receiver_displays_current_channel_signal_only(
+      byte modulation, byte radioChip) {
+    var transport = new FakeTransport();
+    using var viewModel = new NvModemViewModel(transport, () => DateTime.UtcNow,
+        startTimer: false);
+    var source = new NvModemLink(new MAVLinkInterface(), "shared UDP");
+
+    viewModel.HandlePacket(source, Packet(NvModemMessageIds.Nv5LinkStatus,
+        new Nv5LinkStatusMessage {
+          SampleMs = 1000,
+          Channel = 1,
+          RadioChip = radioChip,
+          Role = 0,
+          Modulation = modulation,
+          Flags = 0xfb,
+          PacketRssiDbmX10 = -395,
+          PacketSnrDbX10 = 112,
+          ChannelRssiDbmX10 = -970,
+        }, 5, 68));
+
+    Assert.Contains("L no", viewModel.RadioStatuses[0].Link, StringComparison.Ordinal);
+    Assert.Contains("R -97.0", viewModel.RadioStatuses[0].Link, StringComparison.Ordinal);
+    Assert.Contains("S —", viewModel.RadioStatuses[0].Link, StringComparison.Ordinal);
+    Assert.DoesNotContain("-39.5", viewModel.RadioStatuses[0].Link, StringComparison.Ordinal);
+  }
+
+  [Fact]
+  public void Nv5_locked_receiver_prefers_packet_signal_and_allows_channel_fallback() {
+    var transport = new FakeTransport();
+    using var viewModel = new NvModemViewModel(transport, () => DateTime.UtcNow,
+        startTimer: false);
+    var source = new NvModemLink(new MAVLinkInterface(), "shared UDP");
+    var status = new Nv5LinkStatusMessage {
+      SampleMs = 1000,
+      Channel = 1,
+      RadioChip = 0,
+      Role = 0,
+      Flags = 1 << 2,
+      PacketRssiDbmX10 = -395,
+      PacketSnrDbX10 = 112,
+      ChannelRssiDbmX10 = -970,
+    };
+
+    viewModel.HandlePacket(source,
+        Packet(NvModemMessageIds.Nv5LinkStatus, status, 5, 68));
+    Assert.Contains("R -39.5", viewModel.RadioStatuses[0].Link, StringComparison.Ordinal);
+    Assert.Contains("S 11.2", viewModel.RadioStatuses[0].Link, StringComparison.Ordinal);
+
+    status.PacketRssiDbmX10 = short.MinValue;
+    viewModel.HandlePacket(source,
+        Packet(NvModemMessageIds.Nv5LinkStatus, status, 5, 68));
+    Assert.Contains("R -97.0", viewModel.RadioStatuses[0].Link, StringComparison.Ordinal);
+  }
+
   [Fact]
   public void Invalid_passport_and_unscoped_nv4_parameter_do_not_create_devices() {
     var transport = new FakeTransport();

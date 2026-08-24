@@ -291,10 +291,11 @@ public partial class LogBrowseView : UserControl {
     vm.Busy = true;
     vm.Status = "Reading log parameters…";
     try {
-      var parameters = await Task.Run(vm.ReadParameters);
-      LogMetadataWindow.ShowParameters(owner, parameters,
+      DataFlashParameterHistory history = await Task.Run(vm.ReadParameterHistory);
+      LogMetadataWindow.ShowParameters(owner, history,
           Path.GetFileNameWithoutExtension(path) + ".param");
-      vm.Status = $"PARM: {parameters.Count} final parameter value(s).";
+      vm.Status = $"PARM: {history.Changes.Count} change record(s), "
+          + $"{history.FinalValues.Count} final parameter value(s).";
     } catch (Exception ex) {
       vm.Status = "Parameter read failed: " + ex.Message;
     } finally {

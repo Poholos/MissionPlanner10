@@ -1,5 +1,7 @@
 using MissionPlanner.Utilities;
 using MissionPlanner.ViewModels;
+using MissionPlanner.Views;
+using Avalonia.Input;
 
 namespace MissionPlanner.Tests;
 
@@ -41,6 +43,20 @@ public class WpRowTests {
     var row = new WpRow();
     row.CommandName = "LAND";
     Assert.Equal((ushort)MAVLink.MAV_CMD.LAND, row.Command);
+  }
+
+  [Theory]
+  [InlineData(Key.Down, KeyModifiers.None, true)]
+  [InlineData(Key.Up, KeyModifiers.None, true)]
+  [InlineData(Key.PageDown, KeyModifiers.None, true)]
+  [InlineData(Key.Home, KeyModifiers.None, true)]
+  [InlineData(Key.Enter, KeyModifiers.None, false)]
+  [InlineData(Key.Down, KeyModifiers.Alt, false)]
+  public void Closed_command_editor_blocks_implicit_selection_changes(
+      Key key, KeyModifiers modifiers, bool expected) {
+    Assert.Equal(expected,
+        FlightPlannerView.BlocksClosedMissionCommandKey(false, key, modifiers));
+    Assert.False(FlightPlannerView.BlocksClosedMissionCommandKey(true, key, modifiers));
   }
 
   [Fact]

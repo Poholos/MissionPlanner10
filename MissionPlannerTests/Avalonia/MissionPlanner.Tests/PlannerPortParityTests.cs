@@ -602,8 +602,12 @@ public class PlannerPortParityTests {
   }
 
   [Fact]
-  public void Global_loiter_radius_is_not_exposed_for_copter() {
+  public void Global_waypoint_and_loiter_radii_are_not_exposed_for_copter_or_rover() {
+    Assert.False(FlightPlannerViewModel.SupportsGlobalWaypointRadius(Firmwares.ArduCopter2));
+    Assert.False(FlightPlannerViewModel.SupportsGlobalWaypointRadius(Firmwares.ArduRover));
+    Assert.True(FlightPlannerViewModel.SupportsGlobalWaypointRadius(Firmwares.ArduPlane));
     Assert.False(FlightPlannerViewModel.SupportsGlobalLoiterRadius(Firmwares.ArduCopter2));
+    Assert.False(FlightPlannerViewModel.SupportsGlobalLoiterRadius(Firmwares.ArduRover));
     Assert.True(FlightPlannerViewModel.SupportsGlobalLoiterRadius(Firmwares.ArduPlane));
   }
 

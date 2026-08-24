@@ -224,6 +224,11 @@ public partial class LogBrowseViewModel : ViewModelBase {
   public IReadOnlyList<DataFlashParameter> ReadParameters() =>
       CurrentPath == null ? [] : DataFlashLog.ReadParameters(CurrentPath);
 
+  public DataFlashParameterHistory ReadParameterHistory() =>
+      CurrentPath == null
+          ? new DataFlashParameterHistory([], [])
+          : DataFlashLog.ReadParameterHistory(CurrentPath);
+
   public IReadOnlyList<DataFlashMessage> ReadMessages() =>
       CurrentPath == null ? [] : DataFlashLog.ReadMessages(CurrentPath);
 

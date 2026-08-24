@@ -57,6 +57,30 @@ public class ExternalAdsbReceiverTests {
   }
 
   [Fact]
+  public void Sbs_decoder_keeps_recent_nonempty_squawk_and_expires_it() {
+    DateTime now = new(2026, 8, 24, 12, 0, 0, DateTimeKind.Utc);
+    var decoder = new ExternalAdsbDecoder(() => now);
+
+    Assert.False(decoder.TryDecodeLine(Sbs("6", "ABC123", fields => {
+      fields[17] = "7700";
+    }), out _));
+    Assert.True(decoder.TryDecodeLine(Sbs("3", "ABC123", fields => {
+      fields[11] = "10000";
+      fields[14] = "34.5";
+      fields[15] = "33.25";
+    }), out var recent));
+    Assert.Equal(0x7700, recent.Squawk);
+
+    now = now.AddSeconds(31);
+    Assert.True(decoder.TryDecodeLine(Sbs("3", "ABC123", fields => {
+      fields[11] = "10000";
+      fields[14] = "34.5";
+      fields[15] = "33.25";
+    }), out var expired));
+    Assert.Equal(0, expired.Squawk);
+  }
+
+  [Fact]
   public void Mode_s_decoder_accepts_valid_cpr_pair_in_avr_and_beast_framing() {
     const string even = "*8D75804B580FF2CF7E9BA6F701D0;";
     const string odd = "*8D75804B580FF6B283EB7A157117;";

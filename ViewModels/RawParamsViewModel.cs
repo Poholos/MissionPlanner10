@@ -335,7 +335,7 @@ public partial class RawParamsViewModel : ViewModelBase, IDisposable {
       return [];
     }
 
-    var rows = BuildComparison(_all, fileParams);
+    var rows = BuildComparison(_all, fileParams, includeMissing: true);
     if (rows.Count == 0) {
       _ = Services.Dialogs.Alert("Compare parameters",
           $"{System.IO.Path.GetFileName(path)}: no differing matched parameters.");
@@ -411,7 +411,7 @@ public partial class RawParamsViewModel : ViewModelBase, IDisposable {
         Status = "Vehicle changed while the profile was loading; the old result was discarded.";
         return null;
       }
-      var comparison = CompareParamFile(path);
+      var comparison = BuildComparison(_all, ParamFile.loadParamFile(path), includeMissing: false);
       Status = comparison.Count == 0
           ? $"{selected.Name}: no differing matched parameters."
           : $"{selected.Name}: choose which of {comparison.Count} differences to stage.";
@@ -490,7 +490,7 @@ public partial class RawParamsViewModel : ViewModelBase, IDisposable {
         protectedCount++;
         continue;
       }
-      if (importedValue != row.CurrentValue) {
+      if (!ParameterValuesEqual(importedValue, row.CurrentValue, row.ParameterType)) {
         differing++;
         row.ValueText = importedValue.ToString(CultureInfo.InvariantCulture);
       }
@@ -499,13 +499,26 @@ public partial class RawParamsViewModel : ViewModelBase, IDisposable {
   }
 
   internal static IReadOnlyList<ParamComparisonRow> BuildComparison(
-      IEnumerable<ParamRow> current, IReadOnlyDictionary<string, double> imported) {
+      IEnumerable<ParamRow> current, IReadOnlyDictionary<string, double> imported,
+      bool includeMissing = true) {
     var rows = new List<ParamComparisonRow>();
-    foreach (var row in current) {
-      if (!IsProtectedFileParameter(row.Name)
-          && imported.TryGetValue(row.Name, out double importedValue)
-          && importedValue != row.CurrentValue) {
-        rows.Add(new ParamComparisonRow(row.Name, row.CurrentValue, importedValue));
+    var currentByName = current
+        .Where(row => !IsProtectedFileParameter(row.Name))
+        .ToDictionary(row => row.Name, StringComparer.OrdinalIgnoreCase);
+    foreach (var row in currentByName.Values) {
+      if (imported.TryGetValue(row.Name, out double importedValue)) {
+        if (!ParameterValuesEqual(importedValue, row.CurrentValue, row.ParameterType)) {
+          rows.Add(new ParamComparisonRow(row.Name, row.CurrentValue, importedValue));
+        }
+      } else if (includeMissing) {
+        rows.Add(new ParamComparisonRow(row.Name, row.CurrentValue, null));
+      }
+    }
+    if (includeMissing) {
+      foreach (var item in imported) {
+        if (!IsProtectedFileParameter(item.Key) && !currentByName.ContainsKey(item.Key)) {
+          rows.Add(new ParamComparisonRow(item.Key, null, item.Value));
+        }
       }
     }
     return rows.OrderBy(row => row.Name, StringComparer.OrdinalIgnoreCase).ToList();
@@ -513,8 +526,9 @@ public partial class RawParamsViewModel : ViewModelBase, IDisposable {
 
   internal static int StageSelectedComparison(
       IEnumerable<ParamRow> current, IEnumerable<ParamComparisonRow> comparison) {
-    var selected = comparison.Where(row => row.Use)
-        .ToDictionary(row => row.Name, row => row.FileValue, StringComparer.OrdinalIgnoreCase);
+    var selected = comparison.Where(row => row.Use && row.FileValue.HasValue)
+        .ToDictionary(
+            row => row.Name, row => row.FileValue!.Value, StringComparer.OrdinalIgnoreCase);
     int staged = 0;
     foreach (var row in current) {
       if (!IsProtectedFileParameter(row.Name)
@@ -544,6 +558,28 @@ public partial class RawParamsViewModel : ViewModelBase, IDisposable {
   internal static bool IsProtectedFileParameter(string name) =>
       ProtectedFileParameters.Contains(name);
 
+  internal static bool ParameterValuesEqual(
+      double left, double right, MAVLink.MAV_PARAM_TYPE? parameterType = null) {
+    if (double.IsNaN(left) || double.IsNaN(right)) {
+      return double.IsNaN(left) && double.IsNaN(right);
+    }
+    if (left == right) {
+      return true;
+    }
+    if (parameterType is MAVLink.MAV_PARAM_TYPE.UINT8 or MAVLink.MAV_PARAM_TYPE.INT8
+        or MAVLink.MAV_PARAM_TYPE.UINT16 or MAVLink.MAV_PARAM_TYPE.INT16
+        or MAVLink.MAV_PARAM_TYPE.UINT32 or MAVLink.MAV_PARAM_TYPE.INT32
+        or MAVLink.MAV_PARAM_TYPE.UINT64 or MAVLink.MAV_PARAM_TYPE.INT64) {
+      return false;
+    }
+
+    // .NET's float.Epsilon is the smallest subnormal value, not C's FLT_EPSILON.
+    // Classic MAVLink parameters travel as REAL32, so values that differ by no more than one
+    // machine epsilon are the same setting and must not be offered as a dangerous file change.
+    const double floatMachineEpsilon = 1.1920928955078125e-7;
+    return Math.Abs(left - right) <= floatMachineEpsilon;
+  }
+
   public void PersistFavs() {
     var favs = _all.Where(r => r.Fav).Select(r => r.Name).ToList();
     Settings.Instance.SetList("fav_params", favs);
@@ -554,7 +590,8 @@ public partial class RawParamsViewModel : ViewModelBase, IDisposable {
     var favs = Settings.Instance.GetList("fav_params").ToHashSet();
 
     var snapshot = _comPort.MAV.param.ToArray();
-    var rows = snapshot.Select(p => BuildRow(p.Name, p.Value, p.default_value, fw, favs)).ToList();
+    var rows = snapshot.Select(p =>
+        BuildRow(p.Name, p.Value, p.default_value, fw, favs, p.TypeAP)).ToList();
     LoadFrom(rows);
   }
 
@@ -674,7 +711,9 @@ public partial class RawParamsViewModel : ViewModelBase, IDisposable {
     CancelSafely(cancellation);
   }
 
-  private ParamRow BuildRow(string name, double value, double? def, string fw, HashSet<string> favs) {
+  private ParamRow BuildRow(
+      string name, double value, double? def, string fw, HashSet<string> favs,
+      MAVLink.MAV_PARAM_TYPE? parameterType = null) {
     string units = Meta(name, ParameterMetaDataConstants.Units, fw);
     string range = Meta(name, ParameterMetaDataConstants.Range, fw);
     string values = Meta(name, ParameterMetaDataConstants.Values, fw);
@@ -689,7 +728,9 @@ public partial class RawParamsViewModel : ViewModelBase, IDisposable {
 
     }
 
-    return new ParamRow(name, value, def, units, opts, desc, min, max) { Fav = favs.Contains(name) };
+    return new ParamRow(name, value, def, units, opts, desc, min, max, parameterType) {
+      Fav = favs.Contains(name),
+    };
   }
 
   private ParamRow MakeRow(string name, double value, double? def) {
@@ -805,21 +846,30 @@ public sealed record FrameDefaultFile(string Name, string Path) {
 }
 
 public partial class ParamComparisonRow : ObservableObject, IParameterComparisonRow {
-  public ParamComparisonRow(string name, double currentValue, double fileValue) {
+  public ParamComparisonRow(string name, double? currentValue, double? fileValue) {
     Name = name;
     CurrentValue = currentValue;
     FileValue = fileValue;
+    _use = CanApply;
   }
 
   public string Name { get; }
-  public double CurrentValue { get; }
-  public double FileValue { get; }
-  public string CurrentText => CurrentValue.ToString(CultureInfo.InvariantCulture);
-  public string FileText => FileValue.ToString(CultureInfo.InvariantCulture);
+  public double? CurrentValue { get; }
+  public double? FileValue { get; }
+  public bool CanApply => CurrentValue.HasValue && FileValue.HasValue;
+  public string CurrentText => CurrentValue.HasValue
+      ? CurrentValue.Value.ToString(CultureInfo.InvariantCulture)
+      : "Not found";
+  public string FileText => FileValue.HasValue
+      ? FileValue.Value.ToString(CultureInfo.InvariantCulture)
+      : "Not found";
   public string ProposedText => FileText;
 
-  [ObservableProperty]
-  private bool _use = true;
+  private bool _use;
+  public bool Use {
+    get => _use;
+    set => SetProperty(ref _use, CanApply && value);
+  }
 }
 
 public partial class ParamRow : ObservableObject {
@@ -831,7 +881,8 @@ public partial class ParamRow : ObservableObject {
       string options,
       string description,
       double min,
-      double max
+      double max,
+      MAVLink.MAV_PARAM_TYPE? parameterType = null
   ) {
     Name = name;
     _currentValue = current;
@@ -842,6 +893,7 @@ public partial class ParamRow : ObservableObject {
     Description = description;
     Min = min;
     Max = max;
+    ParameterType = parameterType;
     var us = name.IndexOf('_');
     Prefix = us > 0 ? name.Substring(0, us) : name;
   }
@@ -853,6 +905,7 @@ public partial class ParamRow : ObservableObject {
   public string Description { get; }
   public double Min { get; }
   public double Max { get; }
+  public MAVLink.MAV_PARAM_TYPE? ParameterType { get; }
   public double? DefaultValue { get; }
 
   public string DefaultText =>
@@ -870,13 +923,15 @@ public partial class ParamRow : ObservableObject {
   public bool IsDirty {
     get {
       if (double.TryParse(ValueText, NumberStyles.Any, CultureInfo.InvariantCulture, out var v)) {
-        return v != CurrentValue;
+        return !RawParamsViewModel.ParameterValuesEqual(v, CurrentValue, ParameterType);
       }
       return ValueText != CurrentValue.ToString(CultureInfo.InvariantCulture);
     }
   }
 
-  public bool IsNonDefault => DefaultValue.HasValue && DefaultValue.Value != CurrentValue;
+  public bool IsNonDefault => DefaultValue.HasValue
+      && !RawParamsViewModel.ParameterValuesEqual(
+          DefaultValue.Value, CurrentValue, ParameterType);
 
   partial void OnValueTextChanged(string value) => OnPropertyChanged(nameof(IsDirty));
 

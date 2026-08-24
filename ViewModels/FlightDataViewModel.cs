@@ -2729,12 +2729,12 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
     "Format_SD_Card" =>
         "Format the vehicle SD card now? All logs and other data on that card will be permanently erased.",
     "Do_Parachute" =>
-        "Disable automatic parachute release? Manual parachute release remains available on the vehicle.",
+        "Release the parachute now and stop the motors? This action cannot be undone.",
     _ => $"Send the vehicle action {action}?",
   };
 
   internal static MAVLink.PARACHUTE_ACTION ParachuteCommandAction =>
-      MAVLink.PARACHUTE_ACTION.PARACHUTE_DISABLE;
+      MAVLink.PARACHUTE_ACTION.PARACHUTE_RELEASE;
 
   [Obsolete]
   private bool RunAction(string a) {
