@@ -45,24 +45,27 @@ public class ProgressReporter : Window {
   private readonly ProgressBar _bar = new() { Maximum = 100, Height = 18, Margin = new Thickness(0, 8, 0, 8) };
   private readonly TextBlock _status = new() { Foreground = Brushes.WhiteSmoke };
   private readonly CancellationTokenSource _cts = new();
+  private readonly CancellationToken _token;
+  private int _cancellationDisposed;
 
-  public CancellationToken Token => _cts.Token;
+  public CancellationToken Token => _token;
   public bool CancelRequested => _cts.IsCancellationRequested;
 
   public ProgressReporter(string title) {
+    _token = _cts.Token;
     Title = title;
     Width = 360;
     SizeToContent = SizeToContent.Height;
     CanResize = false;
     WindowStartupLocation = WindowStartupLocation.CenterOwner;
     Background = new SolidColorBrush(Color.Parse("#262728"));
-    Closed += (_, _) => _cts.Dispose();
+    Closed += (_, _) => DisposeCancellation();
     var cancel = new Button {
       Content = "Cancel",
       MinWidth = 80,
       HorizontalAlignment = HorizontalAlignment.Right,
     };
-    cancel.Click += (_, _) => _cts.Cancel();
+    cancel.Click += (_, _) => RequestCancellation();
     Content = new StackPanel {
       Margin = new Thickness(16),
       Children = { _status, _bar, cancel },
@@ -83,6 +86,20 @@ public class ProgressReporter : Window {
     }
 
     Activate();
+  }
+
+  private void RequestCancellation() {
+    try {
+      _cts.Cancel();
+    } catch (ObjectDisposedException) {
+    }
+  }
+
+  private void DisposeCancellation() {
+    RequestCancellation();
+    if (Interlocked.Exchange(ref _cancellationDisposed, 1) == 0) {
+      _cts.Dispose();
+    }
   }
 }
 
