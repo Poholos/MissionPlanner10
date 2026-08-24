@@ -27,6 +27,7 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
   private readonly CancellationTokenSource _lifetimeCts = new();
   private readonly Task _lifetimeTask;
   private readonly Services.MavLinkTransportRelease _transportRelease = new();
+  private int _disposeState;
 
   internal event Action? Connected;
 
@@ -259,6 +260,10 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
   }
 
   public void Dispose() {
+    if (Interlocked.Exchange(ref _disposeState, 1) != 0) {
+      return;
+    }
+
     _comPort.Progress -= OnProgress;
     AppState.Connections.ActiveChanged -= OnActiveConnectionChanged;
     _lifetimeCts.Cancel();

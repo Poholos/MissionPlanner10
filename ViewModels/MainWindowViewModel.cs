@@ -6,6 +6,7 @@ namespace MissionPlanner.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase, System.IDisposable {
   private readonly Services.FlightCommandShortcutService _flightCommandShortcuts;
+  private int _disposeState;
 
   public ConnectionViewModel Connection { get; } = new();
 
@@ -238,6 +239,10 @@ public partial class MainWindowViewModel : ViewModelBase, System.IDisposable {
   }
 
   public void Dispose() {
+    if (System.Threading.Interlocked.Exchange(ref _disposeState, 1) != 0) {
+      return;
+    }
+
     Connection.Connected -= OnConnected;
     AppState.ConnectionChanged -= OnConnectionChanged;
     Services.DisplayViewService.Changed -= OnDisplayViewChanged;
