@@ -1,5 +1,6 @@
 using System;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -10,13 +11,19 @@ using MissionPlanner.Controls;
 namespace MissionPlanner.ViewModels.GCSViews.ConfigurationView;
 
 public partial class ConfigCompassMotViewModel : ViewModelBase, IDisposable {
-  private readonly MAVLinkInterface _comPort = AppState.comPort;
+  private readonly MAVLinkInterface _comPort;
   private readonly DispatcherTimer _timer;
   private LivePlot? _plot;
   private int _sub = -1;
   private bool _inCompassMot;
+  private int _transitioning;
+  private int _disposed;
 
-  public ConfigCompassMotViewModel() {
+  public ConfigCompassMotViewModel() : this(AppState.comPort) {
+  }
+
+  internal ConfigCompassMotViewModel(MAVLinkInterface comPort) {
+    _comPort = comPort ?? throw new ArgumentNullException(nameof(comPort));
     _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
     _timer.Tick += (_, _) => PumpMessages();
   }
@@ -45,6 +52,7 @@ public partial class ConfigCompassMotViewModel : ViewModelBase, IDisposable {
   private string _log = "";
 
   public void AttachPlot(LivePlot plot) {
+    ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
     _plot = plot;
     _plot.SetAxisLabels("Throttle %", "Interference % / Amps", "Compass Motor Calibration");
 
@@ -58,15 +66,24 @@ public partial class ConfigCompassMotViewModel : ViewModelBase, IDisposable {
   }
 
   [RelayCommand]
-  private void Toggle() {
-    if (_inCompassMot) {
-      Finish();
-    } else {
-      Start();
+  private async Task Toggle() {
+    if (Interlocked.CompareExchange(ref _transitioning, 1, 0) != 0
+        || Volatile.Read(ref _disposed) != 0) {
+      return;
+    }
+
+    try {
+      if (_inCompassMot) {
+        await FinishAsync();
+      } else {
+        await StartAsync();
+      }
+    } finally {
+      Interlocked.Exchange(ref _transitioning, 0);
     }
   }
 
-  private async void Start() {
+  private async Task StartAsync() {
     if (_comPort.BaseStream?.IsOpen != true) {
       Log = "Connect to a vehicle first.";
       return;
@@ -91,19 +108,20 @@ public partial class ConfigCompassMotViewModel : ViewModelBase, IDisposable {
       return;
     }
 
+    if (Volatile.Read(ref _disposed) != 0) {
+      SafeSendStop();
+      return;
+    }
     _inCompassMot = true;
     ButtonLabel = "Finish";
     _timer.Start();
   }
 
-  private async void Finish() {
+  private async Task FinishAsync() {
     _inCompassMot = false;
     ButtonLabel = "Start";
     _timer.Stop();
-    try {
-      await Task.Run(() => _comPort.SendAck());
-    } catch {
-    }
+    await Task.Run(SafeSendStop);
   }
 
   private bool ProcessCompassMotMsg(MAVLink.MAVLinkMessage arg) {
@@ -136,14 +154,30 @@ public partial class ConfigCompassMotViewModel : ViewModelBase, IDisposable {
   }
 
   public void Dispose() {
+    if (Interlocked.Exchange(ref _disposed, 1) != 0) {
+      return;
+    }
+
     _timer.Stop();
+    bool stopCalibration = _inCompassMot;
+    _inCompassMot = false;
+    if (stopCalibration) {
+      SafeSendStop();
+    }
+    int subscription = Interlocked.Exchange(ref _sub, -1);
+    if (subscription == -1) {
+      return;
+    }
+    try {
+      _comPort.UnSubscribeToPacketType(subscription);
+    } catch {
+    }
+  }
+
+  private void SafeSendStop() {
     try {
       if (_comPort.BaseStream?.IsOpen == true) {
         _comPort.SendAck();
-      }
-      if (_sub != -1) {
-        _comPort.UnSubscribeToPacketType(_sub);
-        _sub = -1;
       }
     } catch {
     }
