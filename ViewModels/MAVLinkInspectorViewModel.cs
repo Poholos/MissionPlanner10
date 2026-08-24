@@ -212,6 +212,8 @@ public partial class InspectorNode : ObservableObject {
   public ObservableCollection<InspectorNode> Children { get; } = new();
   public Dictionary<string, InspectorNode> Map { get; } = new();
   public MavlinkGraphSelection? GraphSelection { get; set; }
+  public DroneCanMessageSelection? DroneCanMessageSelection { get; set; }
+  public DroneCanGraphSelection? DroneCanGraphSelection { get; set; }
   public bool CanGraph => GraphSelection != null;
 }
 

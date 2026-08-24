@@ -18,10 +18,13 @@
       <Button Content="{Binding ConnectLabel}" Command="{Binding ToggleConnectCommand}" />
       <Button Content="{Binding PauseLabel}" Command="{Binding TogglePauseCommand}" />
       <Button Content="Clear" Command="{Binding ClearCommand}" />
+      <Button Content="Graph It" Command="{Binding GraphSelectedCommand}" />
+      <Button Content="Subscribe" Command="{Binding SubscribeSelectedCommand}" />
     </WrapPanel>
 
     <Border Grid.Row="1" Margin="0,8,0,0" BorderBrush="#666" BorderThickness="1">
-      <TreeView ItemsSource="{Binding Tree}" FontFamily="Courier New,monospace" FontSize="12">
+      <TreeView ItemsSource="{Binding Tree}" SelectedItem="{Binding SelectedNode}"
+                FontFamily="Courier New,monospace" FontSize="12">
         <TreeView.ItemTemplate>
           <TreeDataTemplate ItemsSource="{Binding Children}">
             <TextBlock Text="{Binding Header}" />

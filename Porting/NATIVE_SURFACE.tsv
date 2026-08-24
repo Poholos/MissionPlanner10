@@ -92,7 +92,7 @@ Controls/DistanceBar.resx	resx	retain		Preserve neutral/culture resource until A
 Controls/DroneCANFileUI.Designer.cs	csharp	remove	Porting/Reference/PORT_STATUS.md	The pinned native DroneCAN file browser is unreachable and half-stubbed; node parameters and firmware upload remain available in the native Avalonia DroneCAN page.
 Controls/DroneCANFileUI.cs	csharp	remove	Porting/Reference/PORT_STATUS.md	The pinned native DroneCAN file browser is unreachable and half-stubbed; node parameters and firmware upload remain available in the native Avalonia DroneCAN page.
 Controls/DroneCANFileUI.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/DroneCANInspector.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/ViewModels/DroneCANInspectorViewModel.cs;src/MissionPlannerAvalonia/Views/DroneCANInspectorView.axaml.cs;src/MissionPlannerAvalonia/Views/DroneCANInspectorWindow.cs	Requires code-level classification before project exclusion or deletion.
+Controls/DroneCANInspector.cs	csharp	replace	Views/DroneCANInspectorView.axaml;ViewModels/DroneCANInspectorViewModel.cs;Views/DroneCanFieldGraphWindow.cs;Views/DroneCanSubscriberWindow.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/DroneCANInspector.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/DroneCANParams.Designer.cs	csharp	replace	GCSViews/ConfigurationView/ConfigDroneCanView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigDroneCanViewModel.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/DroneCANParams.ar.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
@@ -112,7 +112,7 @@ Controls/DroneCANParams.uk.resx	resx	retain		Preserve neutral/culture resource u
 Controls/DroneCANParams.zh-Hans.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/DroneCANParams.zh-Hant.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/DroneCANParams.zh-TW.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/DroneCANSubscriber.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/DroneCANSubscriber.cs	csharp	replace	Views/DroneCanSubscriberWindow.cs;ViewModels/DroneCANInspectorViewModel.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/DroneCANSubscriber.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/EKFStatus.Designer.cs	csharp	replace	Views/FlightDataDialogs.cs;Controls/HudControl.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/EKFStatus.cs	csharp	replace	Views/FlightDataDialogs.cs;Controls/HudControl.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
