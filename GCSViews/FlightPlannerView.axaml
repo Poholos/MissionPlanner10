@@ -19,7 +19,8 @@
 
     <Grid x:Name="WaypointPanel" Grid.Row="2" Grid.Column="0" RowDefinitions="Auto,*">
         <WrapPanel Grid.Row="0" Margin="6,4" VerticalAlignment="Center">
-          <ctl:FormField Label="{Binding WpRadiusLabel}" LabelWidth="92" Margin="0,2,12,2">
+          <ctl:FormField Label="{Binding WpRadiusLabel}" LabelWidth="92" Margin="0,2,12,2"
+                         IsVisible="{Binding ShowWpRadius}">
             <NumericUpDown Classes="sm" Value="{Binding WpRadius}" />
           </ctl:FormField>
           <ctl:FormField Label="{Binding LoiterRadiusLabel}" LabelWidth="104" Margin="0,2,12,2"
