@@ -692,6 +692,37 @@ public class NvModemTests {
   }
 
   [Fact]
+  public void Revert_selected_restores_only_one_changed_parameter_without_writing() {
+    var transport = new FakeTransport();
+    using var viewModel = new NvModemViewModel(transport, () => DateTime.UtcNow,
+        startTimer: false);
+    var source = new NvModemLink(new MAVLinkInterface(), "UDP NV5");
+    viewModel.HandlePacket(source, Packet(NvModemMessageIds.Nv5LinkStatus,
+        new Nv5LinkStatusMessage { Channel = 1, RadioChip = 0, Role = 0 }, 32, 68));
+    viewModel.HandlePacket(source, ParameterPacket("ETH_ENABLE", 1,
+        (byte)MAVLink.MAV_PARAM_TYPE.UINT32, 2, 32, 68));
+    viewModel.HandlePacket(source, ParameterPacket("MAV_ENABLE", 1,
+        (byte)MAVLink.MAV_PARAM_TYPE.UINT32, 2, 32, 68));
+    NvModemParameterRow ethernet = viewModel.Parameters.Single(row => row.Name == "ETH_ENABLE");
+    NvModemParameterRow mavlink = viewModel.Parameters.Single(row => row.Name == "MAV_ENABLE");
+    ethernet.ValueText = "0";
+    mavlink.ValueText = "0";
+    viewModel.SelectedParameter = ethernet;
+    transport.Sent.Clear();
+
+    Assert.True(viewModel.CanRevertSelectedParameter);
+    viewModel.RevertSelectedParameterCommand.Execute(null);
+
+    Assert.Equal("1", ethernet.ValueText);
+    Assert.Equal("0", mavlink.ValueText);
+    Assert.False(ethernet.IsChanged);
+    Assert.True(mavlink.IsChanged);
+    Assert.False(viewModel.CanRevertSelectedParameter);
+    Assert.True(viewModel.HasPendingChanges);
+    Assert.Empty(transport.Sent);
+  }
+
+  [Fact]
   public void Copy_from_another_nv5_previews_differences_before_staging() {
     var transport = new FakeTransport();
     using var viewModel = new NvModemViewModel(transport, () => DateTime.UtcNow,

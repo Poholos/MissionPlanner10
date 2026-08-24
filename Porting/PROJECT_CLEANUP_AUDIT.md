@@ -112,9 +112,9 @@ suppressed or misreported as source warnings.
 
 ## Security scan triage
 
-The last published cleanup CodeQL checkpoint, run `32688021913` for commit `c66b5335b`, completed
-successfully. Its branch-specific API result contained five open but reviewed alerts and no
-untriaged alert:
+Cleanup CodeQL checkpoint `32688021913` originally reported five open but fully reviewed alerts and
+no untriaged alert. The focused PR #6 security/quality pass preserves each decision as a narrow
+source-level CodeQL suppression immediately at the reviewed sink:
 
 - #1 is a generic writer in vendored netDxf. The Avalonia application reads DXF overlays and has no
   path to `DxfDocument.Save`; retain the reader and re-evaluate this flow if DXF export is added.
@@ -127,9 +127,26 @@ untriaged alert:
   construction. It encrypts an incrementing nonce into a keystream and authenticates ciphertext;
   application data is not encrypted as plain ECB.
 
-The alerts are not dismissed or hidden merely to produce an empty dashboard. Any GitHub dismissal
-must preserve these reasons and remains a separate explicitly authorized review action. The older
-source-port alert numbering and decisions remain immutable in `Reference/CODEQL_TRIAGE.md`.
+The pass also corrects a separate real defect in the vendored WinZip AES constructor: AES always
+uses a 16-byte block/IV, but the old AES-256 path passed a 32-byte authentication key as the IV and
+could fail before processing an archive. Deterministic round-trip tests now cover AES-128 and
+AES-256. Parameter serialization also has regression coverage after its redundant decimal branch
+was collapsed.
+
+These are source-scoped, reviewable suppressions, not a repository-wide query exclusion or a
+dashboard-only dismissal. The older source-port alert numbering and decisions remain immutable in
+`Reference/CODEQL_TRIAGE.md`.
+
+GitHub dependency vulnerability alerts are enabled. Secure `log4net` 3.3.2 and `SharpCompress`
+0.48.0 versions are declared directly in every checked-in package manifest as well as enforced by
+the root build; the local full transitive NuGet audit reports no vulnerable package. Two historical
+Mapbox secret-scanning alerts refer only to removed upstream paths. At the user's explicit request
+they were resolved as `wont_fix`, with an audit comment recording that token ownership/revocation
+cannot be verified and published upstream-derived history will not be rewritten. They were not
+misclassified as revoked or false positives, and no token value is reproduced here.
+
+PR #6 code checkpoint CI `32721719954` passes the complete Linux, Windows and macOS matrix;
+CodeQL `32721719966` passes and its branch-specific API result contains zero open alerts.
 
 ## Intentionally retained
 
@@ -187,7 +204,8 @@ make windows-zip
 ```
 
 The latest local audit passes all six structural gates, a zero-warning Release build, analyzer
-verification, the no-vulnerable-package query and all 1259 tests after the NV5Settings follow-up.
+verification, the no-vulnerable-package query and all 1263 tests after the NV5Settings/security
+follow-up.
 Linux TAR/DEB and Windows ZIP also build from the dirty review tree; the DEB passes `lintian` and
 both archives pass integrity checks. WiX deliberately remains a Windows-runner gate: on Linux it
 emits its documented Windows-only warning before undefined path validation. Published review CI

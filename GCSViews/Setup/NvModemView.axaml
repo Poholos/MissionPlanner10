@@ -65,11 +65,15 @@
                       IsEnabled="{Binding CanEdit}" Margin="0,0,8,4" />
               <Button x:Name="SaveParametersButton" Content="Save .param…"
                       IsEnabled="{Binding HasParameters}" Margin="0,0,12,4" />
+              <Button Content="Revert selected" Command="{Binding RevertSelectedParameterCommand}"
+                      IsEnabled="{Binding CanRevertSelectedParameter}" Margin="0,0,12,4"
+                      ToolTip.Tip="Restore only the selected changed parameter to the value read from the modem. Nothing is sent." />
               <TextBlock Classes="fieldlbl" VerticalAlignment="Center" TextWrapping="Wrap"
                          Text="Edits and presets are staged locally. Changed values are written only by Save to selected modem." />
             </WrapPanel>
 
             <DataGrid Grid.Row="1" x:Name="ParametersGrid" ItemsSource="{Binding Parameters}"
+                      SelectedItem="{Binding SelectedParameter, Mode=TwoWay}"
                       AutoGenerateColumns="False" GridLinesVisibility="All"
                       CanUserResizeColumns="True" CanUserSortColumns="True">
               <DataGrid.Columns>

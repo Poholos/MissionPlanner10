@@ -180,7 +180,8 @@ internal static class NvModemCatalog {
       "MAV_LPORT" => "Local UDP port on which the modem receives MAVLink management traffic.",
       "MAV_RPORT" => "Remote UDP destination port for MAVLink status and replies.",
       "ETH_ENABLE" => "Ethernet interface: 0=disabled, 1=enabled.",
-      "DIVERSITY" => "Receive diversity across two compatible radios: 0=disabled, 1=enabled.",
+      "DIVERSITY" => "Enable both independent receive radios: 0=disabled, 1=enabled. "
+          + "Frequency, PHY, FEC and encryption keys may differ by channel.",
       "MAV_ENABLE" or "SWAP_TLM_STREAM" or "SBUS_EXT_INV" =>
           "Boolean setting: 0=disabled, 1=enabled.",
       _ => "",

@@ -79,6 +79,11 @@ public partial class NvModemParameterRow : ObservableObject {
     Revalidate();
   }
 
+  internal void Revert() {
+    ValueText = NvModemParameterCodec.Display(Original, Type);
+    Revalidate();
+  }
+
   private void Revalidate() {
     IsValid = TryValue(out double value)
         && NvModemCatalog.IsEditableValueAllowed(Name, value);
@@ -295,6 +300,9 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
   private NvRadioCopyChoice? _selectedCopySource;
 
   [ObservableProperty]
+  private NvModemParameterRow? _selectedParameter;
+
+  [ObservableProperty]
   private string _connectionText = "No modem discovered";
 
   [ObservableProperty]
@@ -337,6 +345,8 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
       && SelectedState!.RebootReadyUtc <= _utcNow();
   public bool CanGenerateKey => CanEdit && SelectedKeyRadio != null;
   public bool CanSetKey => CanEdit && SelectedKeyRadio != null && KeyText.Length != 0;
+  public bool CanRevertSelectedParameter => CanEdit
+      && SelectedParameter is { IsReadOnly: false, IsValid: true, IsChanged: true };
   public bool CanCopyRadio => CanUseNv5Controls
       && SelectedPresetRadio != null && SelectedCopySource != null;
   public bool CanControlTransmitter => CanUseNv5Controls
@@ -372,6 +382,8 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
   partial void OnSelectedDebugRadioChanged(NvRadioChoice? value) => RefreshControls();
 
   partial void OnSelectedCopySourceChanged(NvRadioCopyChoice? value) => RefreshControls();
+
+  partial void OnSelectedParameterChanged(NvModemParameterRow? value) => RefreshControls();
 
   partial void OnSelectedKeyRadioChanged(NvRadioChoice? value) {
     SyncKeyText();
@@ -510,6 +522,17 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
     SetRtspPath(device is { RtspPathReady: true } ? device.RtspPath : "");
     SyncKeyText();
     SetStatus("Staged changes discarded.");
+  }
+
+  [RelayCommand]
+  private void RevertSelectedParameter() {
+    NvModemParameterRow? row = SelectedParameter;
+    if (!CanRevertSelectedParameter || row == null) {
+      return;
+    }
+    row.Revert();
+    SyncKeyText();
+    SetStatus($"Reverted {row.Name} to the value read from the modem. Nothing was sent.");
   }
 
   [RelayCommand]
@@ -1240,6 +1263,7 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
   }
 
   private void ClearParameterRows() {
+    SelectedParameter = null;
     foreach (NvModemParameterRow row in _parameterRows.Values) {
       row.PropertyChanged -= OnParameterRowChanged;
     }
@@ -2084,6 +2108,7 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
     OnPropertyChanged(nameof(CanReboot));
     OnPropertyChanged(nameof(CanGenerateKey));
     OnPropertyChanged(nameof(CanSetKey));
+    OnPropertyChanged(nameof(CanRevertSelectedParameter));
     OnPropertyChanged(nameof(CanCopyRadio));
     OnPropertyChanged(nameof(CanControlTransmitter));
   }
