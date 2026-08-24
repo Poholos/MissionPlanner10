@@ -33,7 +33,7 @@ Updated: **2026-08-24**.
   migration evidence, not a copied source tree.
 - A clean Release build of the complete test graph succeeds with zero warnings and zero errors
   after resolving all 156 inherited `ExtLibs` diagnostics without a repository-wide `NoWarn`; the
-  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1266/1266**
+  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1344/1344**
   Avalonia tests pass on Linux. A 12-second Xvfb launch reaches the normal Avalonia event loop with
   no console errors.
 - Informational version is derived from the current native Mission Planner version and formatted as
@@ -121,6 +121,39 @@ Updated: **2026-08-24**.
   silently into the working directory.
 - Claude remains temporarily disabled by user instruction.
 
+## Upstream safety and issue audit
+
+- Branch `fix/upstream-safety-reliability` adapts the applicable parts of upstream PRs #3728,
+  #3740, #3710, #3715, #3724, #3679, #3705, #3222, #3603, #3752, #3750/#3722, #3250 and #3646.
+  The changes preserve guided altitude frames, bound serial enumeration, harden MAVFTP/MJPEG/HTTP
+  parsing and resource ownership, use current guided commands, lease camera/gimbal message rates,
+  correct mission ACK behavior, snapshot proximity state safely, detect Septentrio ports, expose
+  compass-calibration failures, expire stale pre-arm failures and report Windows-blocked plugins.
+  Each adaptation is native to the Avalonia/CoreCLR architecture and has focused regression tests;
+  obsolete WinForms-only implementation details were not copied.
+- The 59 open bug-labelled upstream issues and the 100 most recently updated open issues were
+  triaged against the live port, including linked commits and PRs. Two additional reports were
+  confirmed in current code and fixed: #3461 now tracks actual DataFlash byte ranges, keeps progress
+  monotonic, repairs bounded gaps, times out cleanly and always ends the MAVLink log session; #3694
+  atomically preserves MAVLink signing keys, migrates every available legacy MAC-derived identity
+  to persistent `authkeys.key` material and refuses to overwrite an unreadable `authkeys.xml`.
+- Rejected transfers are recorded by reason rather than silently copied. Examples: #3736 targets
+  the retired ZedGraph/WinForms viewer; #3658 and #3601 target Mono RESX/GStreamer paths absent from
+  Avalonia; #3516 targets the retired WinForms internet firmware picker; #3472/#3391 target old
+  MAVFTP rename/drag-drop UI not exposed by the port; #3734 is already stricter because the current
+  server is loopback-only and has no guided/raw endpoints. #3746 must be corrected in ArduPilot's
+  parameter metadata itself: its current `AC_AttitudeControl_Heli.cpp` still declares
+  `HOVR_ROL_TRM` as `0 1000`, so overriding it only in Mission Planner would create conflicting
+  safety metadata.
+- The project audit exposed an incomplete earlier cleanup: only the placeholder key and empty
+  assembly file had been removed from `ExtLibs/MetaDataExtractorCSharp240d`. The remaining 117-file,
+  2004-era source project had no solution, source or runtime consumer; GeoRef/Survey use the pinned
+  maintained `MetadataExtractor` package. The complete obsolete tree is now removed and the project
+  and key audits record that decision.
+- Current local verification: Release solution build **0 warnings / 0 errors**, **1344/1344** tests,
+  all six porting/inventory checks pass, the native manifest has **0 blockers**, and every active
+  project reports no known vulnerable direct or transitive NuGet package.
+
 ## GTU synchronization checkpoint
 
 - NV modem behavior was last compared with `/home/alex/src/AgroSky/GTU` at clean local and fetched
@@ -176,14 +209,15 @@ Updated: **2026-08-24**.
 
 ## Immediate next step
 
-The software build, automated test, security-scan and package gates are complete. The remaining
-acceptance work requires representative physical NV4/NV5 hardware: repeat UDP/TCP/UART switching,
-disconnect and key-programming checks, and recheck GTU `NV5Settings` changes newer than clean
-checkpoint `6c2a4b04` before declaring hardware acceptance complete.
+Push `fix/upstream-safety-reliability`, run its full CI/package and CodeQL gates, review the draft
+PR, then merge only after those checks pass. After merge, the remaining acceptance work requires
+representative physical NV4/NV5 hardware: repeat UDP/TCP/UART switching, disconnect and
+key-programming checks, and recheck GTU `NV5Settings` changes newer than clean checkpoint
+`6c2a4b04` before declaring hardware acceptance complete.
 
 ## Acceptance baseline
 
-- At least 1266 port tests retained and passing.
+- At least 1344 port tests retained and passing.
 - Clean Release build has zero errors and zero warnings.
 - `linux-x64`, `win-x64`, `osx-x64`, and `osx-arm64` publish gates pass.
 - Linux `.deb`/portable archive, Windows ZIP/MSI and both macOS ZIP/DMG pairs build and pass their
