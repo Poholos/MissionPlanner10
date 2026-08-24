@@ -193,7 +193,7 @@ jobs:
           test -s "out/$RID/lib/libvlc.5.dylib"
           test -d "out/$RID/plugins"
 
-      - name: Build ad-hoc signed app archive
+      - name: Build ad-hoc signed app archive and DMG
         shell: bash
         run: |
           RID=${{ matrix.rid }}
@@ -204,9 +204,31 @@ jobs:
             "dist/Mission Planner.app"
           ditto -c -k --sequesterRsrc --keepParent "dist/Mission Planner.app" \
             "upload/MissionPlanner-${RID}.zip"
+          DMG="upload/MissionPlanner-${RID}.dmg"
+          ./build/macos/make-dmg.sh "dist/Mission Planner.app" "$DMG"
+
+          MOUNT_POINT=$(mktemp -d "$RUNNER_TEMP/missionplanner-dmg.XXXXXXXX")
+          DMG_MOUNTED=false
+          cleanup_dmg_mount() {
+            if [[ "$DMG_MOUNTED" == true ]]; then
+              hdiutil detach -quiet "$MOUNT_POINT" || true
+            fi
+            rmdir "$MOUNT_POINT" 2>/dev/null || true
+          }
+          trap cleanup_dmg_mount EXIT
+          hdiutil attach -quiet -readonly -nobrowse -mountpoint "$MOUNT_POINT" "$DMG"
+          DMG_MOUNTED=true
+          test -x "$MOUNT_POINT/Mission Planner.app/Contents/MacOS/MissionPlanner"
+          test -L "$MOUNT_POINT/Applications"
+          hdiutil detach -quiet "$MOUNT_POINT"
+          DMG_MOUNTED=false
+          rmdir "$MOUNT_POINT"
+          trap - EXIT
 
       - uses: actions/upload-artifact@v7
         with:
           name: missionplanner-${{ matrix.rid }}
-          path: upload/*.zip
+          path: |
+            upload/*.zip
+            upload/*.dmg
           if-no-files-found: error

@@ -8,13 +8,15 @@ Updated: **2026-08-24**.
 | --- | --- | --- | --- |
 | `linux-x64` | self-contained `.tar.gz`, amd64 `.deb` | root-relative ZIP | Ubuntu |
 | `win-x64` | self-contained portable ZIP, x64 MSI | root-relative ZIP | Windows |
-| `osx-x64` | complete `Mission Planner.app` ZIP | the same complete app ZIP | macOS |
-| `osx-arm64` | complete `Mission Planner.app` ZIP | the same complete app ZIP | macOS |
+| `osx-x64` | complete `Mission Planner.app` ZIP, compressed DMG | the complete app ZIP | macOS |
+| `osx-arm64` | complete `Mission Planner.app` ZIP, compressed DMG | the complete app ZIP | macOS |
 
 Linux and Windows package entry points are `build/linux/package.sh` and
 `build/windows/package.sh`; the root `Makefile` exposes their common targets. The macOS release
 job wraps the self-contained publish with `build/macos/make-app.sh`, then signs and archives the
-complete app bundle. Generated output belongs below `out/`, `dist/` or `upload/` and is never
+complete app bundle. `build/macos/make-dmg.sh` adds the same signed app and an Applications shortcut
+to a compressed filesystem image. The ZIP remains the in-app update payload; the DMG is the
+human-installable image. Generated output belongs below `out/`, `dist/` or `upload/` and is never
 committed.
 
 All formats are built from the root `MissionPlanner.csproj`. The publish payload includes
@@ -53,9 +55,10 @@ make windows-zip
 
 `make windows-msi` and `make windows-packages` require Windows because WiX only supports producing
 MSI packages there. `.github/workflows/ci.yml` runs that target on `windows-latest`, expands the
-portable ZIP, performs an MSI administrative extraction with `msiexec`, and checks the installed
-launcher. The same workflow validates Linux with `lintian` plus an Xvfb launch and builds both
-macOS architectures on a native runner.
+portable ZIP, installs the MSI with `msiexec`, checks the installed launcher, then uninstalls it.
+The same workflow validates Linux with `lintian` plus an Xvfb launch and builds both macOS
+architectures on native runners. Each macOS job verifies and mounts its DMG read-only, checks the
+app executable and Applications shortcut, and detaches it again.
 
 ## GitHub release and updater
 
@@ -68,6 +71,7 @@ assets plus `SHA256SUMS` and, for each RID, these updater assets:
 <rid>-manifest.sig
 MissionPlanner-<artifact>-<rid>-update.zip  # Linux and Windows
 MissionPlanner-<artifact>-<rid>.zip         # complete macOS app
+MissionPlanner-<artifact>-<rid>.dmg         # human-installable macOS image
 ```
 
 The application queries `Rouniy/MissionPlanner` GitHub Releases directly. Stable updates select a
