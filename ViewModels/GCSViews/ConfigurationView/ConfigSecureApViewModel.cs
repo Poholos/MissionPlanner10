@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using MissionPlanner.Utilities;
 using Org.BouncyCastle.Crypto;
@@ -27,16 +28,18 @@ public partial class ConfigSecureApViewModel : ViewModelBase {
     try {
       _keyPair = SignedFW.GenerateKey();
 
-      TextWriter textWriter = new StringWriter();
+      var textWriter = new StringWriter();
       PemWriter pemWriter = new PemWriter(textWriter);
       pemWriter.WriteObject(_keyPair);
       pemWriter.Writer.Flush();
-      var privatekey = pemWriter.Writer.ToString();
+      string privatekey = textWriter.ToString();
+      (string pemPath, string privateDataPath, string publicDataPath) =
+          KeyOutputPaths(pemSavePath);
 
-      File.WriteAllText(pemSavePath, privatekey);
-      File.WriteAllText(pemSavePath.Replace(".pem", "_private_key.dat"),
+      WritePrivateKeyFile(pemPath, privatekey);
+      WritePrivateKeyFile(privateDataPath,
           "PRIVATE_KEYV1:" + Convert.ToBase64String(((Ed25519PrivateKeyParameters)_keyPair.Private).GetEncoded()));
-      File.WriteAllText(pemSavePath.Replace(".pem", "_public_key.dat"),
+      File.WriteAllText(publicDataPath,
           "PUBLIC_KEYV1:" + Convert.ToBase64String(((Ed25519PublicKeyParameters)_keyPair.Public).GetEncoded()));
 
       PublicKeyText = Convert.ToBase64String(((Ed25519PublicKeyParameters)_keyPair.Public).GetEncoded());
@@ -96,6 +99,57 @@ public partial class ConfigSecureApViewModel : ViewModelBase {
       AppendLog("Signed firmware written: " + outPath);
     } catch (Exception ex) {
       AppendLog("Sign firmware failed: " + ex.Message);
+    }
+  }
+
+  internal static (string PemPath, string PrivateDataPath, string PublicDataPath) KeyOutputPaths(
+      string pemSavePath) {
+    if (string.IsNullOrWhiteSpace(pemSavePath)) {
+      throw new ArgumentException("A private-key path is required.", nameof(pemSavePath));
+    }
+    string pemPath = Path.GetFullPath(pemSavePath);
+    string? directory = Path.GetDirectoryName(pemPath);
+    string stem = Path.GetFileNameWithoutExtension(pemPath);
+    if (directory == null || stem.Length == 0) {
+      throw new ArgumentException("The private-key path must contain a file name.",
+          nameof(pemSavePath));
+    }
+    return (
+        pemPath,
+        Path.Combine(directory, stem + "_private_key.dat"),
+        Path.Combine(directory, stem + "_public_key.dat"));
+  }
+
+  private static void WritePrivateKeyFile(string path, string contents) {
+    string? directory = Path.GetDirectoryName(path);
+    if (directory == null) {
+      throw new ArgumentException("The private-key path has no parent directory.", nameof(path));
+    }
+    string temporary = Path.Combine(
+        directory, "." + Path.GetFileName(path) + "." + Guid.NewGuid().ToString("N") + ".tmp");
+    var options = new FileStreamOptions {
+      Mode = FileMode.CreateNew,
+      Access = FileAccess.Write,
+      Share = FileShare.None,
+    };
+    if (!OperatingSystem.IsWindows()) {
+      options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+    }
+    try {
+      using (var stream = new FileStream(temporary, options))
+      using (var writer = new StreamWriter(stream, new UTF8Encoding(false))) {
+        writer.Write(contents);
+      }
+      File.Move(temporary, path, overwrite: true);
+      if (!OperatingSystem.IsWindows()) {
+        File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+      }
+    } catch {
+      try {
+        File.Delete(temporary);
+      } catch {
+      }
+      throw;
     }
   }
 
