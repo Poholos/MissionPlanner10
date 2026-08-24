@@ -69,7 +69,7 @@ DOTNET_CLI_HOME=/tmp/missionplanner-inplace-dotnet \
 ```
 
 Current verified result: build `0 warnings / 0 errors`; tests
-`1149 passed / 0 failed / 0 skipped`.
+`1266 passed / 0 failed / 0 skipped`.
 
 ## Dependency security gate
 
