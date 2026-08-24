@@ -88,6 +88,11 @@ UART MAVLink connections already open in Mission Planner; it never opens a secon
 values are session-only and cleared on refresh or device change, while the copied parameter
 descriptions remain available in the tab. See [NV Modem](Porting/NV_MODEM.md).
 
+Inbound UDP listeners use shared-address binding before opening the port. Broadcast or multicast
+telemetry can therefore be received by Mission Planner and another local application such as GTU
+Hermes at the same time. This does not promise duplicate delivery for ordinary unicast traffic;
+use distinct destination ports or a MAVLink router for that case.
+
 ## Linux prerequisites
 
 Ubuntu 24.04 / Linux Mint 22 can use the distribution SDK. `global.json` accepts the 10.0.100

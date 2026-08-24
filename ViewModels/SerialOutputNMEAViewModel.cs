@@ -92,8 +92,7 @@ public partial class SerialOutputNMEAViewModel : ViewModelBase, IDisposable {
           }
 
         case "UDP Host - 14551": {
-            var udp = new UdpSerial { Port = "14551" };
-            udp.client = new UdpClient(14551);
+            var udp = new UdpSerial(UdpSerial.CreateSharedListener(14551)) { Port = "14551" };
             _stream = udp;
             _stream.Open();
             break;

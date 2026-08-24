@@ -300,7 +300,7 @@ internal static class ConnectionListService {
             ViewModels.ConnectionViewModel.CreateConfiguredNetworkStream(
                 "TCP", NormalizeHost(endpoint.Host), endpoint.Port.ToString(CultureInfo.InvariantCulture)),
         ConnectionListTransport.UdpListener => new UdpSerial(
-            new UdpClient(endpoint.Port)),
+            UdpSerial.CreateSharedListener(endpoint.Port)),
         ConnectionListTransport.UdpClient =>
             ViewModels.ConnectionViewModel.CreateConfiguredNetworkStream(
                 "UDPCl", NormalizeHost(endpoint.Host),

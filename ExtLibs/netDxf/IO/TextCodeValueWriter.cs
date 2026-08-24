@@ -348,6 +348,7 @@ namespace netDxf.IO
         {
             // This is the final serializer for caller-supplied DXF text. The application does not
             // route EXIF GPS descriptions here; export disclosure policy is enforced by callers.
+
             // codeql[cs/exposure-of-sensitive-information]
             this.writer.WriteLine(value);
         }

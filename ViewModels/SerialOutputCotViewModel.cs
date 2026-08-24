@@ -253,7 +253,7 @@ public partial class SerialOutputCotViewModel : ViewModelBase, IDisposable {
           break;
         }
       case UdpHost:
-        _udp = new System.Net.Sockets.UdpClient(Port);
+        _udp = UdpSerial.CreateSharedListener(Port);
         _ = Task.Run(() => LearnUdpPeerAsync(_udp, token), token);
         break;
       case TcpClient:

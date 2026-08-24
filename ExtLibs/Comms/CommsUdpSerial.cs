@@ -52,6 +52,37 @@ namespace MissionPlanner.Comms
             ReadTimeout = 500;
         }
 
+        /// <summary>
+        /// Creates an inbound UDP socket that can coexist with another listener on the same port.
+        /// This is intended for broadcast and multicast fan-out, where every shared listener gets
+        /// its own copy. Ordinary unicast delivery to reused ports is platform-dependent.
+        /// </summary>
+        public static UdpClient CreateSharedListener(int port,
+            AddressFamily addressFamily = AddressFamily.InterNetwork)
+        {
+            if (addressFamily != AddressFamily.InterNetwork &&
+                addressFamily != AddressFamily.InterNetworkV6)
+                throw new ArgumentOutOfRangeException(nameof(addressFamily));
+
+            var listener = new UdpClient(addressFamily);
+            try
+            {
+                listener.Client.ExclusiveAddressUse = false;
+                listener.Client.SetSocketOption(
+                    SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                var address = addressFamily == AddressFamily.InterNetworkV6
+                    ? IPAddress.IPv6Any
+                    : IPAddress.Any;
+                listener.Client.Bind(new IPEndPoint(address, port));
+                return listener;
+            }
+            catch
+            {
+                listener.Dispose();
+                throw;
+            }
+        }
+
         public string Port { get; set; }
 
         public int WriteBufferSize { get; set; }
@@ -127,7 +158,7 @@ namespace MissionPlanner.Comms
             {
             }
 
-            client = new UdpClient(int.Parse(Port));
+            client = CreateSharedListener(int.Parse(Port));
 
             while (true)
             {

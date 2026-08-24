@@ -130,7 +130,7 @@ internal sealed class TrackerHomeNmeaService {
       TrackerHomeNmeaOptions options,
       Action<string>? lineReceived,
       CancellationToken cancellationToken) {
-    using var udp = new UdpClient(options.Port);
+    using var udp = MissionPlanner.Comms.UdpSerial.CreateSharedListener(options.Port);
     string lastError = "No NMEA GGA sentence was received.";
     while (true) {
       UdpReceiveResult datagram = await udp.ReceiveAsync(cancellationToken).ConfigureAwait(false);
