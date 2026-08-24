@@ -17,7 +17,7 @@ Antenna/TrackerUI.uk.resx	resx	retain		Preserve neutral/culture resource until A
 Antenna/TrackerUI.zh-Hans.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Antenna/TrackerUI.zh-Hant.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Antenna/TrackerUI.zh-TW.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Common.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Common.cs	csharp	replace	Controls/MapView.cs;Controls/MavMarker.cs;Services/Dialogs.cs;Services/ProgressDialogs.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/AuthKeys.Designer.cs	csharp	replace	ViewModels/GCSViews/ConfigurationView/ConfigAdvancedViewModel.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/AuthKeys.cs	csharp	replace	ViewModels/GCSViews/ConfigurationView/ConfigAdvancedViewModel.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/AuthKeys.ko-KR.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
@@ -1384,8 +1384,8 @@ MainV2.uk.resx	resx	retain		Preserve neutral/culture resource until AXAML locali
 MainV2.zh-Hans.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 MainV2.zh-Hant.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 MainV2.zh-TW.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-NativeMethods.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-NoFly/NoFly.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+NativeMethods.cs	csharp	replace	Services/SystemAwakeService.cs;Services/LibVlcBootstrap.cs;Services/NativeGdalApi.cs;Services/MavLinkConnectionManager.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+NoFly/NoFly.cs	csharp	replace	Services/NoFlyOverlay.cs;Services/NoFlyOverlayCoordinator.cs;Services/HongKongNoFlyService.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Plugin/Plugin.cs	csharp	replace	Plugin/LegacyCompatibility/PluginCompatibility.cs;Plugin/PortableApi/Plugin.cs;Plugin/PortableApi/PluginHost.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Plugin/PluginLoader.cs	csharp	replace	Services/PluginRuntime.cs;Services/PluginService.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Plugin/PluginUI.Designer.cs	csharp	replace	Views/PluginManagerWindow.axaml;ViewModels/PluginManagerViewModel.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
@@ -1488,8 +1488,8 @@ SikRadio/Terminal.zh-Hans.resx	resx	retain		Preserve neutral/culture resource un
 SikRadio/Terminal.zh-Hant.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 SikRadio/Terminal.zh-TW.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 SikRadio/ThemeManager.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Splash.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Splash.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Splash.Designer.cs	csharp	replace	Views/MainWindow.axaml;Views/HelpView.axaml;Services/AppVersion.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Splash.cs	csharp	replace	Views/MainWindow.axaml;Views/HelpView.axaml;Services/AppVersion.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Splash.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Swarm/DroneBase.cs	csharp	replace	Views/FormationControlWindow.axaml;ViewModels/FormationControlViewModel.cs;Views/SwarmFollowPathWindow.axaml;ViewModels/SwarmFollowPathViewModel.cs;Views/SwarmFollowLeaderWindow.axaml;ViewModels/SwarmFollowLeaderViewModel.cs;Views/SwarmWaypointLeaderWindow.axaml;ViewModels/SwarmWaypointLeaderViewModel.cs;Views/SwarmSequenceWindow.axaml;ViewModels/SwarmSequenceViewModel.cs	Formation, Follow Path, Follow Leader, Waypoint Leader and Sequence workflows are ported with exact-link safety and controller tests; see Porting/Reference/PORT_STATUS.md.
 Swarm/FollowLeader/Control.Designer.cs	csharp	replace	Views/FormationControlWindow.axaml;ViewModels/FormationControlViewModel.cs;Views/SwarmFollowPathWindow.axaml;ViewModels/SwarmFollowPathViewModel.cs;Views/SwarmFollowLeaderWindow.axaml;ViewModels/SwarmFollowLeaderViewModel.cs;Views/SwarmWaypointLeaderWindow.axaml;ViewModels/SwarmWaypointLeaderViewModel.cs;Views/SwarmSequenceWindow.axaml;ViewModels/SwarmSequenceViewModel.cs	Formation, Follow Path, Follow Leader, Waypoint Leader and Sequence workflows are ported with exact-link safety and controller tests; see Porting/Reference/PORT_STATUS.md.
@@ -1566,7 +1566,7 @@ Warnings/WarningControl.resx	resx	retain		Preserve neutral/culture resource unti
 Warnings/WarningsManager.Designer.cs	csharp	replace	GCSViews/ConfigurationView/WarningManagerView.axaml;ViewModels/GCSViews/ConfigurationView/WarningManagerViewModel.cs;ExtLibs/Utilities/Warnings/WarningEngine.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Warnings/WarningsManager.cs	csharp	replace	GCSViews/ConfigurationView/WarningManagerView.axaml;ViewModels/GCSViews/ConfigurationView/WarningManagerViewModel.cs;ExtLibs/Utilities/Warnings/WarningEngine.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Warnings/WarningsManager.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-ZZZLibShims.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+ZZZLibShims.cs	csharp	remove	Porting/Reference/PORT_STATUS.md	This file contains no-op compatibility stubs for the abandoned netstandard WinForms experiment. The Avalonia application uses real portable services and referenced libraries instead of these fake implementations.
 plugins/Dowding/DowdingPlugin.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
 plugins/Dowding/DowdingUI.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
 plugins/Dowding/DowdingUI.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.

@@ -57,6 +57,7 @@ public partial class App : Application {
         Services.SpeechAnnouncer.Stop();
         WarningEngine.Stop();
         Services.Speech.Stop();
+        Services.SystemAwakeService.Stop();
         Services.NativeGdalMapService.Shutdown();
         mainViewModel.Dispose();
         AppState.JoystickControl.Dispose();
@@ -70,6 +71,7 @@ public partial class App : Application {
         }
       };
 
+      Services.SystemAwakeService.Start();
       _ = Services.Updater.CheckOnStartupAsync();
     }
 

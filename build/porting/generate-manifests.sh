@@ -208,6 +208,9 @@ declare -A native_replacement_by_logical_path=(
   ["Utilities/Win32DeviceMgnt"]="ViewModels/Setup/InstallFirmwareViewModel.cs;ViewModels/GCSViews/ConfigurationView/ConfigFirmwareLegacyViewModel.cs"
   ["Utilities/XMLColor"]="Services/ThemeService.cs;Views/ThemeEditorWindow.cs"
   ["L10N"]="Services/LocalizationService.cs;Services/ResxTranslationService.cs"
+  ["Common"]="Controls/MapView.cs;Controls/MavMarker.cs;Services/Dialogs.cs;Services/ProgressDialogs.cs"
+  ["NativeMethods"]="Services/SystemAwakeService.cs;Services/LibVlcBootstrap.cs;Services/NativeGdalApi.cs;Services/MavLinkConnectionManager.cs"
+  ["NoFly/NoFly"]="Services/NoFlyOverlay.cs;Services/NoFlyOverlayCoordinator.cs;Services/HongKongNoFlyService.cs"
   ["ResEdit"]="Views/TranslationEditorWindow.axaml;Views/TranslationEditorView.axaml;ViewModels/TranslationEditorViewModel.cs;Services/ResxTranslationService.cs"
   ["Warnings/WarningControl"]="GCSViews/ConfigurationView/WarningManagerView.axaml;ViewModels/GCSViews/ConfigurationView/WarningManagerViewModel.cs"
   ["Warnings/WarningsManager"]="GCSViews/ConfigurationView/WarningManagerView.axaml;ViewModels/GCSViews/ConfigurationView/WarningManagerViewModel.cs;ExtLibs/Utilities/Warnings/WarningEngine.cs"
@@ -219,6 +222,7 @@ declare -A native_replacement_by_logical_path=(
   ["resedit/Properties/AssemblyInfo"]="MissionPlanner.csproj"
   ["resedit/Properties/Resources"]="Services/ResxTranslationService.cs"
   ["resedit/Properties/Settings"]="ViewModels/TranslationEditorViewModel.cs"
+  ["Splash"]="Views/MainWindow.axaml;Views/HelpView.axaml;Services/AppVersion.cs"
 )
 
 declare -A native_removal_by_logical_path=(
@@ -236,6 +240,7 @@ declare -A native_removal_by_logical_path=(
   ["Utilities/NativeLibrary"]="The unused hand-written kernel32/libdl loader is superseded by System.Runtime.InteropServices.NativeLibrary in the portable native-library bootstrap services."
   ["GlobalSuppressions"]="The pinned file contains comments only and defines no suppression attributes. The Avalonia application builds with analyzers enabled and warnings treated as errors."
   ["Properties/Resources"]="The generated WinForms resource accessor is not compiled by the Avalonia application; the neutral and localized RESX files remain preserved for the translation workflow."
+  ["ZZZLibShims"]="This file contains no-op compatibility stubs for the abandoned netstandard WinForms experiment. The Avalonia application uses real portable services and referenced libraries instead of these fake implementations."
 )
 
 find_candidates() {
