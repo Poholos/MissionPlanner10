@@ -96,6 +96,7 @@ namespace MissionPlanner.Utilities
 
                     // The caller presents a local file picker and an explicit sensitive-export
                     // confirmation before this low-level serializer is reached.
+
                     // codeql[cs/exposure-of-sensitive-information]
                     sw.WriteLine(item + "," + valueasstring);
                 }

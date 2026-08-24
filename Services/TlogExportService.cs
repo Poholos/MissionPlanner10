@@ -35,6 +35,7 @@ public static class TlogExportService {
       writer.Write(csv ? "," : " ");
       // Every UI entry point requires the reject-by-default sensitive telemetry export
       // confirmation before the operator-selected destination reaches this serializer.
+
       // codeql[cs/exposure-of-sensitive-information]
       writer.Write(text);
       count++;

@@ -81,6 +81,7 @@ namespace ICSharpCode.SharpZipLib.Encryption
 			var rm = Aes.Create();
 			// WinZip AES is CTR: this transform uses the AES primitive for a nonce block and then
 			// XORs the result with the payload. ECB is never applied directly to payload blocks.
+
 			// codeql[cs/ecb-encryption]
 			rm.Mode = CipherMode.ECB;           // No feedback from cipher for CTR mode
 			_counterNonce = new byte[_blockSize];
