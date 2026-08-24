@@ -215,13 +215,21 @@ jobs:
             "upload/$RID-manifest.json" --bundle-url "$BUNDLE_URL" \
             --bundle-sha256 "$BUNDLE_SHA" --bundle-size "$BUNDLE_SIZE"
 
+          OPENSSL_BIN=openssl
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            OPENSSL_BIN="$(brew --prefix openssl@3)/bin/openssl"
+          fi
+          test -x "$(command -v "$OPENSSL_BIN")" || {
+            echo "::error::OpenSSL 3 is required to sign Ed25519 update manifests"; exit 1; }
+          "$OPENSSL_BIN" version
+
           printf '%s' "$UPDATE_SIGNING_KEY" > "$RUNNER_TEMP/update-key.pem"
-          ACTUAL_PUBLIC=$(openssl pkey -in "$RUNNER_TEMP/update-key.pem" -pubout -outform DER \
+          ACTUAL_PUBLIC=$("$OPENSSL_BIN" pkey -in "$RUNNER_TEMP/update-key.pem" -pubout -outform DER \
             2>/dev/null | tail -c 32 | base64 | tr -d '\r\n')
           EXPECTED_PUBLIC=$(tr -d '\r\n' < build/update-public-key.txt)
           test "$ACTUAL_PUBLIC" = "$EXPECTED_PUBLIC" || {
             echo "::error::UPDATE_SIGNING_KEY does not match build/update-public-key.txt"; exit 1; }
-          openssl pkeyutl -sign -rawin -inkey "$RUNNER_TEMP/update-key.pem" \
+          "$OPENSSL_BIN" pkeyutl -sign -rawin -inkey "$RUNNER_TEMP/update-key.pem" \
             -in "upload/$RID-manifest.json" -out "$RUNNER_TEMP/update.sig"
           base64 < "$RUNNER_TEMP/update.sig" | tr -d '\r\n' > "upload/$RID-manifest.sig"
           rm -f "$RUNNER_TEMP/update-key.pem" "$RUNNER_TEMP/update.sig"
