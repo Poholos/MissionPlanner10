@@ -1,0 +1,43 @@
+<UserControl
+  xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:vm="using:MissionPlanner.ViewModels"
+  mc:Ignorable="d"
+  d:DesignWidth="620"
+  d:DesignHeight="390"
+  x:Class="MissionPlanner.Views.ExternalGuidedView"
+  x:DataType="vm:ExternalGuidedViewModel"
+  Background="{DynamicResource MpControlBg}">
+  <StackPanel Margin="16" Spacing="12">
+    <TextBlock Text="External Guided" FontSize="16" Foreground="#DDD" />
+    <TextBlock Foreground="#AAA" TextWrapping="Wrap"
+      Text="Native port of Mission Planner's ExtGuided plugin. It rereads a latitude,longitude,relative-altitude-m file once per second and sends the target only to the exact selected modem, system and component. A target switch or disconnect stops the session." />
+    <TextBlock Text="{Binding TargetDescription}" Foreground="{DynamicResource MpAccentBrush}"
+               TextWrapping="Wrap" />
+
+    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" IsEnabled="{Binding CanEditSettings}">
+      <TextBlock Grid.Column="0" Text="Target file" Foreground="#DDD" VerticalAlignment="Center" />
+      <TextBox Grid.Column="1" Text="{Binding FilePath}" Watermark="/path/to/guided-target.txt" />
+      <Button Grid.Column="2" Content="Browse…" Command="{Binding BrowseCommand}" />
+    </Grid>
+    <TextBlock Foreground="#AAA" FontFamily="Consolas,monospace"
+               Text="Example: 34.1234567,33.1234567,50" />
+
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button x:Name="ToggleExternalGuidedButton" Content="{Binding ConnectButtonText}"
+              Command="{Binding ToggleCommand}" MinWidth="90" />
+    </StackPanel>
+
+    <Border Background="{DynamicResource MpInputBg}" CornerRadius="4" Padding="10">
+      <StackPanel Spacing="4">
+        <TextBlock Text="{Binding Status}" Foreground="{DynamicResource MpAccentBrush}"
+                   TextWrapping="Wrap" />
+        <TextBlock Text="Last accepted target:" Foreground="#AAA" />
+        <TextBlock Text="{Binding LocationLabel}" Foreground="#DDD" FontFamily="Consolas,monospace"
+                   TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

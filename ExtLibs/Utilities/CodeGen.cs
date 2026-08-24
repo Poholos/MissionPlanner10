@@ -436,7 +436,6 @@ namespace MissionPlanner
 
             CodeNamespace myNamespace = new CodeNamespace("ExpressionEvaluator");
             myNamespace.Imports.Add(new CodeNamespaceImport("System"));
-            //myNamespace.Imports.Add(new CodeNamespaceImport("System.Windows.Forms"));
             //myNamespace.Imports.Add(new CodeNamespaceImport("MissionPlanner.Utilities"));
             //myNamespace.Imports.Add(new CodeNamespaceImport("MissionPlanner"));
 

@@ -22,6 +22,7 @@ public class ConfigAdvancedViewModel : ActionPageViewModel {
     Action("NMEA", () => Views.SerialOutputNMEAWindow.OpenWindow());
     Action("Cursor-on-Target / TAK", () => Views.SerialOutputCotWindow.OpenWindow());
     Action("Follow Me", () => Views.FollowMeWindow.OpenWindow());
+    Action("External Guided", () => Views.ExternalGuidedWindow.OpenWindow());
     Action("Moving Base", () => Views.MovingBaseWindow.OpenWindow());
     Action("Map Tile Cache", () => Views.MapCacheWindow.OpenWindow());
     Action("MAVLink Signing", () => _ = ManageSigningAsync());

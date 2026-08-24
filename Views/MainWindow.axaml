@@ -147,6 +147,7 @@
             <MenuItem Header="MAVLink Device Operations     Ctrl+J" Click="OnDeviceOperations" />
             <MenuItem Header="RF Propagation Settings     Ctrl+W" Click="OnPropagationSettings" />
             <MenuItem Header="Follow Me (NMEA GPS)…" Click="OnFollowMe" />
+            <MenuItem Header="External Guided (File)…" Click="OnExternalGuided" />
             <MenuItem Header="Moving Base (NMEA GPS)…" Click="OnMovingBase" />
             <MenuItem Header="Swarm Formation (Beta)" Click="OnFormationControl" />
             <MenuItem Header="Swarm Follow Path (Beta)" Click="OnFollowPathControl" />

@@ -1,0 +1,57 @@
+path	decision	evidence	note
+APMPlannerXplanes/APMPlannerXplanes.sln	retain	APMPlannerXplanes/APMPlannerXplanes/APMPlannerXplanes.vcxproj	Standalone native X-Plane hardware-in-the-loop bridge; not an alternative desktop UI.
+APMPlannerXplanes/APMPlannerXplanes/APMPlannerXplanes.vcxproj	retain	APMPlannerXplanes/APMPlannerXplanes/APMPlannerXplanes.cpp	Source project for the retained X-Plane bridge.
+APMPlannerXplanes/APMPlannerXplanes/APMPlannerXplanes.vcxproj.filters	retain	APMPlannerXplanes/APMPlannerXplanes/APMPlannerXplanes.cpp	Visual Studio source grouping for the retained native bridge.
+ExtLibs/GeoUtility/GeoUtility.sln	retain	ExtLibs/GeoUtility/GeoUtility.csproj	Vendored library solution metadata for an active project.
+ExtLibs/GeoidHeightsDotNet/GeoidHeights/GeoidHeights.csproj	retain	ExtLibs/GeoidHeightsDotNet/README.md	Independently meaningful EGM96 geoid library; retained conservatively despite no active product reference.
+ExtLibs/GeoidHeightsDotNet/GeoidHeightsDotNet.sln	retain	ExtLibs/GeoidHeightsDotNet/README.md	Solution metadata for the retained EGM96 library and calculator.
+ExtLibs/GeoidHeightsDotNet/GeoidHeightsDotNetProg.csproj	retain	ExtLibs/GeoidHeightsDotNet/README.md	Standalone EGM96 calculator; not generated product output.
+ExtLibs/Mavlink/pymavlink/generator/CS/MAVLink.csproj	retain	ExtLibs/Mavlink/pymavlink/generator/CS/MavlinkParse.cs	Official MAVLink C# generator project used when dialect bindings are regenerated.
+ExtLibs/NMEA2000/NMEA2000.csproj	retain	ExtLibs/NMEA2000/msggen.cs	Standalone NMEA2000 PGN converter and code generator.
+ExtLibs/Ntrip/Ntrip.csproj	retain	ExtLibs/Ntrip/Program.cs	Standalone GNSS base/NTRIP caster helper; operational tooling rather than an alternate GUI.
+ExtLibs/ParameterMetaDataGenerator/ParameterMetaDataGenerator.csproj	retain	ExtLibs/ParameterMetaDataGenerator/Program.cs	Official ArduPilot parameter metadata generator.
+ExtLibs/WinUSBNet/Nefarius.Drivers.WinUSB.csproj	retain	ExtLibs/Comms/MissionPlanner.Comms.csproj	Conditional Windows project reference from the active communications library.
+ExtLibs/pinvokegen/pinvokegen.csproj	retain	ExtLibs/pinvokegen/Program.cs	Windows native interop source generator used to maintain bindings.
+vs2026.vsconfig	retain	global.json	Minimal current Visual Studio bootstrap for .NET 10 desktop development and the optional native X-Plane bridge.
+Lib.zip	retain	Services/PythonScriptHost.cs	IronPython standard library loaded explicitly by the native operator-script host.
+Scripts	retain	Services/PythonScriptHost.cs	Official operator IronPython examples supported by the native script host; not build-system debris.
+Swarm/Vertexs.py	retain	MissionPlannerTests/Avalonia/MissionPlanner.Tests/SwarmFollowLeaderSequenceTests.cs	Blender content-authoring helper for the supported Mission Planner swarm sequence Layouts/Steps interchange format.
+Makefile	retain	build/linux/package.sh	Current entry point for reproducible Linux packages and Windows portable archive targets.
+build.bat	retain	MissionPlanner.slnx	Current Windows SDK build/test convenience entry point for the supported solution.
+ExtLibs/7zip	remove	ExtLibs/ICSharpCode.SharpZipLib/ICSharpCode.SharpZipLib.csproj	Unreferenced legacy LZMA SDK/sample project; active archive services use maintained SharpCompress/SharpZipLib paths.
+ExtLibs/Antenna	remove	Services/AntennaTrackerOutputs.cs	All three serial antenna output protocols are ported and regression-tested in the native service.
+ExtLibs/Benchmark	remove	ExtLibs/Mavlink/MAVLink.csproj	Old net461 one-file benchmark experiment, outside the supported graph and with no build/documentation entry point.
+ExtLibs/DriverCleanup	remove	Porting/FEATURE_AUDIT.md	Retired Windows driver-cleanup executable; current port delegates driver handling to the OS.
+ExtLibs/Exocortex.DSP	remove	MissionPlanner.slnx	Unreferenced legacy DSP snapshot with no current product, test, generator or packaging consumer.
+ExtLibs/GDAL	remove	Services/NativeGdalApi.cs	Obsolete managed/GDI GDAL wrapper replaced by dynamic current native-GDAL bindings.
+ExtLibs/GeoUtility/GeoutilityMobile.csproj	remove	ExtLibs/GeoUtility/GeoUtility.csproj	Obsolete mobile-only project metadata; shared GeoUtility source remains in the active project.
+ExtLibs/GeoUtility/GeoutilityMobile.sln	remove	ExtLibs/GeoUtility/GeoUtility.csproj	Obsolete mobile-only solution metadata; shared GeoUtility source remains in the active project.
+ExtLibs/HIL	remove	SITL-TESTING.md	Retired managed X-Plane/FlightGear/Ateryx simulation stack; supported simulator workflow is SITL and the native X-Plane bridge remains separate.
+ExtLibs/LibTessDotNet	remove	MissionPlanner.slnx	No active consumer; its only remaining reverse reference was the simultaneously retired SvgNet tree.
+ExtLibs/ManagedNativeWifi.Simple	remove	Porting/FEATURE_AUDIT.md	Windows Wi-Fi helper existed only for the retired Solo network installer.
+ExtLibs/Maps	remove	Controls/MapView.cs	Broken legacy GMap/System.Drawing renderer replaced by the native Mapsui map stack.
+ExtLibs/MavlinkMessagePlugin	remove	ViewModels/FlightDataViewModel.cs	Old sample plugin replaced by the built-in MAVLink message inspection workflow.
+ExtLibs/MissionPlanner.Drawing.Common	remove	Services/NativeGdalApi.cs	Compatibility shim consumed only by the retired GDAL/Android drawing projects.
+ExtLibs/Mock	remove	MissionPlannerTests/Avalonia/MissionPlanner.Tests	Obsolete sample host for the retired MAVLink-message plugin; current plugin/runtime behavior has automated tests.
+ExtLibs/MockDroneID	remove	MissionPlannerTests/Avalonia/MissionPlanner.Tests/OpenDroneIdTests.cs	Hard-coded developer traffic generator superseded by deterministic OpenDroneID tests and native UI coverage.
+ExtLibs/NetDFULib	remove	Services/LegacyFirmwareUploader.cs	Windows ST vendor-DLL flasher replaced by the active cross-platform DFU firmware workflow.
+ExtLibs/SharpAdbClient	remove	Porting/FEATURE_AUDIT.md	ADB library existed only for retired Android/Solo installers and has no supported product consumer.
+ExtLibs/SvgNet	remove	MissionPlanner.slnx	Unreferenced GDI/Skia SVG bridge; current Avalonia assets and rendering do not consume it.
+ExtLibs/System.Drawing.android	remove	MissionPlanner.slnx	Retired Xamarin/Android drawing compatibility project.
+ExtLibs/Transitions	remove	MissionPlanner.slnx	Unreferenced WinForms-era animation helper; Avalonia supplies the current transition system.
+ExtLibs/UAVCANFlasher	remove	GCSViews/ConfigurationView/ConfigDroneCanView.axaml	Standalone legacy flasher replaced by integrated DroneCAN firmware upload.
+ExtLibs/UsbSerialForAndroid	remove	MissionPlanner.slnx	Retired Xamarin Android USB-serial binding and bundled Java artifacts.
+ExtLibs/md5sum	remove	build/linux/package.sh	Obsolete net472 helper; packaging uses the host md5sum utility directly.
+ExtLibs/solo	remove	Porting/FEATURE_AUDIT.md	Obsolete unauthenticated Solo Wi-Fi/SSH installer deliberately retired by the feature audit.
+ExtLibs/tlogThumbnailHandler	remove	Services/LogIndexService.cs	Windows shell extension replaced by the cross-platform in-app log route thumbnail workflow.
+ExtLibs/zlib.net	remove	MissionPlanner.slnx	Unreferenced legacy zlib snapshot; active compression paths use current framework/SharpZipLib implementations.
+LogAnalyzer	remove	Services/LogAnalyzer.cs	Python 2/py2exe analyzer replaced by the in-process cross-platform implementation of all 17 enabled checks and regression tests.
+ExtLibs/px4uploader/android.bat	remove	ExtLibs/px4uploader/px4uploader.csproj	Obsolete netcoreapp3.1 Android publish command; the retained uploader is a net10 desktop library in the active graph.
+ExtLibs/MetaDataExtractorCSharp240d/AssemblyInfo.cs	remove	ExtLibs/MetaDataExtractorCSharp240d/MetaDataExtractor.csproj	Empty source file with no attributes or generated-build role.
+MissionPlanner.GCSViews.ConfigurationView.ConfigGPSOrder+GPSCAN.datasource	remove	GCSViews/ConfigurationView/ConfigGPSOrderView.axaml	Generated WinForms object-data-source metadata; the current GPS-order editor is native Avalonia.
+MissionPlanner.GCSViews.ConfigurationView.ConfigHWCompass2+CompassDeviceInfo.datasource	remove	GCSViews/ConfigurationView/ConfigCompassView.axaml	Generated WinForms object-data-source metadata; the current compass editor is native Avalonia.
+MissionPlanner.GCSViews.ConfigurationView.DeviceInfo.datasource	remove	GCSViews/ConfigurationView/ConfigDroneCanView.axaml	Generated WinForms object-data-source metadata; current device information is rendered by native views.
+Properties/DataSources	remove	MissionPlanner.csproj	Generated WinForms designer binding metadata with no compile, resource or runtime consumer.
+Properties/app.manifest	remove	app.manifest	Unused legacy manifest superseded by the active cross-platform application manifest.
+vs2019.vsconfig	remove	global.json	Obsolete IDE workload snapshot for the retired net472/Xamarin/UWP graph.
+vs2022.vsconfig	remove	global.json	Obsolete IDE workload snapshot for the retired net472/Xamarin/UWP graph.

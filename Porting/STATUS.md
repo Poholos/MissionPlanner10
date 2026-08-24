@@ -5,8 +5,9 @@ Updated: **2026-08-24**.
 ## Current state
 
 - Functional migration is published on `port/avalonia-in-place` at `eaf456665`; the isolated
-  `cleanup/project-audit` branch contains merge `a644cc4f7` and cleanup commit `08bc7e95e`.
-  Rollback remains the untouched native baseline `67a3c4f`; `master` is not modified.
+  `cleanup/project-audit` branch is based on reviewed cleanup checkpoint `a202a70f4` and contains
+  the final full-project audit work. Rollback remains the untouched native baseline `67a3c4f`;
+  `master` is not modified.
 - The root `MissionPlanner.csproj` is now the net10 Avalonia application with assembly and product
   identity `MissionPlanner`. It builds one main `MissionPlanner.dll` and has no source, build or
   runtime dependency on an `external/MissionPlanner` tree.
@@ -27,7 +28,7 @@ Updated: **2026-08-24**.
   migration evidence, not a copied source tree.
 - A clean Release build of the complete test graph succeeds with zero warnings and zero errors
   after resolving all 156 inherited `ExtLibs` diagnostics without a repository-wide `NoWarn`; the
-  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1224/1224**
+  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1253/1253**
   Avalonia tests pass on Linux. A 12-second Xvfb launch reaches the normal Avalonia event loop with
   no console errors.
 - Informational version is derived from the current native Mission Planner version and formatted as
@@ -75,6 +76,15 @@ Updated: **2026-08-24**.
   `Reference/DOWDING_AUDIT.md` and removed with its generated clients/ONVIF dependency on the
   cleanup branch. Replaced standalone projects and alternate application/build-system remnants are
   classified in `PROJECT_CLEANUP_AUDIT.md` before deletion.
+- The final artifact pass classifies every inactive project/solution, committed binary and
+  key/certificate container. Six generated WinForms `.datasource` files, obsolete project trees,
+  stale binary duplicates and unreferenced development keys are removed only through explicit,
+  machine-checked audit rows. Operator scripts, `Lib.zip`, the swarm Blender authoring helper,
+  generators, X-Plane bridge and conditional Windows payloads remain for documented reasons.
+- The old Python 2/py2exe automatic log analyzer has been replaced in-process. Its 17 enabled
+  official diagnostics now run cross-platform, have deterministic regression tests and report
+  missing data independently; optical-flow recommendations no longer write a parameter file
+  silently into the working directory.
 - Claude remains temporarily disabled by user instruction.
 
 ## GTU synchronization checkpoint
@@ -99,7 +109,7 @@ Updated: **2026-08-24**.
 - `MissionPlanner.slnx` now names the complete active transitive graph. Its Release build has zero
   warnings/errors, analyzer verification has zero diagnostics (the .NET 10 workspace-loader notices
   are documented separately), NuGet reports no vulnerable packages, the native manifest has zero
-  blockers and all 1224 tests pass after cleanup.
+  blockers and all 1253 tests pass after cleanup.
 - Clean-commit Linux TAR/DEB and Windows ZIP packaging succeeds after cleanup. The DEB passes
   `lintian`, payload assertions and a 12-second Xvfb launch; the Windows archive contains the
   expected self-contained `win-x64` application. CI run `32688021866` also passes Windows ZIP/MSI
@@ -110,9 +120,10 @@ Updated: **2026-08-24**.
   export flows already protected by reject-by-default warnings, and the required AES block
   primitive in SharpZipLib's WinZip AES-CTR construction. `PROJECT_CLEANUP_AUDIT.md` records the
   current alert numbers and exact decisions; none was dismissed merely to empty the dashboard.
-- `Scripts/`, localization RESX, NoFly data, the X-Plane/HIL bridge, `ExtLibs/mono` and independently
-  meaningful remaining library/generator projects are deliberately retained; non-inclusion in the
-  active solution alone is not deletion evidence.
+- `Scripts/`, localization RESX, NoFly data, the X-Plane/HIL bridge and independently meaningful
+  remaining library/generator projects are deliberately retained; non-inclusion in the active
+  solution alone is not deletion evidence. The former `ExtLibs/mono` submodule was removed only
+  after every reference was shown to come from the retired WinForms project graph.
 
 ## Immediate next step
 
@@ -121,7 +132,7 @@ merge. Do not merge this destructive cleanup into `master` without an explicit r
 
 ## Acceptance baseline
 
-- At least 1224 port tests retained and passing.
+- At least 1253 port tests retained and passing.
 - Clean Release build has zero errors and zero warnings.
 - `linux-x64`, `win-x64`, `osx-x64`, and `osx-arm64` publish gates pass.
 - Linux `.deb` and portable archive build and smoke successfully.

@@ -34,6 +34,35 @@ compiled by their own project.
 - Removed the inherited WinForms `.sln`, the old net472 tests for deleted code, legacy MSI/driver
   scripts, AppX manifest/assets, bundled ADB binaries, old `NuGet.exe` bootstrap, and developer-only
   batch/signing remnants. Current builds use the SDK, `MissionPlanner.slnx`, WiX 5 and GitHub CI.
+- Removed the final unreferenced project debris only after a second reverse-reference audit. Exact
+  decisions are machine-readable in `PROJECT_ARTIFACT_AUDIT.tsv`: replaced Antenna/GDAL/GMap/DFU/
+  DroneCAN/tlog components, retired Android/Solo/ADB/HIL paths, obsolete drawing/UI compatibility
+  closures and unused 7zip/zlib/DSP/sample projects are gone. The active `GeoUtility` source is
+  preserved; only its obsolete mobile project/solution metadata was removed.
+- Removed six Visual Studio WinForms `.datasource` files, the superseded
+  `Properties/app.manifest`, and Visual Studio 2019/2022 workload snapshots for the retired
+  net472/Xamarin/UWP graph. `vs2026.vsconfig` now describes only the supported .NET 10 desktop
+  toolchain and the optional native X-Plane bridge.
+- Audited every committed DLL/EXE/PDB/native binary in `BINARY_ARTIFACT_AUDIT.tsv`. Removed stale
+  binary duplicates already supplied by NuGet/.NET, old MonoMac/OpenTK/DirectShow/System.Drawing/
+  System.Speech/Transitions compatibility assemblies and generated legacy GDAL wrappers. Retained
+  Windows SimpleBLE/libusb payloads, the protobuf generator and the hardware driver bundle with an
+  explicit reason for each file.
+- Removed two unreferenced inherited PFX containers, eleven unused strong-name keys and one unused
+  public-key stub. They were
+  not release/update signing inputs. `KEY_ARTIFACT_AUDIT.tsv` retains only three keys referenced by
+  active strong-named projects plus the public certificate paired with the retained driver catalogs;
+  private updater/package signing material remains outside Git.
+- Removed the final inactive WinForms dependency graph after `WINFORMS_RETIREMENT.tsv` mapped each
+  library/plugin/tool to a native replacement or an explicit retirement. This includes the former
+  Mono System.Windows.Forms submodule, whose only remaining references were inside that same retired
+  graph. The operational External Guided file plugin was ported before its old form was removed.
+- Replaced the bundled Python 2/NumPy/py2exe log analyzer with a native in-process .NET analyzer
+  before removing its obsolete source/build/upload tree. The replacement keeps all 17 enabled
+  official diagnostics, isolates missing-data results, ignores expected high lean in ACRO/SPORT/
+  FLIP/AUTOTUNE, and reports optical-flow corrections without silently creating a parameter file.
+- Removed an obsolete netcoreapp3.1 Android publish batch file, an empty `AssemblyInfo.cs`, and a
+  hard-coded Xamarin.iOS `System.Runtime.Loader` hint path from the active Utilities project.
 
 ## Removed alternate application experiments
 
@@ -78,8 +107,9 @@ suppressed or misreported as source warnings.
 
 ## Security scan triage
 
-CodeQL run `32688021913` completes successfully for cleanup commit `c66b5335b`. Its branch-specific
-API result contains five open but reviewed alerts and no untriaged alert:
+The last published cleanup CodeQL checkpoint, run `32688021913` for commit `c66b5335b`, completed
+successfully. Its branch-specific API result contained five open but reviewed alerts and no
+untriaged alert:
 
 - #1 is a generic writer in vendored netDxf. The Avalonia application reads DXF overlays and has no
   path to `DxfDocument.Save`; retain the reader and re-evaluate this flow if DXF export is added.
@@ -109,14 +139,22 @@ source-port alert numbering and decisions remain immutable in `Reference/CODEQL_
   output, so they remain pending an explicit default-data packaging policy.
 - `APMPlannerXplanes/` is the small native X-Plane/HIL bridge, not an abandoned UI port. It remains
   separate from the desktop application by design.
-- Project/solution/make metadata below remaining `ExtLibs/` belongs to vendored libraries,
-  protocol/code generators, hardware helpers or independently meaningful tools. The active subset
-  is explicit in `MissionPlanner.slnx`; blanket deletion of the rest would make future upstream
-  updates or specialized tools harder without proving that the files are meaningless.
-- `ExtLibs/mono` is an existing upstream submodule unrelated to the removed application ports and
-  is intentionally untouched.
+- Project/solution metadata outside `MissionPlanner.slnx` is exhaustively classified by
+  `PROJECT_ARTIFACT_AUDIT.tsv`. The retained set is limited to the conditional Windows WinUSB
+  dependency; MAVLink, parameter and P/Invoke generators; NMEA2000/NTRIP/EGM96 utilities; active
+  GeoUtility vendor metadata; and the native X-Plane bridge. The checker fails if another project
+  artifact appears without a decision.
+- `Lib.zip` is the IronPython standard library consumed by `PythonScriptHost`; it is not a stale
+  release archive. `build.bat` mirrors the supported solution build/test commands, and `Makefile`
+  drives the current cross-platform package targets.
+- `Swarm/Vertexs.py` is retained conservatively: it is a Blender content-authoring helper for the
+  same `Layouts`/`Steps` JSON shape loaded, edited and executed by the native swarm sequence UI.
 - `Properties/AssemblyInfo.cs` remains the authoritative upstream Mission Planner version source;
   build date and Git commit are appended by the native version pipeline.
+- Historical localized RESX files remain translation-source data. Their standard reader/writer and
+  form-layout type strings are not compiled or embedded by the Avalonia project; the translation
+  editor reads string entries only, so deleting them would discard upstream translations without
+  removing a runtime WinForms dependency.
 
 ## Generated local output
 
@@ -128,6 +166,11 @@ targets.
 
 ```bash
 ./build/porting/check-native-surface.sh
+./build/porting/check-port-source-resolution.sh
+./build/porting/check-no-winforms.sh
+./build/porting/check-project-artifacts.sh
+./build/porting/check-binary-artifacts.sh
+./build/porting/check-key-artifacts.sh
 dotnet restore MissionPlanner.slnx --force --nologo
 dotnet build MissionPlanner.slnx -c Release -m:1 --nologo
 dotnet format MissionPlanner.slnx analyzers --verify-no-changes --no-restore
@@ -138,6 +181,11 @@ make linux-packages
 make windows-zip
 ```
 
-CI run `32688021866` passes all host-native gates: Windows ZIP/MSI build plus default-path
-install/file checks/uninstall, both macOS architectures, and Linux build/test/package/smoke. Its
-five named artifact bundles are present in GitHub Actions.
+The latest local audit passes all six structural gates, a zero-warning Release build, analyzer
+verification, the no-vulnerable-package query and all 1253 tests. Linux TAR/DEB and Windows ZIP
+also build from the dirty review tree; the DEB passes `lintian` and both archives pass integrity
+checks. WiX deliberately remains a Windows-runner gate: on Linux it emits its documented
+Windows-only warning before undefined path validation. Published CI checkpoint `32688021866`
+passed Windows ZIP/MSI build plus default-path install/file checks/uninstall, both macOS
+architectures, and Linux build/test/package/smoke; the current commit must repeat that matrix before
+merge.

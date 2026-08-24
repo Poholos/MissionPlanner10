@@ -82,8 +82,11 @@
     <Compile Include="Services/SikRadioFirmwareService.cs" />
     <Compile Include="Services/SikRadioSettingsService.cs" />
     <Compile Include="Services/SystemAwakeService.cs" />
+    <Compile Include="ViewModels/ExternalGuidedViewModel.cs" />
     <Compile Include="Views/DroneCanFieldGraphWindow.cs" />
     <Compile Include="Views/DroneCanSubscriberWindow.cs" />
+    <Compile Include="Views/ExternalGuidedView.axaml.cs" />
+    <Compile Include="Views/ExternalGuidedWindow.cs" />
     <Compile Include="Views/OsdTuningSlotsWindow.cs" />
   </ItemGroup>
 

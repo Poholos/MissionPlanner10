@@ -12,7 +12,8 @@ upstream merges share one history.
 - Ported views replace the corresponding native features in `GCSViews/`, `Controls/`, setup,
   wizard, plugin and other normal feature locations.
 - No `external/MissionPlanner` gitlink, copied source tree, or build-time dependency is introduced.
-- The existing unrelated `ExtLibs/mono` submodule is not removed accidentally.
+- A historical submodule is removed only after the active source/project/package graph proves it
+  has no consumer; this evidence now closes the former WinForms-only `ExtLibs/mono` dependency.
 - WinForms files are removed only after a mapped Avalonia replacement or an explicit, justified
   `remove` decision exists.
 - Existing RESX cultures remain preserved and receive an explicit localization mapping.
@@ -32,6 +33,17 @@ upstream merges share one history.
 `PORT_SOURCE_IMPORT.tsv` inventories every tracked file at the pinned port commit and records a
 planned native target plus an import action. It prevents accidental import of the old submodule,
 generated output, or a second application layout.
+
+`IMPORTED_APPLICATION.tsv`, `IMPORTED_TESTS.tsv` and `IMPORTED_REFERENCE.tsv` retain the exact
+source blob for copied artifacts. `PORT_SOURCE_RESOLUTION.tsv` closes every remaining repository,
+project, package and deliberately retired source row with native evidence. Together they cover all
+708 paths at the pinned source commit and are guarded by its canonical path/blob digest:
+
+```bash
+./build/porting/check-port-source-resolution.sh
+# Strong local check against the read-only source worktree:
+./build/porting/check-port-source-resolution.sh /home/alex/src/MP/MissionPlanner-Avalonia
+```
 
 Regenerate both inventories with:
 
@@ -71,6 +83,45 @@ Import the pinned historical audits needed to verify the migration with:
 
 These files live in `Porting/Reference`, remain byte-identical to their recorded source blobs and
 are evidence for the in-place migration rather than a second source tree.
+
+Later corrections and implementation advances belong in the live `FEATURE_AUDIT.md`,
+`NV_MODEM.md` and `TEMP_HANDLER_AUDIT.md` files. The matching names below `Reference/` are the
+immutable import snapshot and must not be edited to make current state look historical.
+
+`WINFORMS_RETIREMENT.tsv` closes the remaining inactive WinForms libraries, tools and plugins only
+after mapping each operational workflow to native evidence or documenting why no user workflow
+existed. `check-no-winforms.sh` rejects any returned retired path, WinForms project/code dependency
+or submodule. Standard RESX reader/writer headers and untranslated WinForms layout metadata remain
+as inert localization-source data: the Avalonia project neither compiles nor embeds these old RESX
+files, while the native translation editor intentionally reads only translatable string entries.
+
+`PROJECT_ARTIFACT_AUDIT.tsv` records every retained project/solution artifact outside the active
+`MissionPlanner.slnx` graph and every retired inactive tree. Its checker rejects an unaudited
+`.csproj`, `.sln`, `.slnx` or `.vcxproj`, a missing retained tool, or the return of a removed path:
+
+```bash
+./build/porting/check-project-artifacts.sh
+```
+
+This is deliberately stricter than deleting everything outside the solution. Conditional Windows
+dependencies and independently useful protocol/generator tools remain explicit instead of being
+misclassified by a Linux-only evaluated graph.
+
+`BINARY_ARTIFACT_AUDIT.tsv` similarly accounts for every committed DLL/EXE/PDB/native library.
+It distinguishes conditional Windows runtime payloads, hardware-driver artifacts and generators
+from stale binary duplicates and compatibility assemblies:
+
+```bash
+./build/porting/check-binary-artifacts.sh
+```
+
+`KEY_ARTIFACT_AUDIT.tsv` accounts for committed strong-name/certificate containers. It removes
+unreferenced inherited PFX/SNK files and makes the few retained public/strong-name artifacts
+explicit; updater and package private signing keys remain external secrets:
+
+```bash
+./build/porting/check-key-artifacts.sh
+```
 
 The generator deliberately starts uncertain native C# entries as `unported-blocker`. Classification
 is changed only after code-level comparison; this makes missing functionality visible instead of

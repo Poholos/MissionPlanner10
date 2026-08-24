@@ -14,7 +14,7 @@ their native runners.
 | Windows x64 (`win-x64`) | Self-contained folder, PE apphost; bundled libVLC and native SimpleBLE runtime | Cross-publish passed and PE32+ executable/native DLLs inspected; native Windows application and physical BLE-modem acceptance remain pending |
 | macOS x64 (`osx-x64`) | Self-contained `.app`, Mach-O/dylibs; bundled official Intel VLC 3.0.23 and pinned x64 SimpleBLE runtime; CI signing/notarization when credentials are configured | Cross-publish passed; the apphost and every bundled native dependency were inspected as x86-64, and all 444 checksummed VLC runtime files, including 343 plugin dylibs, were verified. Full native Intel application and physical-device acceptance remain pending. Also runs on Apple Silicon through Rosetta 2. |
 | macOS ARM64 (`osx-arm64`) | Self-contained `.app`, native Apple-Silicon apphost/dylibs; bundled official ARM64 VLC 3.0.23 and pinned ARM64 SimpleBLE runtime; CI signing/notarization when credentials are configured | Cross-publish passed; the apphost and every bundled native dependency were inspected as ARM64, and all 438 checksummed VLC runtime files, including 337 plugin dylibs, were verified. Native ARM64 CI loads libVLC/SimpleBLE/IOKit, enumerates available hardware and decodes the real MJPEG callback/export pipeline. Full application and physical-device acceptance remain pending. |
-| Linux x64 (`linux-x64`) | Self-contained ELF/CoreCLR `tar.gz` and FHS-compliant amd64 `.deb` with native dependencies | Current source: Release build and 1129 tests verified; the NV-Modem/portable-plugin-host/legacy-plugin-ABI/HUD-recording/OSD-tlog-video/Grid-v2-editor/Face-Map/Open-Drone-ID/Tracker-Home-module/flight-command-shortcuts/Terrain-DAT-Maker/interactive-gimbal-video/gimbal-video-layouts/all-interface-antenna-tracker/DroneCAN-multicast/direct-SLCAN/session-safety/thread-safe-settings/signed-beta-updates/managed-WebSocket/MicroDrone/device-operations/default-settings/barometer-altitude/MAVLink-serial-TCP-bridge/firmware-archive/camera-overlay/SHP/SHP-to-POLY/DXF/GeoPackage/KML-GroundOverlay/Hong-Kong-NoFly/GeoTIFF/DTED/native-GDAL/airport-alpha/Rally/docking/detachable-Flight-Data-panels/WMS-WMTS/map-tile-import/SSH/SFTP/LogIndex/MagFit/Heli/connection-safety/nonblocking-device-loss/multi-link/Plane-Formation/FollowPath/FollowMe/MovingBase/WaypointLeader/FollowLeader/Sequence/Translation-RESX/Terrain-3D/cross-platform-BLE/macOS-ARM64-video `.deb` is rebuilt and verified after each functional commit; the portable tarball predates the latest rounds |
+| Linux x64 (`linux-x64`) | Self-contained ELF/CoreCLR `tar.gz` and FHS-compliant amd64 `.deb` with native dependencies | Current source: Release build and 1198 tests verified; the native SiK/RFD settings, firmware and target-bound MAVLink-TELEM1 path are included. The portable tarball predates the latest functional rounds and must be rebuilt at the final packaging gate. |
 
 Speech is implemented per platform: Windows uses `System.Speech` through PowerShell, macOS uses
 `say`, and Linux uses `speech-dispatcher` with the real `espeak-ng` output module
@@ -48,6 +48,34 @@ submodule. UI-only changes were translated to Avalonia where applicable:
 
 ## Features restored during this synchronization
 
+- Firmware setup now covers the complete safe cross-platform portion of the official firmware
+  workflows. Current APJ/PX4 and legacy VRX images use the identified PX4 bootloader with board-id
+  matching; STM32 `.dfu`/Intel HEX/raw `.bin` images use DFU (raw binaries require an explicit
+  0x08000000 warning); retired APM1 1280/APM1 2560/APM2 boards use their original STK500/STKv2
+  protocols and full readback verification. The Legacy page no longer hides the official
+  manifest's APM/HEX images and offers vehicle, release, platform and working format filters.
+  Ambiguous custom HEX files require an exact target and physical serial-port choice instead of
+  the official `BoardDetect` path, whose per-port device match is commented out and can identify a
+  different USB board when several are attached. The native parser also fixes two official failure
+  modes: erased HEX gaps are `0xFF` rather than zero, and a bootloader that never connects is a
+  failure rather than a successful return. Bebop/Disco/Solo network installers remain deliberately
+  unavailable because they depend on obsolete unauthenticated Wi-Fi/ADB/SSH workflows; their
+  images are shown as unsupported rather than sent through the wrong programmer.
+- The SiK Radio setup page consolidates the official embedded and standalone tools into one native
+  Avalonia workflow: classic and RFD `ATI5` settings, `ATI10`/`ATI5?` ranges, local/remote writes,
+  separate AES keys, factory reset, compatible `NAME = VALUE` profiles, PPM failsafe capture, live
+  RSSI and an AT terminal. Firmware programming validates the `ATI2` board and image identity before
+  bootloader entry, uses the legacy SiK uploader for Intel HEX radios and the RFDesign XModem path
+  for x/ux/X2 `.bin`/`.gbl` radios, including X2 high-speed upload and country-lock checks. Automatic
+  downloads use verified HTTPS ArduPilot/RFDesign images. RFDesign exposes no unambiguous beta
+  channel, so X-series automatic programming fails closed when Beta is selected; a custom image
+  requires a reject-by-default warning and model validation. X2 GBL images have no inspectable model
+  token, so custom files retain the official filename/model check and the modem bootloader remains
+  responsible for its signed-image enforcement.
+  The page can also use the official already-open-link path to a modem on autopilot `TELEM1` through
+  MAVLink `SERIAL_CONTROL`; the tunnel is target-bound, allowed only for one selected disarmed
+  autopilot, has bounded synchronous reads and releases the exclusive UART on close, target change
+  or physical link loss. Raw UART remains available when MAVLink is disconnected.
 - Setup contains an **NV Modem** child page immediately below SiK Radio. It ports the dirty
   `NV5Settings` source from AgroSky GTU, including NV4/NV5 discovery, generation-specific parameter
   descriptions, typed MAVLink parameter encoding, live dual-radio status, radio/RTSP presets,
@@ -74,7 +102,7 @@ submodule. UI-only changes were translated to Avalonia where applicable:
   actions require a live link, a disarmed vehicle and explicit confirmation where destructive.
   Its parameter-recovery path is additionally cancellable and bound to the exact active link,
   MAVState, system and component. A modem/vehicle switch, link loss or arming event stops the
-  workflow between bounded upstream parameter calls before another write. All 67 official click
+  workflow between bounded upstream parameter calls before another write. All 68 official click
   handlers are classified in [`TEMP_HANDLER_AUDIT.md`](TEMP_HANDLER_AUDIT.md); none remains open.
 - Developer Tools now ports the official hidden `MAVLinkSerialPort` TCP bridge. One sequential TCP
   client can exchange raw bytes with TELEM1/2, GPS1/2, SHELL or SERIAL0-9 through MAVLink
@@ -123,6 +151,13 @@ submodule. UI-only changes were translated to Avalonia where applicable:
 - Theme selection includes a native custom-palette editor with validated, persisted Avalonia
   colours; the edited palette is applied immediately.
 - FFT log analysis window.
+- The legacy downloaded Python 2/py2exe automatic log analyzer is now an in-process,
+  cross-platform .NET service. All 17 enabled official checks are represented: empty log,
+  vibration, GPS, VCC, compass, motor balance, NaN, event/failsafe, brownout, duplicate data,
+  parameters, PM, pitch/roll, thrust, IMU mismatch, autotune and optical-flow calibration.
+  Modern `VIBE` data is used directly where available; missing channels produce explicit
+  `UNKNOWN`/`NA` results instead of aborting the suite. Optical-flow corrections are reported for
+  operator review and are no longer written silently into the process working directory.
 - DataFlash spectrogram for ACC/GYR sensors 1–5 with X/Y/Z plots.
 - Proximity radar for `DISTANCE_SENSOR` / `OBSTACLE_DISTANCE` telemetry.
 - Parameter metadata regeneration from current ArduPilot definitions.
@@ -571,11 +606,23 @@ submodule. UI-only changes were translated to Avalonia where applicable:
   choices now survive restart (icons, Russian layout, ground palette, battery cell count, swap,
   individual indicators and custom fields/prefixes), and the map menu can import/export both legacy
   three-column and altitude-preserving four-column POI files and switch directly to Flight Planner.
+- Flight Planner's **View KML** again opens a live Google Earth network link on port 56781. The
+  replacement server starts only on demand, binds only `127.0.0.1`, publishes read-only vehicle and
+  mission KML plus the packaged aircraft model, caps headers/responses and admits at most eight
+  concurrent clients. Mission edits update its immutable snapshot immediately; GeoRef continues to
+  write a portable standalone `location.kml` beside geotagged images.
 - The complete 19-item upstream flight-action selector and Simple Actions tab are present. Command
   implementations match upstream for calibration, safety, engine, scripting, high-latency, ADS-B
   IDENT and system time; flight termination and SD-card formatting add explicit destructive-action
   warnings. Ground-station action output and connection status/progress are now visible, and
   rejected commands are no longer reported as successfully sent.
+- Flight Data local scripting again runs the official `.py` workflow through IronPython 3.4.2 (the
+  net10-compatible patch successor to the pinned native project's 3.4.1). The portable host preserves
+  `MAV`, `cs`, `Ports`, `Script`, `mavutil`, `MainV2`, `FlightData`, `FlightPlanner` and `Joystick`,
+  including parameter/mode/RC helpers and streamed
+  output. A Python trace hook replaces the original unsupported `Thread.Abort`, so Abort also stops
+  ordinary interpreted loops without terminating the application thread. The separate Setup local
+  Lua REPL remains an additional port tool and no longer masquerades as the Flight Data workflow.
 - Flight Data home and EKF-origin actions use terrain-backed AMSL altitudes with the upstream
   ocean/terrain safety policy. Legacy mount control uses upstream centidegree conversion, preserves
   the final slider position under throttling and resets into MAVLink targeting mode.
@@ -717,7 +764,8 @@ native-platform acceptance testing.
   concurrent-load serialization and layer replacement on both Flight Planner and Flight Data.
   Parameter-recovery tests cover exact link/system/component/MAVState identity, the official
   ENABLE-first and `_ID` reset order, explicit cancellation, target loss and rejected values. The
-  `temp.cs` registry test proves that all 67 pinned click handlers have exactly one closed status.
+  The imported `temp.cs` registry test proves that all 68 pinned click handlers have exactly one
+  closed status without retaining the obsolete WinForms developer form in the active tree.
   Native-GDAL tests cover platform library discovery, raster intersection and alpha compositing;
   the installed GDAL 3.8.4 runtime also opens, warps and renders a generated EPSG:3857 GeoTIFF.
 - Clean self-contained `linux-x64` publish: 173 MB including the pinned airport database.
@@ -818,15 +866,16 @@ Planner functional-parity gap.
 
 | Area | Decision |
 | --- | --- |
-| Embedded Mission Planner HTTP/KML/MJPEG server | Not compiled on any target. Do not restore the older server implementation; any replacement needs the current authentication and anti-DoS model. GeoRef emits a portable static `location.kml` instead of the old loopback network link. |
+| Experimental Dowding plugin | Not an official release feature: the upstream solution has no `Build.0` entry for its project and the root project excludes `plugins/**`. Generic antenna-tracker control, CoT transport and multi-system map display are natively ported. The dormant deployment-specific REST/WebSocket/ONVIF forwarding integration is deliberately retired after the code/security audit in [`Reference/DOWDING_AUDIT.md`](Reference/DOWDING_AUDIT.md) and was physically removed on the cleanup branch. |
+| Legacy `wix/` generator | Replaced by the deterministic WiX 5 x64 installer project under `build/windows/msi`, the shared native version pipeline and Windows CI install/uninstall validation. The old generator's embedded private deployment paths, Cygwin upload commands, .NET Framework prerequisite and certificate/DPInst custom actions are not carried into the cross-platform application. Serial drivers remain a separately documented, explicitly installed prerequisite rather than silently trusting a bundled root certificate. |
+| Legacy HTTP write/raw/MJPEG endpoints | The visible read-only live KML workflow is ported through the loopback-only on-demand server. The old always-on `IPAddress.Any` root, unauthenticated `/guided` and `/guide` writes, bidirectional raw MAVLink WebSocket, Mavelous file host and GDI/WinForms HUD/map MJPEG capture are deliberately not recreated. Current guided controls stay in the confirmed UI, SERIAL_CONTROL tunnelling uses the dedicated guarded TCP bridge, inbound video uses libVLC and GeoRef emits a portable static `location.kml`. |
 | TFR download/overlay | Current Mission Planner disabled its Jepptech-backed background download on 2020-09-30 when the service ended (`b26095f9a`) and later removed the parser/Flight Data handler. The port retains the compatible `showtfr` preference but does not invent a replacement feed and incorrectly present it as upstream parity. |
 | European dynamic no-fly feed | The pinned Mission Planner `eunfz.cs` implementation has an empty download URL and is not operational upstream. [EASA currently directs operators](https://www.easa.europa.eu/en/light/topics/geo-zones-know-where-fly-your-drone) to each national aviation authority's geographical-zone source, so the port does not invent a unified feed and present it as official parity. |
 | Support Proxy | Not ported on any target until authentication, explicit consent and networking are designed and reviewed. |
 | Original WinForms/Windows driver-install UI | Not part of the Avalonia UI. Use native OS driver handling and add board-specific cross-platform DFU implementations where required. |
-| Legacy CLI firmware/log paths and AC3.3-era terminal flows | Obsolete for supported firmware and intentionally not exposed. |
+| Legacy CLI log paths and AC3.3-era terminal flows | Obsolete for supported firmware and intentionally not exposed. Legacy APM/VRX/DFU firmware selection and upload are available through the native Firmware pages instead. |
 | DroneCAN file browser | The official control is unreachable from the current Mission Planner UI and remains half-stubbed. Node parameters and firmware upload are ported; a general browser will be reconsidered when upstream exposes a complete operational workflow. |
 | X-Plane/FlightGear legacy HIL and Ateryx-specific pages | Superseded by SITL and not restored without a current user and maintenance case. |
-| IronPython script host | The portable local console uses MoonSharp Lua. Old Python scripts would require a large legacy runtime and are not enabled by default. |
 | Historical third-party service plugins | AltitudeAngel, DigitalSky, AirMarket and similar integrations require current API, authentication and privacy review before any port. |
 | DirectShow device enumeration | Replaced by libVLC video input so the feature can share one API across Windows, macOS and Linux. |
 | GDI+ HUD renderer switch | Not applicable to Avalonia: the port uses the cross-platform Skia renderer on every target, so the inherited GDI+ option is shown disabled. |

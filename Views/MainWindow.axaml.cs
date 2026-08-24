@@ -237,6 +237,9 @@ public partial class MainWindow : Window {
 
   private void OnFollowMe(object? sender, RoutedEventArgs e) => FollowMeWindow.OpenWindow();
 
+  private void OnExternalGuided(object? sender, RoutedEventArgs e) =>
+      ExternalGuidedWindow.OpenWindow();
+
   private void OnMovingBase(object? sender, RoutedEventArgs e) => MovingBaseWindow.OpenWindow();
 
   private void OnFormationControl(object? sender, RoutedEventArgs e) =>

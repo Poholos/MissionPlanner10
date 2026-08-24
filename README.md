@@ -28,6 +28,7 @@ official Mission Planner usage questions belong in the ArduPilot documentation a
 The in-place migration started from native Mission Planner commit
 `67a3c4f22bd1b38ac499f9756902e04fa4ed8444`. Source provenance and the remaining native surface are
 audited under [`Porting/`](Porting/README.md); upstream updates can now be merged into this same tree.
+The hardware-free acceptance workflow is documented in the [SITL checklist](SITL-TESTING.md).
 
 The application version is copied automatically from `Properties/AssemblyInfo.cs` and then extended
 with the build date and repository commit. For example, official Mission Planner `1.3.83` produces
@@ -42,10 +43,11 @@ discovered by the enabled Beta Updates preference; stable and beta channels both
 manifests attached to this repository's GitHub Releases.
 
 See the live [port status](Porting/STATUS.md) and the pinned
-[feature audit](Porting/Reference/PORT_STATUS.md) for the support matrix and remaining work. The
+[feature audit](Porting/FEATURE_AUDIT.md) for the support matrix and remaining work. The
 native [portable plugin host](Porting/Reference/PLUGINS.md) documents the official-style lifecycle,
 installation paths, Avalonia extension API, binary compatibility for non-visual legacy plugins and
-the remaining WinForms UI boundary.
+the explicit source-adaptation boundary for legacy plugins that embed WinForms controls. The
+application itself has no WinForms source, project, runtime dependency or submodule.
 
 ## Platform targets
 
@@ -84,7 +86,7 @@ Setup > NV Modem is a native port of AgroSky GTU's `NV5Settings` for NV4/NV5 rad
 discovers modems and performs parameter, key, RTSP and maintenance operations through the UDP/TCP/
 UART MAVLink connections already open in Mission Planner; it never opens a second port. Parameter
 values are session-only and cleared on refresh or device change, while the copied parameter
-descriptions remain available in the tab. See [NV Modem](Porting/Reference/NV_MODEM.md).
+descriptions remain available in the tab. See [NV Modem](Porting/NV_MODEM.md).
 
 ## Linux prerequisites
 
@@ -114,8 +116,7 @@ libVLC MRL and is rejected with an explanatory message.
 
 ## Build & run
 
-The repository is self-contained for the Avalonia application. The historical `ExtLibs/mono`
-submodule belongs to the native source history but is not required by this build.
+The repository is self-contained for the Avalonia application and has no source submodules.
 
 ```bash
 git clone https://github.com/Rouniy/MissionPlanner.git

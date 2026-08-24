@@ -15,8 +15,8 @@ This repository integrates a native cross-platform Avalonia user interface direc
 ## What this project changes
 
 - The root `MissionPlanner.csproj` builds the application with **Avalonia (.NET 10)** for macOS,
-  Linux and Windows while the historical WinForms implementation remains available for migration
-  comparison until every manifest item has been classified.
+  Linux and Windows. Replaced WinForms application, plugin and UI-library sources have been removed
+  after their native replacements or deliberate retirement decisions were recorded under `Porting/`.
 - Flight, protocol, log, parameter and mission backends are reused from the native tree and receive
   cross-platform fixes directly in the same history.
 - See `Porting/STATUS.md` for the live migration state and acceptance gates.

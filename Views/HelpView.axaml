@@ -25,7 +25,7 @@
       <TextBlock Text="ArduRover: http://ardupilot.org/rover" Foreground="#7FB3E0" />
       <TextBlock
         Margin="0,10,0,0"
-        Text="Libraries: Gmap.net, SharpKml, SharpZipLib, IronPython, KMLib, OpenTK, ZedGraph, alglib, DotSpatial, LibVLC, netDXF"
+        Text="Libraries: Mapsui, ScottPlot, SharpKml, SharpZipLib, IronPython, KMLib, SkiaSharp, alglib, ProjNET, LibVLC, netDXF"
         TextWrapping="Wrap"
         Foreground="#BBBBBB"
       />
