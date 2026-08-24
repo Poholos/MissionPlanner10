@@ -64,11 +64,14 @@ Updated: **2026-08-24**.
 - The frozen native inventory remains complete in `NATIVE_SURFACE.tsv`, while replaced WinForms
   sources are explicitly mapped to tested Avalonia artifacts and selected source files whose
   behavior is fully superseded have been removed. RESX translations remain preserved. The manifest
-  now exposes **3** `unported-blocker` rows, all belonging to the optional Dowding plugin. The old
-  WiX generator is explicitly mapped to the current WiX 5 packaging/version/CI implementation;
-  its private upload commands and certificate/DPInst custom actions are intentionally retired.
+  now exposes **0** `unported-blocker` rows. The old WiX generator is explicitly mapped to the
+  current WiX 5 packaging/version/CI implementation; its private upload commands and
+  certificate/DPInst custom actions are intentionally retired. The experimental Dowding project
+  was never selected by the upstream solution build; its general tracker, CoT and multi-vehicle map
+  workflows are ported while the dormant proprietary integration is classified in
+  `Reference/DOWDING_AUDIT.md` and queued for cleanup.
   Obsolete directories, standalone projects and other build-system remnants are intentionally
-  deferred to `cleanup/project-audit` after these functional blockers are closed.
+  deferred to `cleanup/project-audit` now that functional classification is complete.
 - Claude remains temporarily disabled by user instruction.
 
 ## GTU synchronization checkpoint
@@ -83,9 +86,9 @@ Updated: **2026-08-24**.
 
 ## Immediate next step
 
-Close the remaining 3 functional manifest blockers without mixing repository cleanup into this
-branch. Then require the GitHub run to perform a real default-path MSI install/uninstall, build/sign
-both `.app` archives on macOS, repeat Linux package smoke and complete CodeQL. Once functional and
+The frozen native surface now has no unclassified C# blockers. Require the GitHub run to perform a
+real default-path MSI install/uninstall, build/sign both `.app` archives on macOS, repeat Linux
+package smoke and complete CodeQL. Once functional and
 packaging gates are green, run the conservative unused-file/directory/build-system audit on the
 separate `cleanup/project-audit` branch.
 
