@@ -132,6 +132,39 @@ public class UpdaterTests {
     Assert.Equal(new byte[] { 0, 0 }, File.ReadAllBytes(Path.Combine(install, "app.dll")));
   }
 
+  [Theory]
+  [InlineData("../outside.dll")]
+  [InlineData("sub/../../outside.dll")]
+  [InlineData("/tmp/outside.dll")]
+  [InlineData("C:\\outside.dll")]
+  public void Manifest_paths_must_remain_below_the_update_roots(string path) {
+    var (_, pub) = NewKey();
+    var engine = new UpdateEngine(new HttpClient(new FakeHandler()), TempDir(), Base, pub, Rid);
+    var manifest = new UpdateEngine.Manifest(
+        "2026.7.0", null, [new UpdateEngine.ManifestFile(path, Sha([1]), 1)]);
+
+    Assert.Throws<InvalidDataException>(() => engine.Diff(manifest));
+    Assert.Throws<InvalidDataException>(() =>
+        engine.Apply(manifest.Files, TempDir()));
+  }
+
+  [Fact]
+  public async Task Per_file_download_rejects_bytes_beyond_the_signed_size() {
+    var (_, pub) = NewKey();
+    byte[] response = [1, 2, 3, 4];
+    var handler = new FakeHandler();
+    handler.Routes[$"{Base}/{Rid}/app.dll"] = response;
+    string staging = TempDir();
+    var engine = new UpdateEngine(new HttpClient(handler), TempDir(), Base, pub, Rid);
+    var changed = new[] {
+      new UpdateEngine.ManifestFile("app.dll", Sha(response), response.Length - 1),
+    };
+
+    await Assert.ThrowsAsync<InvalidDataException>(
+        () => engine.DownloadAsync(changed, staging));
+    Assert.False(File.Exists(Path.Combine(staging, "app.dll")));
+  }
+
   [Fact]
   public void Apply_rolls_back_when_a_staged_file_is_missing() {
     var (_, pub) = NewKey();
@@ -302,8 +335,27 @@ public class UpdaterTests {
 
     var engine = new UpdateEngine(new HttpClient(handler), TempDir(), Base, pub, Rid);
     var m = await engine.FetchManifestAsync();
+    string destination = Path.Combine(TempDir(), "update.zip");
     await Assert.ThrowsAsync<InvalidDataException>(
-        () => engine.DownloadBundleAsync(m!.Bundle!, Path.Combine(TempDir(), "update.zip")));
+        () => engine.DownloadBundleAsync(m!.Bundle!, destination));
+    Assert.False(File.Exists(destination));
+  }
+
+  [Fact]
+  public async Task Bundle_download_rejects_bytes_beyond_the_signed_size() {
+    var (_, pub) = NewKey();
+    byte[] response = [1, 2, 3, 4];
+    string packageUrl = "https://test.local/downloads/app.zip";
+    var handler = new FakeHandler();
+    handler.Routes[packageUrl] = response;
+    var engine = new UpdateEngine(new HttpClient(handler), TempDir(), Base, pub, Rid);
+    var bundle = new UpdateEngine.ManifestBundle(
+        packageUrl, Sha(response), response.Length - 1);
+    string destination = Path.Combine(TempDir(), "update.zip");
+
+    await Assert.ThrowsAsync<InvalidDataException>(
+        () => engine.DownloadBundleAsync(bundle, destination));
+    Assert.False(File.Exists(destination));
   }
 
   [Fact]

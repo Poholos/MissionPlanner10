@@ -447,8 +447,13 @@ public sealed class UpdateEngine {
 
   public List<ManifestFile> Diff(Manifest m) {
     var changed = new List<ManifestFile>();
+    var destinations = new HashSet<string>(PathComparer);
     foreach (var f in m.Files) {
-      string local = Path.Combine(InstallDir, f.Path);
+      ValidateExpectedSize(f.Size, f.Path);
+      string local = ResolveContainedPath(InstallDir, f.Path);
+      if (!destinations.Add(local)) {
+        throw new InvalidDataException($"Update manifest contains a duplicate path: {f.Path}");
+      }
       if (!File.Exists(local) ||
           !string.Equals(Sha256File(local), f.Sha256, StringComparison.OrdinalIgnoreCase)) {
         changed.Add(f);
@@ -459,37 +464,70 @@ public sealed class UpdateEngine {
 
   public async Task DownloadAsync(IReadOnlyList<ManifestFile> changed, string stagingDir,
       IProgress<double>? progress = null, CancellationToken ct = default) {
-    long total = changed.Sum(f => f.Size);
+    var destinations = new HashSet<string>(PathComparer);
+    var downloads = changed.Select(file => {
+      ValidateExpectedSize(file.Size, file.Path);
+      string relativePath = NormalizeManifestRelativePath(file.Path);
+      string destination = ResolveContainedPath(stagingDir, relativePath);
+      if (!destinations.Add(destination)) {
+        throw new InvalidDataException($"Update manifest contains a duplicate path: {file.Path}");
+      }
+      string escapedPath = string.Join('/', relativePath.Split('/').Select(Uri.EscapeDataString));
+      var url = new Uri($"{_baseUrl}/{Uri.EscapeDataString(_rid)}/{escapedPath}",
+          UriKind.Absolute);
+      if (url.Scheme != Uri.UriSchemeHttps) {
+        throw new SecurityException("Update files must use HTTPS.");
+      }
+      return (File: file, Destination: destination, Url: url);
+    }).ToArray();
+    long total = downloads.Aggregate(0L, (sum, item) => checked(sum + item.File.Size));
     long done = 0;
 
-    await Parallel.ForEachAsync(changed,
+    await Parallel.ForEachAsync(downloads,
         new ParallelOptions { MaxDegreeOfParallelism = 3, CancellationToken = ct },
-        async (f, c) => {
-          string url = $"{_baseUrl}/{_rid}/{f.Path.Replace('\\', '/')}";
-          string dest = Path.Combine(stagingDir, f.Path);
-          Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+        async (download, c) => {
+          Directory.CreateDirectory(Path.GetDirectoryName(download.Destination)!);
+          DeleteFileQuietly(download.Destination);
+          try {
+            using var resp = await _http.GetAsync(
+                download.Url, HttpCompletionOption.ResponseHeadersRead, c).ConfigureAwait(false);
+            resp.EnsureSuccessStatusCode();
+            ValidateDeclaredSize(
+                resp.Content.Headers.ContentLength, download.File.Size, download.File.Path);
+            await using var src = await resp.Content.ReadAsStreamAsync(c).ConfigureAwait(false);
+            await using var dst = File.Create(download.Destination);
 
-          using var resp = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, c)
-              .ConfigureAwait(false);
-          resp.EnsureSuccessStatusCode();
-          await using var src = await resp.Content.ReadAsStreamAsync(c).ConfigureAwait(false);
-          await using var dst = File.Create(dest);
-
-          var buffer = new byte[81920];
-          int n;
-          while ((n = await src.ReadAsync(buffer, c).ConfigureAwait(false)) > 0) {
-            await dst.WriteAsync(buffer.AsMemory(0, n), c).ConfigureAwait(false);
-            if (total > 0) {
-              long d = Interlocked.Add(ref done, n);
-              progress?.Report(Math.Clamp(d * 100.0 / total, 0, 100));
+            var buffer = new byte[81920];
+            long downloaded = 0;
+            int n;
+            while ((n = await src.ReadAsync(buffer, c).ConfigureAwait(false)) > 0) {
+              downloaded = checked(downloaded + n);
+              if (downloaded > download.File.Size) {
+                throw new InvalidDataException(
+                    $"Downloaded file exceeds its signed size: {download.File.Path}");
+              }
+              await dst.WriteAsync(buffer.AsMemory(0, n), c).ConfigureAwait(false);
+              if (total > 0) {
+                long d = Interlocked.Add(ref done, n);
+                progress?.Report(Math.Clamp(d * 100.0 / total, 0, 100));
+              }
             }
+            if (downloaded != download.File.Size) {
+              throw new InvalidDataException(
+                  $"Downloaded file size mismatch: {download.File.Path}");
+            }
+          } catch {
+            DeleteFileQuietly(download.Destination);
+            throw;
           }
         }).ConfigureAwait(false);
 
-    foreach (var f in changed) {
-      string dest = Path.Combine(stagingDir, f.Path);
-      if (!string.Equals(Sha256File(dest), f.Sha256, StringComparison.OrdinalIgnoreCase)) {
-        throw new InvalidDataException($"Downloaded file hash mismatch: {f.Path}");
+    foreach (var download in downloads) {
+      if (!string.Equals(Sha256File(download.Destination), download.File.Sha256,
+              StringComparison.OrdinalIgnoreCase)) {
+        DeleteFileQuietly(download.Destination);
+        throw new InvalidDataException(
+            $"Downloaded file hash mismatch: {download.File.Path}");
       }
     }
   }
@@ -500,47 +538,69 @@ public sealed class UpdateEngine {
         || bundleUri.Scheme != Uri.UriSchemeHttps) {
       throw new SecurityException("Update bundles must use HTTPS.");
     }
+    ValidateExpectedSize(bundle.Size, "update bundle");
     Directory.CreateDirectory(Path.GetDirectoryName(destZip)!);
-    using (var resp = await _http.GetAsync(bundleUri, HttpCompletionOption.ResponseHeadersRead, ct)
-        .ConfigureAwait(false)) {
-      resp.EnsureSuccessStatusCode();
-      long total = resp.Content.Headers.ContentLength ?? bundle.Size;
-      await using var src = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-      await using var dst = File.Create(destZip);
-      var buffer = new byte[81920];
-      long done = 0;
-      int n;
-      while ((n = await src.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0) {
-        await dst.WriteAsync(buffer.AsMemory(0, n), ct).ConfigureAwait(false);
-        done += n;
-        if (total > 0) {
-          progress?.Report(Math.Clamp(done * 100.0 / total, 0, 100));
+    DeleteFileQuietly(destZip);
+    try {
+      using (var resp = await _http.GetAsync(
+          bundleUri, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false)) {
+        resp.EnsureSuccessStatusCode();
+        ValidateDeclaredSize(resp.Content.Headers.ContentLength, bundle.Size, "update bundle");
+        await using var src = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        await using var dst = File.Create(destZip);
+        var buffer = new byte[81920];
+        long done = 0;
+        int n;
+        while ((n = await src.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0) {
+          done = checked(done + n);
+          if (done > bundle.Size) {
+            throw new InvalidDataException("Downloaded update package exceeds its signed size.");
+          }
+          await dst.WriteAsync(buffer.AsMemory(0, n), ct).ConfigureAwait(false);
+          if (bundle.Size > 0) {
+            progress?.Report(Math.Clamp(done * 100.0 / bundle.Size, 0, 100));
+          }
+        }
+        if (done != bundle.Size) {
+          throw new InvalidDataException("Downloaded update package size mismatch.");
         }
       }
-    }
-    if (!string.Equals(Sha256File(destZip), bundle.Sha256, StringComparison.OrdinalIgnoreCase)) {
-      throw new InvalidDataException("Downloaded update package hash mismatch.");
+      if (!string.Equals(Sha256File(destZip), bundle.Sha256, StringComparison.OrdinalIgnoreCase)) {
+        throw new InvalidDataException("Downloaded update package hash mismatch.");
+      }
+    } catch {
+      DeleteFileQuietly(destZip);
+      throw;
     }
   }
 
   public void Apply(IReadOnlyList<ManifestFile> changed, string stagingDir) {
+    var livePaths = new HashSet<string>(PathComparer);
+    var stagedPaths = new HashSet<string>(PathComparer);
+    var files = changed.Select(file => {
+      ValidateExpectedSize(file.Size, file.Path);
+      string live = ResolveContainedPath(InstallDir, file.Path);
+      string staged = ResolveContainedPath(stagingDir, file.Path);
+      if (!livePaths.Add(live) || !stagedPaths.Add(staged)) {
+        throw new InvalidDataException($"Update manifest contains a duplicate path: {file.Path}");
+      }
+      return (File: file, Live: live, Staged: staged);
+    }).ToArray();
     var moved = new List<(string live, string old)>();
     var placed = new List<string>();
     try {
-      foreach (var f in changed) {
-        string live = Path.Combine(InstallDir, f.Path);
-        string staged = Path.Combine(stagingDir, f.Path);
-        Directory.CreateDirectory(Path.GetDirectoryName(live)!);
-        string old = live + ".old";
+      foreach (var file in files) {
+        Directory.CreateDirectory(Path.GetDirectoryName(file.Live)!);
+        string old = file.Live + ".old";
         if (File.Exists(old)) {
           File.Delete(old);
         }
-        if (File.Exists(live)) {
-          File.Move(live, old);
-          moved.Add((live, old));
+        if (File.Exists(file.Live)) {
+          File.Move(file.Live, old);
+          moved.Add((file.Live, old));
         }
-        File.Move(staged, live);
-        placed.Add(live);
+        File.Move(file.Staged, file.Live);
+        placed.Add(file.Live);
       }
     } catch {
       foreach (string live in placed) {
@@ -614,6 +674,74 @@ public sealed class UpdateEngine {
 
   private static bool IsLegacyCalVer((int Major, int Minor, int Patch) version) =>
       version.Major is >= 2000 and <= 2999 && version.Minor is >= 1 and <= 12;
+
+  private static StringComparer PathComparer => OperatingSystem.IsWindows()
+      ? StringComparer.OrdinalIgnoreCase
+      : StringComparer.Ordinal;
+
+  private static StringComparison PathComparison => OperatingSystem.IsWindows()
+      ? StringComparison.OrdinalIgnoreCase
+      : StringComparison.Ordinal;
+
+  private static string ResolveContainedPath(string root, string manifestPath) {
+    string normalized = NormalizeManifestRelativePath(manifestPath);
+    try {
+      string fullRoot = Path.GetFullPath(root);
+      string relative = normalized.Replace('/', Path.DirectorySeparatorChar);
+      string fullPath = Path.GetFullPath(Path.Combine(fullRoot, relative));
+      string prefix = Path.EndsInDirectorySeparator(fullRoot)
+          ? fullRoot
+          : fullRoot + Path.DirectorySeparatorChar;
+      if (!fullPath.StartsWith(prefix, PathComparison)) {
+        throw new InvalidDataException(
+            $"Update path escapes its destination directory: {manifestPath}");
+      }
+      return fullPath;
+    } catch (InvalidDataException) {
+      throw;
+    } catch (Exception ex) when (ex is ArgumentException or NotSupportedException
+                                 or PathTooLongException) {
+      throw new InvalidDataException($"Invalid update path: {manifestPath}", ex);
+    }
+  }
+
+  private static string NormalizeManifestRelativePath(string path) {
+    if (string.IsNullOrWhiteSpace(path)) {
+      throw new InvalidDataException("Update manifest contains an empty path.");
+    }
+    string normalized = path.Replace('\\', '/');
+    if (normalized.StartsWith('/')
+        || (normalized.Length >= 2 && char.IsAsciiLetter(normalized[0])
+            && normalized[1] == ':')) {
+      throw new InvalidDataException($"Update path must be relative: {path}");
+    }
+    string[] segments = normalized.Split('/');
+    if (segments.Any(segment => segment.Length == 0 || segment is "." or ".."
+                                || segment.Contains(':') || segment.Contains('\0'))) {
+      throw new InvalidDataException($"Update path is not a safe relative path: {path}");
+    }
+    return string.Join('/', segments);
+  }
+
+  private static void ValidateExpectedSize(long expected, string item) {
+    if (expected < 0) {
+      throw new InvalidDataException($"Update item has a negative size: {item}");
+    }
+  }
+
+  private static void ValidateDeclaredSize(long? declared, long expected, string item) {
+    if (declared.HasValue && declared.Value != expected) {
+      throw new InvalidDataException($"Downloaded item size differs from its signed size: {item}");
+    }
+  }
+
+  private static void DeleteFileQuietly(string path) {
+    try {
+      File.Delete(path);
+    } catch {
+      // Preserve the original download/validation failure.
+    }
+  }
 
   private static string Sha256File(string path) {
     using var stream = File.OpenRead(path);
