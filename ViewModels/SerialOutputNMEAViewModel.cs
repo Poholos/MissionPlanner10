@@ -3,20 +3,20 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
 using System.Net;
-using System.Net.Sockets;
 using System.Threading;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MissionPlanner;
 using MissionPlanner.Comms;
+using MissionPlanner.Services;
 
 namespace MissionPlanner.ViewModels;
 
 public partial class SerialOutputNMEAViewModel : ViewModelBase, IDisposable {
   private readonly MAVLinkInterface _comPort = AppState.comPort;
 
-  private TcpListener? _listener;
+  private TcpSerialHostListener? _tcpHost;
   private ICommsSerial? _stream;
   private Thread? _thread;
   private volatile bool _run;
@@ -70,7 +70,7 @@ public partial class SerialOutputNMEAViewModel : ViewModelBase, IDisposable {
 
   [RelayCommand]
   private void ToggleConnect() {
-    if (_run || _listener != null) {
+    if (_run || _tcpHost != null) {
       Stop();
       return;
     }
@@ -85,9 +85,8 @@ public partial class SerialOutputNMEAViewModel : ViewModelBase, IDisposable {
         case "TCP Host - 14551": {
             var tcp = new TcpSerial();
             _stream = tcp;
-            _listener = new TcpListener(IPAddress.Any, 14551);
-            _listener.Start(0);
-            _listener.BeginAcceptTcpClient(OnAcceptTcpClient, (_listener, tcp));
+            _tcpHost = new TcpSerialHostListener(
+                IPAddress.Any, 14551, tcp, OnTcpClientConnected);
             break;
           }
 
@@ -118,16 +117,12 @@ public partial class SerialOutputNMEAViewModel : ViewModelBase, IDisposable {
     OnPropertyChanged(nameof(IsRunning));
   }
 
-  private void OnAcceptTcpClient(IAsyncResult ar) {
-    var (listener, tcp) = ((TcpListener, TcpSerial))ar.AsyncState!;
-    try {
-      var client = listener.EndAcceptTcpClient(ar);
-      tcp.client = client;
-      listener.BeginAcceptTcpClient(OnAcceptTcpClient, (listener, tcp));
-    } catch {
-
-    }
-  }
+  private void OnTcpClientConnected(TcpSerialHostListener host, string remote) =>
+      Dispatcher.UIThread.Post(() => {
+        if (ReferenceEquals(_tcpHost, host)) {
+          Status = $"Emitting NMEA to TCP client {remote}.";
+        }
+      });
 
   private void MainLoop() {
     while (_run) {
@@ -219,11 +214,9 @@ public partial class SerialOutputNMEAViewModel : ViewModelBase, IDisposable {
   private void Stop() {
     _run = false;
     try {
-      _listener?.Stop();
+      Interlocked.Exchange(ref _tcpHost, null)?.Dispose();
     } catch {
     }
-
-    _listener = null;
 
     try {
       _thread?.Join(500);
@@ -232,14 +225,11 @@ public partial class SerialOutputNMEAViewModel : ViewModelBase, IDisposable {
 
     _thread = null;
 
+    ICommsSerial? stream = Interlocked.Exchange(ref _stream, null);
     try {
-      if (_stream != null && _stream.IsOpen) {
-        _stream.Close();
-      }
+      stream?.Dispose();
     } catch {
     }
-
-    _stream = null;
     ConnectButtonText = "Connect";
     Status = "Stopped.";
     OnPropertyChanged(nameof(IsRunning));

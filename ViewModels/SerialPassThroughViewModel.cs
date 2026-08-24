@@ -3,12 +3,13 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.Sockets;
+using System.Threading;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MissionPlanner;
 using MissionPlanner.Comms;
+using MissionPlanner.Services;
 
 namespace MissionPlanner.ViewModels;
 
@@ -16,7 +17,7 @@ public partial class SerialPassThroughViewModel : ViewModelBase, IDisposable {
   private readonly MAVLinkInterface _comPort = AppState.comPort;
   private readonly DispatcherTimer _poll;
 
-  private TcpListener? _listener;
+  private TcpSerialHostListener? _tcpHost;
   private CountingCommsSerial? _stream;
 
   public SerialPassThroughViewModel() {
@@ -58,7 +59,7 @@ public partial class SerialPassThroughViewModel : ViewModelBase, IDisposable {
   private long _rxBytes;
 
   public bool IsRunning =>
-      _stream != null && _stream.IsOpen || _listener != null;
+      _stream != null && _stream.IsOpen || _tcpHost != null;
 
   partial void OnAllowWriteBackChanged(bool value) {
     _comPort.MirrorStreamWrite = value;
@@ -103,9 +104,8 @@ public partial class SerialPassThroughViewModel : ViewModelBase, IDisposable {
             _stream = new CountingCommsSerial(tcp);
             _comPort.MirrorStream = _stream;
             _comPort.MirrorStreamWrite = AllowWriteBack;
-            _listener = new TcpListener(IPAddress.Any, 14550);
-            _listener.Start(0);
-            _listener.BeginAcceptTcpClient(OnAcceptTcpClient, (_listener, tcp));
+            _tcpHost = new TcpSerialHostListener(
+                IPAddress.Any, 14550, tcp, OnTcpClientConnected);
             ConnectButtonText = "Stop";
             Status = "Listening on TCP 14550 — waiting for a client…";
             return;
@@ -137,37 +137,27 @@ public partial class SerialPassThroughViewModel : ViewModelBase, IDisposable {
     }
   }
 
-  private void OnAcceptTcpClient(IAsyncResult ar) {
-    var (listener, tcp) = ((TcpListener, TcpSerial))ar.AsyncState!;
-    try {
-      var client = listener.EndAcceptTcpClient(ar);
-      tcp.client = client;
-      Dispatcher.UIThread.Post(() => Status = "Mirroring on TCP 14550 (client connected).");
-      listener.BeginAcceptTcpClient(OnAcceptTcpClient, (listener, tcp));
-    } catch {
-
-    }
-  }
+  private void OnTcpClientConnected(TcpSerialHostListener host, string remote) =>
+      Dispatcher.UIThread.Post(() => {
+        if (ReferenceEquals(_tcpHost, host)) {
+          Status = $"Mirroring on TCP 14550 (client {remote} connected).";
+        }
+      });
 
   private void Stop() {
     try {
-      _listener?.Stop();
+      Interlocked.Exchange(ref _tcpHost, null)?.Dispose();
     } catch {
     }
 
-    _listener = null;
-
+    CountingCommsSerial? stream = Interlocked.Exchange(ref _stream, null);
     try {
-      if (_stream != null) {
-        _comPort.Mirrors.RemoveAll(m => ReferenceEquals(m.MirrorStream, _stream));
-        if (_stream.IsOpen) {
-          _stream.Close();
-        }
+      if (stream != null) {
+        _comPort.Mirrors.RemoveAll(m => ReferenceEquals(m.MirrorStream, stream));
+        stream.Dispose();
       }
     } catch {
     }
-
-    _stream = null;
     ConnectButtonText = "Start";
     Status = "Stopped.";
   }
