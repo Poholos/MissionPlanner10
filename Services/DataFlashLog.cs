@@ -13,6 +13,15 @@ namespace MissionPlanner.Services;
 
 public sealed record DataFlashParameter(string Name, string Value, string DefaultValue);
 
+public sealed record DataFlashParameterChange(
+    double TimeSeconds, string Name, string Value, string DefaultValue) {
+  public string TimeText => TimeSeconds.ToString("0.000", CultureInfo.InvariantCulture);
+}
+
+public sealed record DataFlashParameterHistory(
+    IReadOnlyList<DataFlashParameterChange> Changes,
+    IReadOnlyList<DataFlashParameter> FinalValues);
+
 public sealed record DataFlashMessage(double TimeSeconds, string Message) {
   public string TimeText => TimeSeconds.ToString("0.000", CultureInfo.InvariantCulture);
 }
@@ -91,6 +100,11 @@ public class DataFlashLog {
   }
 
   public static IReadOnlyList<DataFlashParameter> ReadParameters(string path) {
+    return ReadParameterHistory(path).FinalValues;
+  }
+
+  public static DataFlashParameterHistory ReadParameterHistory(string path) {
+    var changes = new List<DataFlashParameterChange>();
     var parameters = new Dictionary<string, DataFlashParameter>(StringComparer.OrdinalIgnoreCase);
     using var log = new DFLogBuffer(path);
     foreach (var item in log.GetEnumeratorType("PARM")) {
@@ -99,10 +113,15 @@ public class DataFlashLog {
       if (name.Length == 0 || value.Length == 0) {
         continue;
       }
-      parameters[name] = new DataFlashParameter(
-          name, value, item["Default"]?.Trim() ?? "");
+      string defaultValue = item["Default"]?.Trim() ?? "";
+      changes.Add(new DataFlashParameterChange(
+          item.timems / 1000.0, name, value, defaultValue));
+      parameters[name] = new DataFlashParameter(name, value, defaultValue);
     }
-    return parameters.Values.OrderBy(value => value.Name, StringComparer.OrdinalIgnoreCase).ToList();
+    return new DataFlashParameterHistory(
+        changes,
+        parameters.Values.OrderBy(
+            value => value.Name, StringComparer.OrdinalIgnoreCase).ToList());
   }
 
   public static IReadOnlyList<DataFlashMessage> ReadMessages(string path) {
