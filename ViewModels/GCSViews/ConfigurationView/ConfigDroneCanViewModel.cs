@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
@@ -761,6 +760,9 @@ public partial class ConfigDroneCanViewModel : ViewModelBase, IDisposable {
           Min = Convert.ToString(p.min_value.GetValue(), CultureInfo.InvariantCulture) ?? "",
           Max = Convert.ToString(p.max_value.GetValue(), CultureInfo.InvariantCulture) ?? "",
           Default = Convert.ToString(p.default_value.GetValue(), CultureInfo.InvariantCulture) ?? "",
+          IsString = p.value.uavcan_protocol_param_Value_type ==
+              DroneCAN.DroneCAN.uavcan_protocol_param_Value.uavcan_protocol_param_Value_type_t
+                  .UAVCAN_PROTOCOL_PARAM_VALUE_TYPE_STRING_VALUE,
           IsFav = favs.Contains(name),
         });
       }
@@ -810,10 +812,10 @@ public partial class ConfigDroneCanViewModel : ViewModelBase, IDisposable {
             return (Stale: true, Failed: failed, Written: written);
           }
           try {
-            object value = double.TryParse(item.Value, NumberStyles.Any,
-                    CultureInfo.InvariantCulture, out var number)
-                ? number
-                : item.Value;
+            if (!TryConvertParameterValue(item.Parameter, item.Value, out object value)) {
+              failed++;
+              continue;
+            }
             if (!operation.Can.SetParameter(
                     operation.NodeId, item.Parameter.Name, value)) {
               failed++;
@@ -894,9 +896,9 @@ public partial class ConfigDroneCanViewModel : ViewModelBase, IDisposable {
       return;
     }
 
-    Dictionary<string, double> fileParams;
+    Dictionary<string, string> fileParams;
     try {
-      fileParams = ParamFile.loadParamFile(path);
+      fileParams = ParamFile.LoadTextParamFile(path);
     } catch (Exception ex) {
       NodeStatus = "Parameter import failed: " + ex.Message;
       return;
@@ -907,14 +909,21 @@ public partial class ConfigDroneCanViewModel : ViewModelBase, IDisposable {
     }
 
     int matched = 0;
+    int invalid = 0;
     foreach (var parameter in _allNodeParams) {
       if (fileParams.TryGetValue(parameter.Name, out var value)) {
-        parameter.Value = value.ToString(CultureInfo.InvariantCulture);
+        if (!TryConvertParameterValue(parameter, value, out _)) {
+          invalid++;
+          continue;
+        }
+        parameter.Value = value;
         matched++;
       }
     }
     ApplyParameterFilter();
-    NodeStatus = $"Imported {matched} matching value(s); review them, then press Write.";
+    NodeStatus = $"Imported {matched} matching value(s)"
+        + (invalid > 0 ? $"; ignored {invalid} invalid numeric value(s)" : "")
+        + "; review them, then press Write.";
   }
 
   [RelayCommand]
@@ -954,21 +963,15 @@ public partial class ConfigDroneCanViewModel : ViewModelBase, IDisposable {
       return;
     }
 
-    var table = new Hashtable();
-    foreach (var parameter in _allNodeParams) {
-      if (double.TryParse(parameter.Value, NumberStyles.Any,
-              CultureInfo.InvariantCulture, out var value)) {
-        table[parameter.Name] = value;
-      }
-    }
-
     try {
       if (!IsSelectionCurrent(selection)) {
         NodeStatus = TargetChangedMessage;
         return;
       }
-      ParamFile.SaveParamFile(path, table);
-      NodeStatus = $"Exported {table.Count} numeric parameter(s) to {Path.GetFileName(path)}.";
+      ParamFile.SaveTextParamFile(path,
+          _allNodeParams.Select(parameter =>
+              new KeyValuePair<string, string>(parameter.Name, parameter.Value)));
+      NodeStatus = $"Exported {_allNodeParams.Count} parameter(s) to {Path.GetFileName(path)}.";
     } catch (Exception ex) {
       NodeStatus = "Parameter export failed: " + ex.Message;
     }
@@ -979,6 +982,21 @@ public partial class ConfigDroneCanViewModel : ViewModelBase, IDisposable {
         ? b.IsFav.CompareTo(a.IsFav)
         : string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
     ApplyParameterFilter();
+  }
+
+  internal static bool TryConvertParameterValue(
+      DroneCanParam parameter, string text, out object value) {
+    if (parameter.IsString) {
+      value = text;
+      return true;
+    }
+    if (double.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture,
+            out double number)) {
+      value = number;
+      return true;
+    }
+    value = 0d;
+    return false;
   }
 
   private void ApplyParameterFilter() {
@@ -1746,6 +1764,8 @@ public partial class DroneCanParam : ObservableObject {
 
   [ObservableProperty]
   private bool _isFav;
+
+  public bool IsString { get; init; }
 
   public string OriginalValue { get; set; } = "";
 
