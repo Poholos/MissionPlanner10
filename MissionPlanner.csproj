@@ -73,8 +73,10 @@
     <Compile Include="Grid/GridData.cs" />
     <Compile Include="Services/CubeServiceBulletin.cs" />
     <Compile Include="Services/DataFlashLogAnonymizer.cs" />
+    <Compile Include="Services/OsdTuningSlotService.cs" />
     <Compile Include="Views/DroneCanFieldGraphWindow.cs" />
     <Compile Include="Views/DroneCanSubscriberWindow.cs" />
+    <Compile Include="Views/OsdTuningSlotsWindow.cs" />
   </ItemGroup>
 
   <ItemGroup>

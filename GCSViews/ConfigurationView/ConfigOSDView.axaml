@@ -20,6 +20,7 @@
       <ComboBox MinWidth="80" ItemsSource="{Binding Screens}" SelectedItem="{Binding SelectedScreen}" />
       <Button Content="Enable All" Command="{Binding EnableAllCommand}" />
       <Button Content="Disable All" Command="{Binding DisableAllCommand}" />
+      <Button Content="OSD 5/6 Tuning Slots…" Click="OpenTuningSlots" />
       <TextBlock Text="{Binding Status}" Foreground="{DynamicResource MpAccentBrush}" VerticalAlignment="Center" />
     </StackPanel>
 

@@ -199,6 +199,7 @@ declare -A native_replacement_by_logical_path=(
   ["Utilities/GStreamerUI"]="Controls/VideoControl.cs;Services/VideoSourceResolver.cs;Services/MavlinkVideoStreams.cs"
   ["Utilities/LangUtility"]="Services/ResxTranslationService.cs;Views/TranslationEditorView.axaml;ViewModels/TranslationEditorViewModel.cs"
   ["Utilities/LogAnalyzer"]="Services/LogAnalyzer.cs;Views/LogBrowseView.axaml;ViewModels/FlightDataViewModel.cs"
+  ["Utilities/OsdTuningSlotProvider"]="Services/OsdTuningSlotService.cs;Views/OsdTuningSlotsWindow.cs;GCSViews/ConfigurationView/ConfigOSDView.axaml"
   ["Utilities/POI"]="Services/PoiStore.cs;Controls/MapView.cs;ViewModels/FlightPlannerViewModel.cs;ViewModels/FlightDataViewModel.cs"
   ["Utilities/SSHTerminal"]="Services/SshTerminalSession.cs;GCSViews/ConfigurationView/ConfigTerminalView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigTerminalViewModel.cs"
   ["Utilities/Speech"]="Services/Speech.cs;Services/SpeechAnnouncer.cs"
