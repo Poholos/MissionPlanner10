@@ -345,7 +345,7 @@ public class FlightPlannerMap : MapControl {
       var w = _wps[i];
       var (x, y) = SphericalMercator.FromLonLat(w.Lng, w.Lat);
       var pt = new MPoint(x, y);
-      bool routeItem = fence || rally || MissionRoute.IsNavigation(w.Cmd);
+      bool routeItem = fence || rally || MissionRoute.IsFlightPath(w.Cmd);
       if (routeItem) {
         routePoints.Add(pt);
         routeWaypoints.Add(w);

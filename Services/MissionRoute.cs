@@ -9,4 +9,10 @@ internal static class MissionRoute {
             && command != LegacyNavigationRoi)
            || value == MAVLink.MAV_CMD.DO_LAND_START;
   }
+
+  // DO_LAND_START carries a location used by the autopilot to choose a landing sequence, but the
+  // vehicle never flies to that location. Keep treating it as a positioned mission item so its
+  // marker remains visible, while excluding it from routes, distances and corridor prefetches.
+  internal static bool IsFlightPath(ushort command) =>
+      IsNavigation(command) && command != (ushort)MAVLink.MAV_CMD.DO_LAND_START;
 }

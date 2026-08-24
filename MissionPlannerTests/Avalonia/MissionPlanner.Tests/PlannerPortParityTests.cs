@@ -583,6 +583,9 @@ public class PlannerPortParityTests {
   public void Planner_route_excludes_roi_and_radius_display_units_convert_to_metres() {
     Assert.True(MissionRoute.IsNavigation((ushort)MAVLink.MAV_CMD.WAYPOINT));
     Assert.True(MissionRoute.IsNavigation((ushort)MAVLink.MAV_CMD.SPLINE_WAYPOINT));
+    Assert.True(MissionRoute.IsNavigation((ushort)MAVLink.MAV_CMD.DO_LAND_START));
+    Assert.False(MissionRoute.IsFlightPath((ushort)MAVLink.MAV_CMD.DO_LAND_START));
+    Assert.True(MissionRoute.IsFlightPath((ushort)MAVLink.MAV_CMD.WAYPOINT));
     Assert.False(MissionRoute.IsNavigation(80)); // legacy MAV_CMD_NAV_ROI
     Assert.False(MissionRoute.IsNavigation(201)); // MAV_CMD_DO_SET_ROI
     Assert.Equal(100, FlightPlannerMap.RadiusInMeters(328.084, 3.28084), 5);

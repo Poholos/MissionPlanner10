@@ -2892,7 +2892,7 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
 
     // Preserve the port's earlier mission-outline workflow as a compatibility fallback,
     // while matching upstream's drawn-polygon workflow whenever a polygon is available.
-    return Waypoints.Where(row => Services.MissionRoute.IsNavigation(row.Command)
+    return Waypoints.Where(row => Services.MissionRoute.IsFlightPath(row.Command)
                                   && !(row.Lat == 0 && row.Lng == 0))
         .Select(row => new PointLatLngAlt(row.Lat, row.Lng, altitude))
         .ToList();
@@ -3012,7 +3012,7 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
       double total = 0, prev = 0;
       bool first = true;
       foreach (var w in Waypoints) {
-        if ((MissionType == "Mission" && !Services.MissionRoute.IsNavigation(w.Command))
+        if ((MissionType == "Mission" && !Services.MissionRoute.IsFlightPath(w.Command))
             || (w.Lat == 0 && w.Lng == 0)) {
           w.Grad = w.Angle = w.Dist = w.Az = "";
           continue;

@@ -913,7 +913,7 @@ public partial class FlightPlannerView : UserControl {
     IReadOnlyList<BruTile.TileInfo> tiles = pathOnly
         ? Services.MapTileSourceFactory.PathTiles(
             Vm.Waypoints
-                .Where(row => Services.MissionRoute.IsNavigation(row.Command)
+                .Where(row => Services.MissionRoute.IsFlightPath(row.Command)
                               && (row.Lat != 0 || row.Lng != 0))
                 .Select(row => (row.Lat, row.Lng)).ToList(), minimum, maximum)
         : Services.MapTileSourceFactory.AreaTiles(Map.VisibleTileExtent, minimum, maximum);
