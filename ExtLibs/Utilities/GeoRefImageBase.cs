@@ -11,16 +11,16 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Serialization;
-using com.drew.imaging.jpg;
-using com.drew.imaging.tiff;
-using com.drew.metadata;
 using ExifLibrary;
 using log4net;
+using MetadataExtractor;
+using MetadataExtractor.Formats.Exif;
 using MissionPlanner.Comms;
 using MissionPlanner.Utilities;
 using SharpKml.Base;
 using SharpKml.Dom;
 using Document = SharpKml.Dom.Document;
+using Directory = System.IO.Directory;
 
 namespace MissionPlanner.GeoRef
 {
@@ -62,52 +62,30 @@ namespace MissionPlanner.GeoRef
 
             try
             {
-                Metadata lcMetadata = null;
                 try
                 {
-                    FileInfo lcImgFile = new FileInfo(fn);
-                    // Loading all meta data
-                    if (fn.ToLower().EndsWith(".jpg"))
+                    var directories = MetadataExtractor.ImageMetadataReader.ReadMetadata(fn);
+                    foreach (var directory in directories.OfType<ExifSubIfdDirectory>())
                     {
-                        lcMetadata = JpegMetadataReader.ReadMetadata(lcImgFile);
-                    }
-                    else if (fn.ToLower().EndsWith(".tif"))
-                    {
-                        lcMetadata = TiffMetadataReader.ReadMetadata(lcImgFile);
+                        if (directory.TryGetDateTime(
+                                ExifDirectoryBase.TagDateTimeOriginal, out dtaken)
+                            || directory.TryGetDateTime(
+                                ExifDirectoryBase.TagDateTimeDigitized, out dtaken))
+                        {
+                            filedatecache[fn] = dtaken;
+                            break;
+                        }
                     }
                 }
-                catch (JpegProcessingException e)
+                catch (MetadataExtractor.ImageProcessingException e)
                 {
                     log.InfoFormat(e.Message);
                     return dtaken;
                 }
-                catch (TiffProcessingException e)
+                catch (IOException e)
                 {
                     log.InfoFormat(e.Message);
                     return dtaken;
-                }
-
-                foreach (AbstractDirectory lcDirectory in lcMetadata)
-                {
-                    if (lcDirectory.ContainsTag(0x9003))
-                    {
-                        dtaken = lcDirectory.GetDate(0x9003);
-                        log.InfoFormat("does " + lcDirectory.GetTagName(0x9003) + " " + dtaken);
-
-                        filedatecache[fn] = dtaken;
-
-                        break;
-                    }
-
-                    if (lcDirectory.ContainsTag(0x9004))
-                    {
-                        dtaken = lcDirectory.GetDate(0x9004);
-                        log.InfoFormat("does " + lcDirectory.GetTagName(0x9004) + " " + dtaken);
-
-                        filedatecache[fn] = dtaken;
-
-                        break;
-                    }
                 }
 
                 ////// old method, works, just slow

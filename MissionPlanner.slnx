@@ -17,7 +17,6 @@
     <Project Path="ExtLibs/KMLib/KMLib.csproj" />
     <Project Path="ExtLibs/LibVLC.NET/LibVLC.NET.csproj" />
     <Project Path="ExtLibs/Mavlink/MAVLink.csproj" />
-    <Project Path="ExtLibs/MetaDataExtractorCSharp240d/MetaDataExtractor.csproj" />
     <Project Path="ExtLibs/MissionPlanner.Drawing/MissionPlanner.Drawing.csproj" />
     <Project Path="ExtLibs/netDxf/netDxf.csproj" />
     <Project Path="ExtLibs/ProjNet/ProjNET.csproj" />

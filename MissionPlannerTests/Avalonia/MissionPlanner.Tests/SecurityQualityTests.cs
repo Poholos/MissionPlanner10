@@ -1,10 +1,34 @@
 using System.Text;
+using System.Reflection;
+using System.Security.Cryptography;
 using ICSharpCode.SharpZipLib.Zip;
 using MissionPlanner.Utilities;
 
 namespace MissionPlanner.Tests;
 
 public class SecurityQualityTests {
+  [Theory]
+  [InlineData(16, "9D7A33E35E0C9D71B336349EC3D3E0C60E800D7475D237305C5AECB938D22627C029111085A9C56B86706F374C33B56EF5868AC390")]
+  [InlineData(32, "48854E53DEF92215AA2E8EB822E7EDB674E86911A336530E4CB3DDCD8DD7356FF066FA6EBB87AF797B2B17CDEEF937E52290A1AB61")]
+  public void WinZipAes_transform_keeps_the_reference_ciphertext(
+      int blockSize, string expectedCiphertext) {
+    Type transformType = typeof(ZipFile).Assembly.GetType(
+        "ICSharpCode.SharpZipLib.Encryption.ZipAESTransform", throwOnError: true)!;
+    byte[] salt = Enumerable.Range(1, blockSize / 2).Select(value => (byte)value).ToArray();
+    object instance = Activator.CreateInstance(
+        transformType,
+        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+        binder: null,
+        args: ["reference-password", salt, blockSize, true],
+        culture: null)!;
+    using var transform = Assert.IsAssignableFrom<ICryptoTransform>(instance);
+    byte[] input = Enumerable.Range(0, 53).Select(value => (byte)(value * 3 + 1)).ToArray();
+    byte[] output = new byte[input.Length];
+
+    Assert.Equal(input.Length, transform.TransformBlock(input, 0, input.Length, output, 0));
+    Assert.Equal(expectedCiphertext, Convert.ToHexString(output));
+  }
+
   [Theory]
   [InlineData(128)]
   [InlineData(256)]
