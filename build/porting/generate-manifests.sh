@@ -208,6 +208,17 @@ declare -A native_replacement_by_logical_path=(
   ["Utilities/Win32DeviceMgnt"]="ViewModels/Setup/InstallFirmwareViewModel.cs;ViewModels/GCSViews/ConfigurationView/ConfigFirmwareLegacyViewModel.cs"
   ["Utilities/XMLColor"]="Services/ThemeService.cs;Views/ThemeEditorWindow.cs"
   ["L10N"]="Services/LocalizationService.cs;Services/ResxTranslationService.cs"
+  ["ResEdit"]="Views/TranslationEditorWindow.axaml;Views/TranslationEditorView.axaml;ViewModels/TranslationEditorViewModel.cs;Services/ResxTranslationService.cs"
+  ["Warnings/WarningControl"]="GCSViews/ConfigurationView/WarningManagerView.axaml;ViewModels/GCSViews/ConfigurationView/WarningManagerViewModel.cs"
+  ["Warnings/WarningsManager"]="GCSViews/ConfigurationView/WarningManagerView.axaml;ViewModels/GCSViews/ConfigurationView/WarningManagerViewModel.cs;ExtLibs/Utilities/Warnings/WarningEngine.cs"
+  ["Updater/Program"]="Services/Updater.cs;Services/UpdateSignatureKey.cs"
+  ["Updater/Properties/AssemblyInfo"]="MissionPlanner.csproj;Services/AppVersion.cs"
+  ["Updater/Properties/Resources"]="Services/Updater.cs"
+  ["resedit/Form1"]="Views/TranslationEditorWindow.axaml;Views/TranslationEditorView.axaml;ViewModels/TranslationEditorViewModel.cs;Services/ResxTranslationService.cs"
+  ["resedit/Program"]="Views/TranslationEditorWindow.axaml;ViewModels/TranslationEditorViewModel.cs"
+  ["resedit/Properties/AssemblyInfo"]="MissionPlanner.csproj"
+  ["resedit/Properties/Resources"]="Services/ResxTranslationService.cs"
+  ["resedit/Properties/Settings"]="ViewModels/TranslationEditorViewModel.cs"
 )
 
 declare -A native_removal_by_logical_path=(
@@ -223,6 +234,8 @@ declare -A native_removal_by_logical_path=(
   ["Utilities/ExtensionsMP"]="These are WinForms/Xamarin host, binding and DataGridView glue extensions; native Avalonia windows, bindings and lifecycle handling replace them directly."
   ["Utilities/ImageMatch"]="This unreferenced Accord imaging experiment uses hard-coded developer Windows paths and is not a shipped Mission Planner workflow."
   ["Utilities/NativeLibrary"]="The unused hand-written kernel32/libdl loader is superseded by System.Runtime.InteropServices.NativeLibrary in the portable native-library bootstrap services."
+  ["GlobalSuppressions"]="The pinned file contains comments only and defines no suppression attributes. The Avalonia application builds with analyzers enabled and warnings treated as errors."
+  ["Properties/Resources"]="The generated WinForms resource accessor is not compiled by the Avalonia application; the neutral and localized RESX files remain preserved for the translation workflow."
 )
 
 find_candidates() {
