@@ -181,6 +181,8 @@ namespace MissionPlanner
             get => connected && (sensors_health.prearm || !sensors_enabled.prearm);
         }
 
+        private readonly PrearmFailureTracker _prearmFailureTracker = new PrearmFailureTracker();
+
         private bool useLocation;
 
         /// <summary>
@@ -1274,10 +1276,10 @@ namespace MissionPlanner
                 if (value == null || value == "")
                     return;
                 // check against get
+                _messageHighTime = DateTime.Now;
                 if (messageHigh == value)
                     return;
                 log.Info("messageHigh " + value);
-                _messageHighTime = DateTime.Now;
                 _messagehigh = value;
                 messageHighSeverity = MAVLink.MAV_SEVERITY.EMERGENCY;
             }
@@ -2967,15 +2969,16 @@ namespace MissionPlanner
 
                             safetyactive = !sensors_enabled.motor_control;
 
+                            string latestPrearmFailure = _prearmFailureTracker.Update(
+                                sensors_health.prearm,
+                                sensors_enabled.prearm,
+                                sensors_present.prearm,
+                                messages,
+                                DateTime.Now);
+
                             if (errors_count1 > 0 || errors_count2 > 0)
                             {
                                 messageHigh = "InternalError 0x" + (errors_count1 + (errors_count2 << 16)).ToString("X");
-                            }
-
-                            if (!sensors_health.prearm && sensors_enabled.prearm && sensors_present.prearm)
-                            {
-                                messageHigh = messages.LastOrDefault(a => a.message.ToLower().Contains("prearm")).message
-                                    ?.ToString();
                             }
                             else if (!sensors_health.gps && sensors_enabled.gps && sensors_present.gps)
                             {
@@ -3052,6 +3055,10 @@ namespace MissionPlanner
                             else if (!sensors_health.differential_pressure && sensors_enabled.differential_pressure && sensors_present.differential_pressure)
                             {
                                 messageHigh = Strings.BadAirspeed;
+                            }
+                            else if (!string.IsNullOrEmpty(latestPrearmFailure))
+                            {
+                                messageHigh = latestPrearmFailure;
                             }
                         }
 
@@ -4643,8 +4650,8 @@ namespace MissionPlanner
                             mavinterface.requestDatastream(MAVLink.MAV_DATA_STREAM.RC_CHANNELS, MAV.cs.raterc,
                                 MAV.sysid,
                                 MAV.compid); // request rc info
-                            MAV.Camera?.RequestMessageIntervals(MAV.cs.ratestatus); // use ratestatus until we create a new setting for this
-                            MAV.GimbalManager?.Discover();
+                            // Use ratestatus until camera-specific configuration is available.
+                            MAV.Camera?.UpdateRateIfChanged(MAV.cs.ratestatus);
                         }
                         catch
                         {

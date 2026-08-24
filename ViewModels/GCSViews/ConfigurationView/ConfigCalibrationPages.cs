@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -692,21 +693,22 @@ public partial class ConfigCompassViewModel : ParamPageBase, IDisposable {
       }
 
       Dispatcher.UIThread.Post(() => {
+        int reportProgress = MagCalStatusFormatter.ProgressForReport(obj.cal_status);
         if (obj.compass_id == 0) {
-          Prog1 = 100;
+          Prog1 = reportProgress;
         }
 
         if (obj.compass_id == 1) {
-          Prog2 = 100;
+          Prog2 = reportProgress;
         }
 
         if (obj.compass_id == 2) {
-          Prog3 = 100;
+          Prog3 = reportProgress;
         }
 
         MagResult +=
             $"id:{obj.compass_id} x:{obj.ofs_x:0.0} y:{obj.ofs_y:0.0} z:{obj.ofs_z:0.0} "
-            + $"fit:{obj.fitness:0.0} {(MAVLink.MAG_CAL_STATUS)obj.cal_status}\n";
+            + $"fit:{obj.fitness:0.0} {MagCalStatusFormatter.Describe(obj.cal_status)}\n";
 
         if (obj.autosaved == 1) {
           MagResult += "Calibration saved. Please reboot the autopilot.\n";
@@ -822,6 +824,22 @@ internal sealed class CompassDevice {
 
       return _devid.devtypeimu.ToString().Replace("DEVTYPE_", "");
     }
+  }
+}
+
+internal static class MagCalStatusFormatter {
+  internal static bool IsFailure(byte wireValue) =>
+      wireValue > (byte)MAVLink.MAG_CAL_STATUS.MAG_CAL_SUCCESS;
+
+  internal static int ProgressForReport(byte wireValue) => IsFailure(wireValue) ? 0 : 100;
+
+  internal static string Describe(byte wireValue) {
+    var status = (MAVLink.MAG_CAL_STATUS)wireValue;
+    string name = Enum.GetName(typeof(MAVLink.MAG_CAL_STATUS), status)
+        ?? $"MAG_CAL_STATUS({wireValue})";
+    FieldInfo? field = typeof(MAVLink.MAG_CAL_STATUS).GetField(name);
+    string? description = field?.GetCustomAttribute<MAVLink.Description>()?.Text;
+    return string.IsNullOrWhiteSpace(description) ? name : description;
   }
 }
 

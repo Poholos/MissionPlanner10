@@ -309,6 +309,7 @@ public partial class FollowMeViewModel : ViewModelBase, IDisposable {
         } else {
           var waypoint = new Locationwp {
             id = (ushort)MAVLink.MAV_CMD.WAYPOINT,
+            frame = (byte)MAVLink.MAV_FRAME.GLOBAL_RELATIVE_ALT,
             alt = (float)position.AltitudeM,
             lat = position.Latitude,
             lng = position.Longitude,

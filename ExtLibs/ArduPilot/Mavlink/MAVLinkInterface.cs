@@ -282,6 +282,8 @@ namespace MissionPlanner
 
         public bool ReadOnly = false;
 
+        public MessageRateManager RateManager { get; private set; }
+
         public TerrainFollow Terrain;
 
         public event ProgressEventHandler Progress;
@@ -491,6 +493,8 @@ namespace MissionPlanner
             _mavlink2count = 0;
             _mavlink2signed = 0;
 
+            RateManager = new MessageRateManager(this);
+
             AIS.Start(this);
 
             // new hearbeat detected
@@ -505,7 +509,10 @@ namespace MissionPlanner
                     (tuple.Item2 >= (byte) MAVLink.MAV_COMPONENT.MAV_COMP_ID_CAMERA &&
                     tuple.Item2 <= (byte) MAV_COMPONENT.MAV_COMP_ID_CAMERA6))
             {
-                MAVlist[tuple.Item1, tuple.Item2].Camera = new CameraProtocol();
+                MAVState cameraState = MAVlist[tuple.Item1, tuple.Item2];
+                cameraState.Camera?.Dispose();
+                var camera = new CameraProtocol();
+                cameraState.Camera = camera;
                 Task.Run(async () =>
                 {
                     try
@@ -513,19 +520,27 @@ namespace MissionPlanner
                         // Open holds this
                         while (!_openComplete)
                         {
+                            if (Volatile.Read(ref _disposeState) != 0 ||
+                                !ReferenceEquals(cameraState.Camera, camera))
+                                return;
                             await Task.Delay(1000);
                         }
 
                         await Task.Delay(2000);
 
-                        if (MAVlist[tuple.Item1, tuple.Item2].Camera == null)
+                        if (Volatile.Read(ref _disposeState) != 0 ||
+                            !ReferenceEquals(cameraState.Camera, camera))
                             return;
 
                         while(giveComport)
+                        {
+                            if (Volatile.Read(ref _disposeState) != 0 ||
+                                !ReferenceEquals(cameraState.Camera, camera))
+                                return;
                             await Task.Delay(100);
+                        }
 
-                        await MAVlist[tuple.Item1, tuple.Item2]
-                            .Camera.StartID(MAVlist[tuple.Item1, tuple.Item2])
+                        await camera.StartID(cameraState)
                             .ConfigureAwait(false);
                     }
                     catch (Exception e)
@@ -538,7 +553,10 @@ namespace MissionPlanner
             if (tuple.Item2 >= (byte)MAVLink.MAV_COMPONENT.MAV_COMP_ID_GIMBAL &&
                 tuple.Item2 <= (byte)MAV_COMPONENT.MAV_COMP_ID_GIMBAL6)
             {
-                MAVlist[tuple.Item1, tuple.Item2].Gimbal = new GimbalProtocol();
+                MAVState gimbalState = MAVlist[tuple.Item1, tuple.Item2];
+                gimbalState.Gimbal?.Dispose();
+                var gimbal = new GimbalProtocol();
+                gimbalState.Gimbal = gimbal;
                 Task.Run(async () =>
                 {
                     try
@@ -546,13 +564,18 @@ namespace MissionPlanner
                         // Open holds this
                         while (!_openComplete)
                         {
+                            if (Volatile.Read(ref _disposeState) != 0 ||
+                                !ReferenceEquals(gimbalState.Gimbal, gimbal))
+                                return;
                             await Task.Delay(1000);
                         }
 
                         await Task.Delay(2000);
 
-                        MAVlist[tuple.Item1, tuple.Item2]
-                            .Gimbal?.Discover(this);
+                        if (Volatile.Read(ref _disposeState) != 0 ||
+                            !ReferenceEquals(gimbalState.Gimbal, gimbal))
+                            return;
+                        gimbal.Discover(this, tuple.Item1, tuple.Item2);
                     }
                     catch (Exception e)
                     {
@@ -565,7 +588,10 @@ namespace MissionPlanner
                 (tuple.Item2 >= (byte)MAV_COMPONENT.MAV_COMP_ID_MISSIONPLANNER &&
                 tuple.Item2 <= (byte)MAV_COMPONENT.MAV_COMP_ID_ONBOARD_COMPUTER4))
             {
-                MAVlist[tuple.Item1, tuple.Item2].GimbalManager = new GimbalManagerProtocol(this, MAVlist[tuple.Item1, tuple.Item2].cs);
+                MAVState managerState = MAVlist[tuple.Item1, tuple.Item2];
+                managerState.GimbalManager?.Dispose();
+                var manager = new GimbalManagerProtocol(this, managerState.cs);
+                managerState.GimbalManager = manager;
                 Task.Run(async () =>
                 {
                     try
@@ -573,13 +599,20 @@ namespace MissionPlanner
                         // Open holds this
                         while (!_openComplete)
                         {
+                            if (Volatile.Read(ref _disposeState) != 0 ||
+                                !ReferenceEquals(managerState.GimbalManager, manager))
+                                return;
                             await Task.Delay(1000);
                         }
 
                         await Task.Delay(2000);
 
-                        MAVlist[tuple.Item1, tuple.Item2]
-                            .GimbalManager?.Discover();
+                        if (Volatile.Read(ref _disposeState) != 0 ||
+                            !ReferenceEquals(managerState.GimbalManager, manager))
+                            return;
+
+                        await manager.StartID(tuple.Item1, tuple.Item2)
+                            .ConfigureAwait(false);
                     }
                     catch (Exception e)
                     {
@@ -970,6 +1003,7 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
             MAV.packetslost = 0;
             MAV.synclost = 0;
             _openComplete = true;
+            RateManager.OnConnectionOpen();
         }
 
         private string getAppVersion()
@@ -4427,6 +4461,24 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
 
             try
             {
+                mavlink_command_int_t reposition = BuildGuidedRepositionCommand(
+                    sysid, compid, gotohere, setguidedmode);
+                if (doCommandInt(
+                        sysid, compid, (MAV_CMD)reposition.command,
+                        reposition.param1, reposition.param2, reposition.param3, reposition.param4,
+                        reposition.x, reposition.y, reposition.z,
+                        true, null, (MAV_FRAME)reposition.frame))
+                    return;
+            }
+            catch (Exception ex)
+            {
+                // Older autopilots may not implement DO_REPOSITION. Keep the historical
+                // guided-position protocol as a compatibility fallback.
+                log.Error(ex);
+            }
+
+            try
+            {
                 gotohere.id = (ushort) MAV_CMD.WAYPOINT;
 
                 if (setguidedmode)
@@ -4461,16 +4513,66 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
             }
         }
 
+        internal static mavlink_command_int_t BuildGuidedRepositionCommand(
+            byte sysid, byte compid, Locationwp target, bool setGuidedMode)
+        {
+            return new mavlink_command_int_t
+            {
+                target_system = sysid,
+                target_component = compid,
+                command = (ushort)MAV_CMD.DO_REPOSITION,
+                frame = target.frame,
+                param1 = -1,
+                param2 = setGuidedMode ? (float)MAV_DO_REPOSITION_FLAGS.CHANGE_MODE : 0,
+                param3 = 0,
+                // Preserve the current vehicle yaw mode, matching the old position-target path.
+                param4 = float.NaN,
+                x = (int)(target.lat * 1e7),
+                y = (int)(target.lng * 1e7),
+                z = target.alt
+            };
+        }
+
         [Obsolete]
         public void setNewWPAlt(Locationwp gotohere)
         {
-            setNewWPAlt((byte) sysidcurrent, (byte) compidcurrent, gotohere);
+            setNewAlt((byte)sysidcurrent, (byte)compidcurrent, gotohere.alt);
         }
 
+        [Obsolete]
         public void setNewWPAlt(byte sysid, byte compid, Locationwp gotohere)
+        {
+            setNewAlt(sysid, compid, gotohere.alt);
+        }
+
+        [Obsolete]
+        public void setNewAlt(float newRelativeHomeAltitudeMetres)
+        {
+            setNewAlt((byte)sysidcurrent, (byte)compidcurrent, newRelativeHomeAltitudeMetres);
+        }
+
+        public void setNewAlt(byte sysid, byte compid, float newRelativeHomeAltitudeMetres)
         {
             try
             {
+                mavlink_command_long_t altitude = BuildAltitudeChangeCommand(
+                    sysid, compid, newRelativeHomeAltitudeMetres);
+                if (doCommand(
+                        sysid, compid, (MAV_CMD)altitude.command,
+                        altitude.param1, altitude.param2, altitude.param3, altitude.param4,
+                        altitude.param5, altitude.param6, altitude.param7))
+                    return;
+            }
+            catch (Exception ex)
+            {
+                // Fall back to the special MISSION_ITEM current value understood by
+                // older ArduPilot firmware.
+                log.Error(ex);
+            }
+
+            try
+            {
+                Locationwp gotohere = new Locationwp {alt = newRelativeHomeAltitudeMetres};
                 gotohere.id = (ushort) MAV_CMD.WAYPOINT;
 
                 log.InfoFormat("setNewWPAlt {0}:{1} lat {2} lng {3} alt {4}", sysid, compid, gotohere.lat, gotohere.lng,
@@ -4495,6 +4597,19 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
                 log.Error(ex);
                 throw;
             }
+        }
+
+        internal static mavlink_command_long_t BuildAltitudeChangeCommand(
+            byte sysid, byte compid, float newRelativeHomeAltitudeMetres)
+        {
+            return new mavlink_command_long_t
+            {
+                target_system = sysid,
+                target_component = compid,
+                command = (ushort)MAV_CMD.DO_CHANGE_ALTITUDE,
+                param1 = newRelativeHomeAltitudeMetres,
+                param2 = (float)MAV_FRAME.GLOBAL_RELATIVE_ALT
+            };
         }
 
         public void setPositionTargetGlobalInt(byte sysid, byte compid, bool pos, bool vel, bool acc, bool yaw,
@@ -5977,225 +6092,147 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
         public async Task<string> GetLog(byte sysid, byte compid, ushort no)
         {
             var filename = Path.GetTempFileName();
-            using (FileStream ms = new FileStream(filename, FileMode.Create, FileAccess.ReadWrite))
+            try
             {
-                Hashtable set = new Hashtable();
-
-                giveComport = false;
-                MAVLinkMessage buffer = MAVLinkMessage.Invalid;
-
-                if (Progress != null)
+                using (FileStream ms = new FileStream(filename, FileMode.Create, FileAccess.ReadWrite))
                 {
-                    Progress((int) 0, "");
-                }
+                    const int retryLimit = 10;
+                    const int retryDelayMilliseconds = 3000;
+                    const uint maximumRepairRequest = LogDownloadTracker.PacketSize * 50;
 
-                uint totallength = 0;
-                uint ofs = 0;
-                uint bps = 0;
-                DateTime bpstimer = DateTime.Now;
+                    giveComport = false;
+                    Progress?.Invoke(0, "");
 
-                ConcurrentQueue<MAVLinkMessage> queue = new ConcurrentQueue<MAVLinkMessage>();
-                EventHandler<MAVLinkMessage> handler = (sender, msg) =>
-                {
-                    queue.Enqueue(msg);
-                };
-                OnPacketReceived += handler;
-
-                _OnPacketReceived.GetInvocationList().ForEach(a => log.Info(a.GetMethodInfo().ToJSON()));
-                
-
-                mavlink_log_request_data_t req = new mavlink_log_request_data_t();
-
-                req.target_component = compid;
-                req.target_system = sysid;
-                req.id = no;
-                req.ofs = ofs;
-                // entire log
-                req.count = 0xFFFFFFFF;
-
-                // request point
-                generatePacket((byte) MAVLINK_MSG_ID.LOG_REQUEST_DATA, req);
-
-                DateTime start = DateTime.Now;
-                int retrys = 3;
-
-
-                while (true)
-                {
-                    if (!(start.AddMilliseconds(3000) > DateTime.Now))
+                    var tracker = new LogDownloadTracker();
+                    var queue = new ConcurrentQueue<MAVLinkMessage>();
+                    EventHandler<MAVLinkMessage> handler = (sender, msg) =>
                     {
-                        if (retrys > 0)
+                        if (msg.Length > 5 && msg.msgid == (byte) MAVLINK_MSG_ID.LOG_DATA &&
+                            msg.sysid == sysid && msg.compid == compid)
                         {
-                            log.Info("GetLog Retry " + retrys + " - giv com " + giveComport);
-                            generatePacket((byte) MAVLINK_MSG_ID.LOG_REQUEST_DATA, req);
-                            start = DateTime.Now;
-                            retrys--;
-                            continue;
+                            queue.Enqueue(msg);
                         }
+                    };
+                    OnPacketReceived += handler;
 
-                        giveComport = false;
-                        OnPacketReceived -= handler;
-                        throw new TimeoutException("Timeout on read - GetLog");
-                    }
+                    var request = new mavlink_log_request_data_t
+                    {
+                        target_component = compid,
+                        target_system = sysid,
+                        id = no,
+                        ofs = 0,
+                        count = uint.MaxValue
+                    };
 
-                    var start1 = DateTime.Now;
-                    if (!queue.TryDequeue(out buffer))
+                    try
                     {
-                        Thread.Sleep(10);
-                        buffer = MAVLinkMessage.Invalid;
-                    }
-                    var end = DateTime.Now - start1;
-                    var lapse = end.TotalMilliseconds;
-                    //Console.WriteLine("readPacketAsync: " + lapse);
-                    if (buffer.Length > 5)
-                    {
-                        if (buffer.msgid == (byte) MAVLINK_MSG_ID.LOG_DATA && buffer.sysid == req.target_system &&
-                            buffer.compid == req.target_component)
+                        generatePacket((byte) MAVLINK_MSG_ID.LOG_REQUEST_DATA, request);
+                        int retriesRemaining = retryLimit;
+                        DateTime nextRetryAt = DateTime.UtcNow.AddMilliseconds(retryDelayMilliseconds);
+                        DateTime nextProgressAt = DateTime.UtcNow;
+
+                        while ((BaseStream != null && BaseStream.IsOpen) || logreadmode)
                         {
+                            DateTime now = DateTime.UtcNow;
+                            if (now >= nextRetryAt)
+                            {
+                                if (retriesRemaining-- <= 0)
+                                    throw new TimeoutException(
+                                        "Log download stopped responding before every byte was received.");
+
+                                LogDownloadRequest missing = tracker.NextRequest(maximumRepairRequest);
+                                request.ofs = missing.Offset;
+                                request.count = missing.Count;
+                                log.Info("GetLog retry " + (retryLimit - retriesRemaining) +
+                                         " requesting offset " + request.ofs + " count " + request.count +
+                                         " received " + tracker.CoveredBytes +
+                                         (tracker.TotalLength.HasValue
+                                             ? "/" + tracker.TotalLength.Value
+                                             : "/unknown"));
+                                generatePacket((byte) MAVLINK_MSG_ID.LOG_REQUEST_DATA, request);
+                                nextRetryAt = now.AddMilliseconds(retryDelayMilliseconds);
+                                continue;
+                            }
+
+                            MAVLinkMessage buffer;
+                            if (!queue.TryDequeue(out buffer))
+                            {
+                                await Task.Delay(10).ConfigureAwait(false);
+                                continue;
+                            }
+
                             var data = buffer.ToStructure<mavlink_log_data_t>();
-
-                            if (data.id != no)
+                            if (data.id != no || data.data == null || data.count > data.data.Length)
                                 continue;
 
-                            // reset retrys
-                            retrys = 3;
-                            start = DateTime.Now;
+                            ulong coveredBefore = tracker.CoveredBytes;
+                            bool totalWasKnown = tracker.TotalLength.HasValue;
+                            if (!tracker.Add(data.ofs, data.count, !totalWasKnown))
+                                continue;
 
-                            bps += data.count;
-
-                            // record what we have received
-                            set[(data.ofs / 90).ToString()] = 1;
-
-                            if (ms.Position != data.ofs)
-                                ms.Seek((long) data.ofs, SeekOrigin.Begin);
-                            ms.Write(data.data, 0, data.count);
-
-                            // update new start point
-                            req.ofs = data.ofs + data.count;
-
-                            if (bpstimer.Second != DateTime.Now.Second)
+                            if (data.count > 0)
                             {
-                                if (Progress != null)
-                                {
-                                    Progress((int) req.ofs, "");
-                                }
-
-                                //Console.WriteLine("log dl bps: " + bps.ToString());
-                                bpstimer = DateTime.Now;
-                                bps = 0;
+                                ms.Seek(data.ofs, SeekOrigin.Begin);
+                                ms.Write(data.data, 0, data.count);
                             }
 
-                            // if data is less than max packet size or 0 > exit
-                            if (data.count < 90 || data.count == 0)
+                            ulong covered = tracker.CoveredBytes;
+                            bool madeProgress = covered > coveredBefore ||
+                                                (!totalWasKnown && tracker.TotalLength.HasValue);
+                            if (madeProgress)
                             {
-                                totallength = data.ofs + data.count;
-                                log.Info("start fillin len " + totallength + " count " + set.Count + " datalen " +
-                                         data.count);
-                                break;
+                                retriesRemaining = retryLimit;
+                                nextRetryAt = now.AddMilliseconds(retryDelayMilliseconds);
+                            }
+
+                            if (now >= nextProgressAt || tracker.IsComplete)
+                            {
+                                Progress?.Invoke((int) Math.Min(covered, int.MaxValue), "");
+                                nextProgressAt = now.AddMilliseconds(250);
+                            }
+
+                            if (tracker.IsComplete)
+                            {
+                                ms.SetLength(tracker.TotalLength.Value);
+                                ms.Flush();
+                                log.Info("GetLog complete: " + tracker.TotalLength.Value + " bytes");
+                                return filename;
                             }
                         }
+
+                        throw new IOException("Connection closed before the log download completed.");
                     }
-                }
-
-                log.Info("set count " + set.Count);
-                log.Info("count total " + ((totallength) / 90 + 1));
-                log.Info("totallength " + totallength);
-                log.Info("current length " + ms.Length);
-
-                while (true && ((BaseStream != null && BaseStream.IsOpen) || logreadmode))
-                {
-                    if (totallength == ms.Length && set.Count >= ((totallength) / 90 + 1))
+                    finally
                     {
-                        giveComport = false;
                         OnPacketReceived -= handler;
-                        return filename;
-                    }
-
-                    if (!(start.AddMilliseconds(500) > DateTime.Now))
-                    {
-                        for (int a = 0; a < ((totallength) / 90 + 1); a++)
+                        giveComport = false;
+                        try
                         {
-                            if (!set.ContainsKey(a.ToString()))
-                            {
-                                // request large chunk if they are back to back
-                                uint bytereq = 90;
-                                int b = a + 1;
-                                while (!set.ContainsKey(b.ToString()))
+                            generatePacket((byte) MAVLINK_MSG_ID.LOG_REQUEST_END,
+                                new mavlink_log_request_end_t
                                 {
-                                    bytereq += 90;
-                                    b++;
-                                }
-
-                                req.ofs = (uint) (a * 90);
-                                req.count = bytereq;
-                                log.Info("req missing " + req.ofs + " bytes " + req.count + " got " + set.Count + "/" +
-                                         ((totallength) / 90 + 1));
-                                generatePacket((byte) MAVLINK_MSG_ID.LOG_REQUEST_DATA, req);
-                                start = DateTime.Now;
-                                break;
-                            }
+                                    target_system = sysid,
+                                    target_component = compid
+                                });
                         }
-                    }
-
-                    if (!queue.TryDequeue(out buffer))
-                    {
-                        Thread.Sleep(10);
-                        buffer = MAVLinkMessage.Invalid;
-                    }
-                    if (buffer.Length > 5)
-                    {
-                        if (buffer.msgid == (byte) MAVLINK_MSG_ID.LOG_DATA && buffer.sysid == req.target_system &&
-                            buffer.compid == req.target_component)
+                        catch (Exception ex)
                         {
-                            var data = buffer.ToStructure<mavlink_log_data_t>();
-
-                            if (data.id != no)
-                                continue;
-
-                            // reset retrys
-                            retrys = 3;
-                            start = DateTime.Now;
-
-                            bps += data.count;
-
-                            // record what we have received
-                            set[(data.ofs / 90).ToString()] = 1;
-
-                            ms.Seek((long) data.ofs, SeekOrigin.Begin);
-                            ms.Write(data.data, 0, data.count);
-
-                            // update new start point
-                            req.ofs = data.ofs + data.count;
-
-                            if (bpstimer.Second != DateTime.Now.Second)
-                            {
-                                if (Progress != null)
-                                {
-                                    Progress((int) req.ofs, "");
-                                }
-
-                                //Console.WriteLine("log dl bps: " + bps.ToString());
-                                bpstimer = DateTime.Now;
-                                bps = 0;
-                            }
-
-                            // check if we have next set and invalidate to request next packets
-                            if (set.ContainsKey(((data.ofs / 90) + 1).ToString()))
-                            {
-                                start = DateTime.MinValue;
-                            }
-
-                            // if data is less than max packet size or 0 > exit
-                            if (data.count < 90 || data.count == 0)
-                            {
-                                continue;
-                            }
+                            log.Debug("Could not send LOG_REQUEST_END", ex);
                         }
                     }
                 }
+            }
+            catch
+            {
+                try
+                {
+                    File.Delete(filename);
+                }
+                catch
+                {
+                }
 
-                OnPacketReceived -= handler;
-                throw new Exception("Failed to get log");
+                throw;
             }
         }
 
@@ -6831,8 +6868,14 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
             return "MAV " + MAV.sysid + " on Ice";
         }
 
+        private int _disposeState;
+
         public void Dispose()
         {
+            if (Interlocked.Exchange(ref _disposeState, 1) != 0)
+                return;
+
+            RateManager?.Dispose();
             if (_bytesReceivedSubj != null)
                 _bytesReceivedSubj.Dispose();
             if (_bytesSentSubj != null)
@@ -6849,6 +6892,7 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
 
             logreadmode = false;
             logplaybackfile = null;
+            GC.SuppressFinalize(this);
         }
 
         public void uAvionixADSBControl(int baroAltMSL,ushort squawk,/*UAVIONIX_ADSB_OUT_CONTROL_STATE*/byte state,/*UAVIONIX_ADSB_EMERGENCY_STATUS*/byte emergencyStatus,byte[] flight_id,byte x_bit)

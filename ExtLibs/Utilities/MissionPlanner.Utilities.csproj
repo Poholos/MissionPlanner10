@@ -90,6 +90,11 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="MissionPlanner.Tests" />
+    <InternalsVisibleTo Include="MissionPlanner.ArduPilot" />
+  </ItemGroup>
+
 
 
 </Project>

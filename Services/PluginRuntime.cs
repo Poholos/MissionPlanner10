@@ -25,6 +25,7 @@ internal enum PluginFileState {
   Loaded,
   Declined,
   Dependency,
+  Blocked,
   Failed,
 }
 
@@ -53,6 +54,7 @@ internal sealed class PluginRuntime : IAsyncDisposable {
   private readonly string[] _pluginDirectories;
   private readonly Func<string, Type, PluginHost> _hostFactory;
   private readonly Func<Func<bool>, Task<bool>> _loadedInvoker;
+  private readonly Func<string, int?> _zoneIdentifier;
   private readonly Action<string>? _diagnostic;
   private readonly SemaphoreSlim _loadGate = new(1, 1);
   private readonly CancellationTokenSource _shutdown = new();
@@ -66,7 +68,8 @@ internal sealed class PluginRuntime : IAsyncDisposable {
       IEnumerable<string> disabledPluginNames,
       Func<string, Type, PluginHost> hostFactory,
       Func<Func<bool>, Task<bool>>? loadedInvoker = null,
-      Action<string>? diagnostic = null) {
+      Action<string>? diagnostic = null,
+      Func<string, int?>? zoneIdentifier = null) {
     ArgumentNullException.ThrowIfNull(pluginDirectories);
     ArgumentNullException.ThrowIfNull(disabledPluginNames);
     ArgumentNullException.ThrowIfNull(hostFactory);
@@ -83,6 +86,7 @@ internal sealed class PluginRuntime : IAsyncDisposable {
     _hostFactory = hostFactory;
     _loadedInvoker = loadedInvoker ?? (callback => Task.FromResult(callback()));
     _diagnostic = diagnostic;
+    _zoneIdentifier = zoneIdentifier ?? ReadWindowsZoneIdentifier;
     _files = new Dictionary<string, PluginFileEntry>(_pathComparer);
   }
 
@@ -182,6 +186,19 @@ internal sealed class PluginRuntime : IAsyncDisposable {
 
   private async Task LoadFileAsync(PluginFileEntry file, CancellationToken cancellationToken) {
     SetState(file, PluginFileState.Loading, "");
+    try {
+      int? zone = _zoneIdentifier(file.Path);
+      if (zone >= 3) {
+        const string guidance =
+            "Plugin is blocked by Windows because it came from the Internet. "
+            + "Review it, then use the file Properties dialog to unblock it if you trust it.";
+        SetState(file, PluginFileState.Blocked, guidance);
+        Report($"Blocked plugin {file.FileName}: Windows Zone.Identifier={zone}.");
+        return;
+      }
+    } catch (Exception ex) {
+      Report($"Cannot inspect Windows Zone.Identifier for {file.FileName}: {ex.Message}");
+    }
     if (IsNativePortableExecutable(file.Path)) {
       SetState(file, PluginFileState.Dependency, "");
       return;
@@ -480,6 +497,35 @@ internal sealed class PluginRuntime : IAsyncDisposable {
       return reader.PEHeaders.PEHeader != null && !reader.HasMetadata;
     } catch {
       return false;
+    }
+  }
+
+  internal static int? ParseZoneIdentifier(string content) {
+    if (string.IsNullOrWhiteSpace(content)) {
+      return null;
+    }
+    foreach (string rawLine in content.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)) {
+      string line = rawLine.Trim();
+      int equals = line.IndexOf('=');
+      if (equals <= 0 || !line[..equals].Trim().Equals(
+              "ZoneId", StringComparison.OrdinalIgnoreCase)) {
+        continue;
+      }
+      return int.TryParse(line[(equals + 1)..].Trim(), out int zone) ? zone : null;
+    }
+    return null;
+  }
+
+  private static int? ReadWindowsZoneIdentifier(string path) {
+    if (!OperatingSystem.IsWindows()) {
+      return null;
+    }
+    try {
+      return ParseZoneIdentifier(File.ReadAllText(path + ":Zone.Identifier"));
+    } catch (FileNotFoundException) {
+      return null;
+    } catch (DirectoryNotFoundException) {
+      return null;
     }
   }
 

@@ -1856,9 +1856,9 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
     int newalt = (int)ChangeAltValue;
     try {
       await Task.Run(() =>
-          _comPort.setNewWPAlt(new MissionPlanner.Utilities.Locationwp {
-            alt = newalt / MissionPlanner.CurrentState.multiplieralt,
-          }));
+          _comPort.setNewAlt(Sysid, Compid,
+              (float)DisplayToVehicleAltitude(
+                  newalt, MissionPlanner.CurrentState.multiplieralt)));
       Log($"Change alt {newalt}");
     } catch (Exception ex) {
       await Services.Dialogs.Alert("Change Altitude", "Command failed: " + ex.Message);
@@ -3749,12 +3749,12 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
       bool accepted;
       switch (command.Action) {
         case GimbalVideoPointerAction.TrackPoint:
-          camera.RequestTrackingMessageInterval(5);
+          camera.SubscribeTracking(5);
           accepted = await camera.SetTrackingPointAsync(
               (float)command.End.X, (float)command.End.Y);
           break;
         case GimbalVideoPointerAction.TrackRectangle:
-          camera.RequestTrackingMessageInterval(5);
+          camera.SubscribeTracking(5);
           accepted = await camera.SetTrackingRectangleAsync(
               (float)command.Start.X,
               (float)command.Start.Y,

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -118,49 +117,10 @@ namespace px4uploader
 
         public static string[] GetPortNames()
         {
-            List<string> allPorts = new List<string>();
-
-            if (Directory.Exists("/dev/"))
-            {
-                // cleanup now
-                GC.Collect();
-                // mono is failing in here on linux "too many open files"
-                try
-                {
-                    if (Directory.Exists("/dev/serial/by-id/"))
-                        allPorts.AddRange(Directory.GetFiles("/dev/serial/by-id/", "*"));
-                }
-                catch { }
-                try
-                {
-                    allPorts.AddRange(Directory.GetFiles("/dev/", "ttyACM*"));
-                }
-                catch { }
-                try
-                {
-                    allPorts.AddRange(Directory.GetFiles("/dev/", "ttyUSB*"));
-                }
-                catch { }
-                try
-                {
-                    allPorts.AddRange(Directory.GetFiles("/dev/", "rfcomm*"));
-                }
-                catch { }
-                try
-                {
-                    allPorts.AddRange(Directory.GetFiles("/dev/", "*usb*"));
-                }
-                catch { }
-            }
-
-
-            string[] ports = System.IO.Ports.SerialPort.GetPortNames();
-
-            ports = ports.Select(p => trimcomportname(p.TrimEnd())).ToArray();
-
-            allPorts.AddRange(ports);
-
-            return allPorts.ToArray();
+            return MissionPlanner.Comms.SerialPort.GetPortNames()
+                .Select(p => trimcomportname(p.TrimEnd()))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
         }
 
         static string trimcomportname(string input)

@@ -46,7 +46,7 @@ public partial class InstallFirmwareView : UserControl {
 
     string? portName = null;
     if (LegacyFirmwareUploader.RequiresSerialPort(target.Value)) {
-      var ports = System.IO.Ports.SerialPort.GetPortNames()
+      var ports = MissionPlanner.Comms.SerialPort.GetPortNames()
           .OrderBy(value => value, System.StringComparer.OrdinalIgnoreCase)
           .ToArray();
       var selected = await Dialogs.Select(

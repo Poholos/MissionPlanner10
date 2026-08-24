@@ -54,13 +54,14 @@ namespace MissionPlanner.Utilities
 
         static bool sessionstart = false;
 
-        private static readonly Uri trackingEndpoint = new Uri("http://www.google-analytics.com/collect");
         private static readonly Uri secureTrackingEndpoint = new Uri("https://ssl.google-analytics.com/collect");
-        private static Guid _cid = new Guid();
-
-        static Tracking()
+        private static readonly HttpClient client = new HttpClient
         {
-        }
+            Timeout = TimeSpan.FromSeconds(30)
+        };
+        private static readonly System.Threading.SemaphoreSlim trackingGate =
+            new System.Threading.SemaphoreSlim(1, 1);
+        private static Guid _cid = new Guid();
 
         public static void AddEvent(string cat, string action, string label, string value)
         {
@@ -295,12 +296,13 @@ namespace MissionPlanner.Utilities
             if (OptOut)
                 return;
 
+            // Analytics is best-effort. Do not let a slow endpoint accumulate queued requests
+            // and ThreadPool workers while the operator is using the application.
+            if (!trackingGate.Wait(0))
+                return;
+
             try
             {
-                var client = new HttpClient();
-                client.DefaultRequestHeaders.Add("User-Agent", productName + " " + productVersion + " (" + Environment.OSVersion.VersionString + ")");
-                client.Timeout = TimeSpan.FromSeconds(30);
-
                 string data = "";
 
                 List<KeyValuePair<string, string>> data1 = (List<KeyValuePair<string, string>>)temp;
@@ -321,9 +323,24 @@ namespace MissionPlanner.Utilities
 
                 log.Debug(data);
 
-                client.PostAsync(secureTrackingEndpoint, new StringContent(data));
+                using (var request = new HttpRequestMessage(HttpMethod.Post, secureTrackingEndpoint))
+                {
+                    request.Content = new StringContent(data);
+                    request.Headers.TryAddWithoutValidation("User-Agent",
+                        productName + " " + productVersion + " (" + Environment.OSVersion.VersionString + ")");
+                    using (HttpResponseMessage response =
+                           client.SendAsync(request).GetAwaiter().GetResult())
+                    {
+                        if (!response.IsSuccessStatusCode)
+                            log.Debug("Tracking endpoint returned " + response.StatusCode);
+                    }
+                }
             }
             catch { }
+            finally
+            {
+                trackingGate.Release();
+            }
         }
     }
 }

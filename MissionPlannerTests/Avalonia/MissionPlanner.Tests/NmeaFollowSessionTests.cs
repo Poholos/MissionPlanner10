@@ -101,6 +101,7 @@ public class NmeaFollowSessionTests {
     Assert.Equal(0, sent.lat);
     Assert.Equal(0, sent.lng);
     Assert.Equal(30, sent.alt);
+    Assert.Equal((byte)MAVLink.MAV_FRAME.GLOBAL_RELATIVE_ALT, sent.frame);
 
     current = new NmeaVehicleTarget(secondLink, 1, 1);
     viewModel.SynchronizeActiveTarget();

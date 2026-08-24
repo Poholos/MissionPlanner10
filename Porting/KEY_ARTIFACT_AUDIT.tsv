@@ -11,7 +11,7 @@ ExtLibs/GeoUtility/mykey.snk	remove	ExtLibs/GeoUtility/GeoUtility.csproj	Unrefer
 ExtLibs/KMLib/mykey.pfx	remove	ExtLibs/KMLib/KMLib.csproj	Unreferenced duplicate PFX container; it is not a release/update signing key or build input.
 ExtLibs/KMLib/mykey.snk	remove	ExtLibs/KMLib/KMLib.csproj	Unreferenced inherited strong-name key.
 ExtLibs/LibVLC.NET/mykey.snk	remove	ExtLibs/LibVLC.NET/LibVLC.NET.csproj	Unreferenced inherited strong-name key.
-ExtLibs/MetaDataExtractorCSharp240d/dontcare.snk	remove	ExtLibs/MetaDataExtractorCSharp240d/MetaDataExtractor.csproj	Unreferenced legacy placeholder strong-name key.
+ExtLibs/MetaDataExtractorCSharp240d/dontcare.snk	remove	MissionPlanner.csproj	Unreferenced placeholder key from the retired legacy EXIF project; active metadata reading uses the maintained package.
 ExtLibs/MissionPlanner.Drawing/Open.snk	remove	ExtLibs/MissionPlanner.Drawing/MissionPlanner.Drawing.csproj	Unreferenced inherited strong-name key.
 ExtLibs/MissionPlanner.Drawing/ecma.pub	remove	ExtLibs/MissionPlanner.Drawing/MissionPlanner.Drawing.csproj	Unused public-key stub referenced only by a commented assembly attribute.
 ExtLibs/SharpKml/dont care.snk	remove	ExtLibs/SharpKml/SharpKml.csproj	Unreferenced legacy placeholder strong-name key.

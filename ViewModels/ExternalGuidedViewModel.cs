@@ -226,6 +226,7 @@ public partial class ExternalGuidedViewModel : ViewModelBase, IDisposable {
         } else {
           var location = new Locationwp {
             id = (ushort)MAVLink.MAV_CMD.WAYPOINT,
+            frame = (byte)MAVLink.MAV_FRAME.GLOBAL_RELATIVE_ALT,
             lat = waypoint.Latitude,
             lng = waypoint.Longitude,
             alt = (float)waypoint.RelativeAltitudeM,
