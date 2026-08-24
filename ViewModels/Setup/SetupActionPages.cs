@@ -12,6 +12,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MissionPlanner.Services;
 
 namespace MissionPlanner.ViewModels.Setup;
 
@@ -128,6 +129,12 @@ public partial class SikRadioViewModel : ViewModelBase {
   private bool _aesEnabled;
 
   [ObservableProperty]
+  private string _remoteAesKey = "";
+
+  [ObservableProperty]
+  private bool _remoteAesEnabled;
+
+  [ObservableProperty]
   private string _commandText = "ATI";
 
   [ObservableProperty]
@@ -172,6 +179,7 @@ public partial class SikRadioViewModel : ViewModelBase {
   }
 
   private string _origAesKey = "";
+  private string _origRemoteAesKey = "";
 
   private SerialPort? _session;
   private System.Threading.CancellationTokenSource? _rssiCts;
@@ -190,6 +198,8 @@ public partial class SikRadioViewModel : ViewModelBase {
     OpenTerminalCommand.NotifyCanExecuteChanged();
     StartRssiCommand.NotifyCanExecuteChanged();
     SendCommandCommand.NotifyCanExecuteChanged();
+    SetLocalPpmFailsafeCommand.NotifyCanExecuteChanged();
+    SetRemotePpmFailsafeCommand.NotifyCanExecuteChanged();
   }
 
   [RelayCommand(CanExecute = nameof(NotBusy))]
@@ -274,14 +284,30 @@ public partial class SikRadioViewModel : ViewModelBase {
         ResetOrig(remote: false);
         ParseInto(DoCommand(sp, "ATI5", true), remote: false);
         ApplyFirmwareOptions(isRfd);
+        ApplySettingMetadata(QuerySettingMetadata(sp, remote: false), remote: false);
 
         var rti = DoCommand(sp, "RTI").Trim();
         if (_sikBanner.IsMatch(rti)) {
           Ui(() => RemoteVersion = rti);
           ResetOrig(remote: true);
           ParseInto(DoCommand(sp, "RTI5", true), remote: true);
+          ApplySettingMetadata(QuerySettingMetadata(sp, remote: true), remote: true);
+
+          var remoteAes = StripMultipointPrefix(DoCommand(sp, "RT&E?").Trim());
+          if (remoteAes.Length == 0 || remoteAes.Contains("ERROR")) {
+            _origRemoteAesKey = "";
+            Ui(() => { RemoteAesKey = ""; RemoteAesEnabled = false; });
+          } else {
+            _origRemoteAesKey = remoteAes;
+            Ui(() => { RemoteAesKey = remoteAes; RemoteAesEnabled = true; });
+          }
         } else {
-          Ui(() => RemoteVersion = "(no remote)");
+          _origRemoteAesKey = "";
+          Ui(() => {
+            RemoteVersion = "(no remote)";
+            RemoteAesKey = "";
+            RemoteAesEnabled = false;
+          });
           AppendLog("No remote radio responded to RTI.");
         }
 
@@ -311,6 +337,9 @@ public partial class SikRadioViewModel : ViewModelBase {
     var aesEnabled = AesEnabled;
     var aesKey = AesKey?.Trim() ?? "";
     var origAes = _origAesKey;
+    var remoteAesEnabled = RemoteAesEnabled;
+    var remoteAesKey = RemoteAesKey?.Trim() ?? "";
+    var origRemoteAes = _origRemoteAesKey;
     IsBusy = true;
     Status = "Saving…";
     AppendLog("=== Save Settings ===");
@@ -334,13 +363,35 @@ public partial class SikRadioViewModel : ViewModelBase {
           DoCommand(sp, "RTI5", true);
           foreach (var s in snapshot) {
             if (s.Num != 0 && s.HasRemote && s.RemoteValue != s.OrigRemote) {
+              if (!SikRadioSettingsService.IsValidInteger(s.RemoteValue)) {
+                AppendLog("RTS" + s.Num + " (" + s.Name + ")='" + s.RemoteValue
+                    + "' SKIPPED (not a valid integer)");
+                continue;
+              }
               var ans = DoCommand(sp, "RTS" + s.Num + "=" + s.RemoteValue);
               AppendLog("RTS" + s.Num + " (" + s.Name + ")=" + s.RemoteValue
                   + (ans.Contains("OK") ? " OK" : " FAILED"));
             }
           }
+          if (remoteAesEnabled && remoteAesKey != origRemoteAes) {
+            if (SikRadioSettingsService.IsValidHexKey(remoteAesKey)) {
+              var ans = DoCommand(sp, "RT&E=" + remoteAesKey, true);
+              AppendLog("RT&E (remote AES key)" + (ans.Contains("ERROR") ? " FAILED" : " OK"));
+            } else {
+              AppendLog("Remote AES key SKIPPED (must be 1..64 hex characters)");
+            }
+          }
           DoCommand(sp, "RT&W");
           DoCommand(sp, "RTZ");
+        } else if (remoteAesEnabled && remoteAesKey != origRemoteAes) {
+          if (SikRadioSettingsService.IsValidHexKey(remoteAesKey)) {
+            var ans = DoCommand(sp, "RT&E=" + remoteAesKey, true);
+            AppendLog("RT&E (remote AES key)" + (ans.Contains("ERROR") ? " FAILED" : " OK"));
+            DoCommand(sp, "RT&W");
+            DoCommand(sp, "RTZ");
+          } else {
+            AppendLog("Remote AES key SKIPPED (must be 1..64 hex characters)");
+          }
         }
 
         DoCommand(sp, "ATI5", true);
@@ -359,11 +410,11 @@ public partial class SikRadioViewModel : ViewModelBase {
         }
 
         if (aesEnabled && aesKey != origAes) {
-          if (Regex.IsMatch(aesKey, @"\A[0-9a-fA-F]*\Z")) {
+          if (SikRadioSettingsService.IsValidHexKey(aesKey)) {
             var ans = DoCommand(sp, "AT&E=" + aesKey, true);
             AppendLog("AT&E (AES key)" + (ans.Contains("ERROR") ? " FAILED" : " OK"));
           } else {
-            AppendLog("AES key SKIPPED (must be hex characters only)");
+            AppendLog("AES key SKIPPED (must be 1..64 hex characters)");
           }
         }
 
@@ -565,8 +616,128 @@ public partial class SikRadioViewModel : ViewModelBase {
       s.EnsureOption(s.LocalValue);
       s.HasRemote = true;
     }
+    if (AesEnabled && RemoteAesEnabled) {
+      RemoteAesKey = AesKey;
+    }
     Status = "Copy then Save to apply";
     AppendLog("Copied Local register values to Remote. Save to apply to the remote radio.");
+  }
+
+  public string ExportProfile(bool remote) {
+    var values = Registers
+        .Where(setting => setting.Num != 0)
+        .Select(setting => new KeyValuePair<string, string>(setting.Name,
+            remote ? setting.RemoteValue : setting.LocalValue))
+        .ToList();
+    string key = remote ? RemoteAesKey : AesKey;
+    if (!string.IsNullOrWhiteSpace(key)) {
+      values.Add(new KeyValuePair<string, string>("AESKEY", key));
+    }
+    return SikRadioSettingsService.SerializeProfile(values);
+  }
+
+  public (int Applied, int Unknown, int Invalid, int Ignored) ImportProfile(
+      string text, bool remote) {
+    SikRadioProfile profile = SikRadioSettingsService.ParseProfile(text);
+    int applied = 0;
+    int unknown = 0;
+    int invalid = 0;
+    foreach (var pair in profile.Values) {
+      if (pair.Key.Equals("AESKEY", StringComparison.OrdinalIgnoreCase)) {
+        bool enabled = remote ? RemoteAesEnabled : AesEnabled;
+        if (!enabled || !SikRadioSettingsService.IsValidHexKey(pair.Value)) {
+          invalid++;
+        } else {
+          if (remote) {
+            RemoteAesKey = pair.Value;
+          } else {
+            AesKey = pair.Value;
+          }
+          applied++;
+        }
+        continue;
+      }
+
+      SikRegister? setting = Registers.FirstOrDefault(item =>
+          item.Name.Equals(pair.Key, StringComparison.OrdinalIgnoreCase));
+      if (setting == null) {
+        unknown++;
+      } else if (!SikRadioSettingsService.IsValidInteger(pair.Value)) {
+        invalid++;
+      } else {
+        setting.EnsureOption(pair.Value);
+        if (remote) {
+          if (!setting.HasRemote) {
+            unknown++;
+            continue;
+          }
+          setting.RemoteValue = pair.Value;
+        } else {
+          setting.LocalValue = pair.Value;
+        }
+        applied++;
+      }
+    }
+    Status = "Profile staged — Save to apply";
+    AppendLog($"Profile staged: applied={applied}, unknown={unknown}, invalid={invalid}, "
+        + $"ignored lines={profile.IgnoredLines}. Nothing sent until Save Settings.");
+    return (applied, unknown, invalid, profile.IgnoredLines);
+  }
+
+  public string SuggestedProfileFileName(bool remote) {
+    string side = remote ? "remote" : "local";
+    string board = Regex.Replace(BoardType, @"[^A-Za-z0-9_-]+", "-").Trim('-');
+    return $"sik-{side}-{(board.Length == 0 ? "radio" : board)}.ini";
+  }
+
+  [RelayCommand(CanExecute = nameof(NotBusy))]
+  private async Task SetLocalPpmFailsafe() => await SetPpmFailsafe(remote: false);
+
+  [RelayCommand(CanExecute = nameof(NotBusy))]
+  private async Task SetRemotePpmFailsafe() => await SetPpmFailsafe(remote: true);
+
+  private async Task SetPpmFailsafe(bool remote) {
+    if (!GuardLink() || !await Dialogs.ConfirmDangerous(
+            "Capture PPM failsafe",
+            $"The {(remote ? "remote" : "local")} radio will capture its current PPM input as "
+                + "the failsafe state and write it to EEPROM. Verify receiver outputs first.",
+            "CAPTURE FAILSAFE")) {
+      return;
+    }
+
+    string port = SelectedPort!;
+    int baud = SelectedBaud;
+    IsBusy = true;
+    Status = "Capturing PPM failsafe…";
+    await Task.Run(() => {
+      SerialPort? sp = null;
+      try {
+        sp = Connect(port, baud, out _);
+        if (sp == null) {
+          SetStatus("Failed to enter AT mode");
+          return;
+        }
+        string set = remote ? "RT&R" : "AT&R";
+        string save = remote ? "RT&W" : "AT&W";
+        string answer = DoCommand(sp, set);
+        if (!answer.Contains("OK")) {
+          SetStatus("Failsafe capture failed");
+          AppendLog(set + " FAILED");
+          return;
+        }
+        DoCommand(sp, save);
+        if (remote) {
+          DoCommand(sp, "RTZ");
+        } else {
+          DoCommand(sp, "ATZ");
+        }
+        SetStatus("PPM failsafe captured");
+        AppendLog(set + " OK; saved to EEPROM.");
+      } finally {
+        ClosePort(sp);
+      }
+    });
+    IsBusy = false;
   }
 
   private bool CanOpenTerminal => !IsBusy && !RssiRunning;
@@ -863,6 +1034,63 @@ public partial class SikRadioViewModel : ViewModelBase {
       AppendLog("cmd '" + cmd + "' error: " + ex.Message);
       return "";
     }
+  }
+
+  private string QuerySettingMetadata(SerialPort sp, bool remote) {
+    var result = new StringBuilder();
+    string prefix = remote ? "RTI10:" : "ATI10:";
+    for (int index = 0; index < 256; index++) {
+      string line = DoCommand(sp, prefix + index).Trim();
+      if (line.Length == 0 || line.Contains("ERROR", StringComparison.OrdinalIgnoreCase)) {
+        result.Clear();
+        break;
+      }
+      if (line.Contains("EOF", StringComparison.OrdinalIgnoreCase) || !line.Contains('=')) {
+        break;
+      }
+      result.AppendLine(line);
+    }
+
+    if (result.Length == 0) {
+      result.Append(DoCommand(sp, remote ? "RTI5?" : "ATI5?", true));
+    }
+    return result.ToString();
+  }
+
+  private void ApplySettingMetadata(string block, bool remote) {
+    IReadOnlyDictionary<string, SikRadioSettingMetadata> parsed =
+        SikRadioSettingsService.ParseMetadata(block);
+    Ui(() => {
+      foreach (SikRadioSettingMetadata metadata in parsed.Values) {
+        SikRegister? setting = Registers.FirstOrDefault(item =>
+            item.Name.Equals(metadata.Name, StringComparison.OrdinalIgnoreCase));
+        if (setting == null) {
+          int.TryParse(Regex.Match(metadata.Designator, @"\d+").Value, out int number);
+          setting = new SikRegister(number, metadata.Name, metadata.Name);
+          Registers.Add(setting);
+        }
+        if (metadata.AllowedValues.Count > 0) {
+          setting.SetOptions(metadata.AllowedValues);
+        }
+        setting.EnsureOption(metadata.Value);
+        if (remote) {
+          setting.RemoteValue = metadata.Value;
+          setting.OrigRemote = metadata.Value;
+          setting.HasRemote = true;
+        } else {
+          setting.LocalValue = metadata.Value;
+          setting.OrigLocal = metadata.Value;
+        }
+      }
+    });
+  }
+
+  private static string StripMultipointPrefix(string value) {
+    value = value.Trim();
+    if (value.StartsWith('[') && value.IndexOf(']') is int end && end >= 0) {
+      return value[(end + 1)..].Trim();
+    }
+    return value;
   }
 
   private static string ReadLine(SerialPort sp) {
