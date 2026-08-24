@@ -80,6 +80,7 @@ public sealed class ExternalGuidedTests {
       Assert.Equal(12.5, last.Value.lat, 7);
       Assert.Equal(23.5, last.Value.lng, 7);
       Assert.Equal(45, last.Value.alt, 7);
+      Assert.Equal((byte)MAVLink.MAV_FRAME.GLOBAL_RELATIVE_ALT, last.Value.frame);
 
       current = new NmeaVehicleTarget(secondLink, 42, 7);
       viewModel.SynchronizeActiveTarget();
