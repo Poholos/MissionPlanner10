@@ -38,6 +38,7 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
   public FlightPlannerViewModel() {
     Waypoints.CollectionChanged += OnWaypointsCollectionChanged;
     WaypointsChanged += PublishLocalKmlMission;
+    AppState.ConnectionChanged += OnConnectionChanged;
     Services.DisplayViewService.Changed += OnDisplayViewChanged;
     RefreshDisplayView();
     try {
@@ -63,6 +64,11 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
   private void OnDisplayViewChanged(object? sender, EventArgs e) =>
       Dispatcher.UIThread.Post(RefreshDisplayView);
 
+  private void OnConnectionChanged() => Dispatcher.UIThread.Post(() => {
+    OnPropertyChanged(nameof(ShowLoiterRadius));
+    OnPropertyChanged(nameof(VehicleFirmware));
+  });
+
   private void RefreshDisplayView() {
     var profile = Services.DisplayViewService.Current;
     ShowVerifyHeight = profile.displayCheckHeightBox;
@@ -85,6 +91,7 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
   }
 
   public void Dispose() {
+    AppState.ConnectionChanged -= OnConnectionChanged;
     Services.DisplayViewService.Changed -= OnDisplayViewChanged;
     Waypoints.CollectionChanged -= OnWaypointsCollectionChanged;
     WaypointsChanged -= PublishLocalKmlMission;
@@ -706,6 +713,13 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
   public string WpRadiusLabel => $"WP Radius ({CurrentState.DistanceUnit})";
 
   public string LoiterRadiusLabel => $"Loiter Radius ({CurrentState.DistanceUnit})";
+
+  public Firmwares VehicleFirmware => _comPort.MAV.cs.firmware;
+
+  public bool ShowLoiterRadius => SupportsGlobalLoiterRadius(VehicleFirmware);
+
+  internal static bool SupportsGlobalLoiterRadius(Firmwares firmware) =>
+      firmware != Firmwares.ArduCopter2;
 
   [ObservableProperty]
   private bool _verifyHeight;
@@ -1464,8 +1478,10 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
     }
     Set("WP_RADIUS", WpRadius);
     Set("WP_RADIUS_M", WpRadius);
-    Set("WP_LOITER_RAD", LoiterRadius);
-    Set("LOITER_RAD", LoiterRadius);
+    if (SupportsGlobalLoiterRadius(VehicleFirmware)) {
+      Set("WP_LOITER_RAD", LoiterRadius);
+      Set("LOITER_RAD", LoiterRadius);
+    }
   }
 
   public async Task SaveFileAsync(string path) {

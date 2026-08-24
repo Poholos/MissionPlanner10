@@ -22,7 +22,8 @@
           <ctl:FormField Label="{Binding WpRadiusLabel}" LabelWidth="92" Margin="0,2,12,2">
             <NumericUpDown Classes="sm" Value="{Binding WpRadius}" />
           </ctl:FormField>
-          <ctl:FormField Label="{Binding LoiterRadiusLabel}" LabelWidth="104" Margin="0,2,12,2">
+          <ctl:FormField Label="{Binding LoiterRadiusLabel}" LabelWidth="104" Margin="0,2,12,2"
+                         IsVisible="{Binding ShowLoiterRadius}">
             <NumericUpDown Classes="sm" Value="{Binding LoiterRadius}" />
           </ctl:FormField>
           <ctl:FormField Label="{Binding DefaultAltLabel}" LabelWidth="92" Margin="0,2,12,2">

@@ -591,6 +591,22 @@ public class PlannerPortParityTests {
     Assert.Equal(100, FlightPlannerMap.RadiusInMeters(328.084, 3.28084), 5);
   }
 
+  [Theory]
+  [InlineData(0, 100, Firmwares.ArduCopter2, 0)]
+  [InlineData(0, 100, Firmwares.ArduPlane, 100)]
+  [InlineData(-25, 100, Firmwares.ArduCopter2, 25)]
+  public void Loiter_turns_radius_respects_copter_panorama_semantics(
+      double commandRadius, double configuredRadius, Firmwares firmware, double expected) {
+    Assert.Equal(expected,
+        FlightPlannerMap.LoiterTurnsRadius(commandRadius, configuredRadius, firmware));
+  }
+
+  [Fact]
+  public void Global_loiter_radius_is_not_exposed_for_copter() {
+    Assert.False(FlightPlannerViewModel.SupportsGlobalLoiterRadius(Firmwares.ArduCopter2));
+    Assert.True(FlightPlannerViewModel.SupportsGlobalLoiterRadius(Firmwares.ArduPlane));
+  }
+
   [Fact]
   public void Auto_wp_text_uses_a_cross_platform_vector_path() {
     IReadOnlyList<(double X, double Y)> points = PlannerTextGeometry.Create("MP", 5, 25);
