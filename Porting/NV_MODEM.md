@@ -57,6 +57,9 @@ The page includes:
 - receive diversity never mirrors or couples encryption keys: staging, generation and atomic
   **SET KEY** affect only the explicitly selected radio, so Radio 1 and Radio 2 may use different
   AES keys;
+- **Revert selected**, synchronized from GTU commit `77af510a`, restores only the selected locally
+  changed parameter to the last value read from the modem. It sends no MAVLink message and leaves
+  every other staged edit untouched;
 - NV4 `ENC_KEY_BITS` is restricted to the only effective firmware value, 128 bits, while all eight
   signed key words and the singular `REFRESH_SETTING` write remain compatible with legacy units;
 - RTSP path get/set and transport presets for supported LR2021 configurations;
