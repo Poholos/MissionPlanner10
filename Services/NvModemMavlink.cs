@@ -273,6 +273,9 @@ internal static class NvModemParameterCodec {
     double scale = Math.Max(1, Math.Max(Math.Abs(left), Math.Abs(right)));
     return Math.Abs(left - right) <= scale * 1e-7;
   }
+
+  internal static bool ValuesEqual(double left, double right, byte type) =>
+      IsInteger(type) ? left == right : NearlyEqual(left, right);
 }
 
 internal sealed record NvModemLink(MAVLinkInterface Link, string Name);

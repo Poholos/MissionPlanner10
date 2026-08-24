@@ -1,8 +1,8 @@
 # NV Modem setup
 
 Setup > NV Modem is the Avalonia port of the `NV5Settings` widget from the local AgroSky GTU tree.
-The implementation was compared with the current GTU `master` at commit
-`5771e7b0c68f09b64c2407ad46bf5466ba275aee`. The relevant source specification is
+The implementation was compared with the current clean GTU `master` at commit
+`98e9883335fad3e03f8f9127f854da9f7ae4a196`. The relevant source specification is
 `hermes-gui/include/nv5settings.h` plus `hermes-gui/src/nv5settings.cpp`.
 
 ## Connection and device identity
@@ -43,11 +43,18 @@ The page includes:
 - live NV4 or per-radio NV5 link status;
 - LR2021/LoRa/FLRC, FHSS, FEC and role presets, staged locally until **Save**;
 - channel-settings copy from another completely read NV5 modem;
-- NV4 32-byte keys as printable text or hexadecimal (with an optional `hex:` prefix), and NV5
-  16-byte AES keys as exactly 32 hexadecimal digits, with generation and fingerprints;
-- four big-endian `UINT32` parameters (`CHx_KEY_W0..W3`) for each NV5 key plus atomic persistence
-  of the complete selected one- or two-channel key snapshot through `NV_ENCRYPTION_KEYS_SET` (`53017`),
-  with idempotent retries and final `NV_ENCRYPTION_KEYS_ACK` (`53018`) fingerprints;
+- NV4 32-byte keys accepted as 32 printable ASCII characters or 64 hexadecimal digits (an optional
+  `hex:` prefix remains compatible), while display and generation use 64 uppercase hexadecimal
+  digits from 32 cryptographically random bytes; NV5 accepts a 16-byte AES key as exactly 32
+  case-insensitive hexadecimal digits and normalizes it to uppercase;
+- four big-endian MAVLink `INT32` parameters (`CHx_KEY_W0..W3`) for each NV5 key. Their signed
+  decimal values preserve the same raw 32 bits; ordinary **Save** writes edited words as exact
+  typed `PARAM_SET` values, while **SET KEY** persists a complete key snapshot atomically through
+  `NV_ENCRYPTION_KEYS_SET` (`53017`) with idempotent retries and a post-persistence
+  `NV_ENCRYPTION_KEYS_ACK` (`53018`);
+- diversity mode stages and atomically writes the same selected AES key to both radio channels;
+- NV4 `ENC_KEY_BITS` is restricted to the only effective firmware value, 128 bits, while all eight
+  signed key words and the singular `REFRESH_SETTING` write remain compatible with legacy units;
 - RTSP path get/set and transport presets for supported LR2021 configurations;
 - transmitter enable/suppress diagnostics and standard MAVLink reboot;
 - Mission Planner-compatible `.param` import/export. Exports carry a sensitive-data warning because
@@ -55,14 +62,19 @@ The page includes:
 
 Parameter snapshots are deliberately not written to application settings. Selecting another modem
 or refreshing the current one clears the visible list before requesting new values. A silent modem
-is retried a bounded number of times and then reports an error without blocking connection or device
-selection. Writes are serialized, acknowledged and retried; while one is in flight the target
-selector is locked. A target/link change during confirmation prevents the operation.
+is retried up to six times to cover STM32 Ethernet renegotiation and then reports an error without
+blocking connection or device selection. A retry preserves parameter indexes already received
+instead of clearing a slow but progressing catalogue. Writes are serialized, acknowledged and
+retried; stale or wrongly typed list responses cannot impersonate an `INT32` key write echo. After
+ordinary NV5 `PARAM_SET` completion the page leaves the full reread to **Refresh selected** so it
+does not race the `MAV_SAVE_MS` debounce, flash commit and reboot. While a write is in flight the
+target selector is locked, and a target/link change during confirmation prevents the operation.
 
 ## Acceptance boundary
 
 The shared Mission Planner parser, custom CRC/layouts, multi-link target isolation, NV4 apply
-transaction, atomic NV5 keys, RTSP dirty-state handling, preset staging, parameter-file roundtrip
-and silent-device timeout are covered by automated tests. A representative physical NV4 and NV5
+transaction, both NV5 key-write paths, exact typed echoes, diversity mirroring, RTSP dirty-state
+handling, preset staging, parameter-file roundtrip and slow/silent-device handling are covered by
+automated tests. A representative physical NV4 and NV5
 modem on UDP/TCP/UART still require an operator acceptance run, including reboot/reappearance and
 real RF/RTSP behavior.

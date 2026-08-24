@@ -4,10 +4,10 @@ Updated: **2026-08-24**.
 
 ## Current state
 
-- Functional migration is published on `port/avalonia-in-place` at `eaf456665`; the isolated
-  `cleanup/project-audit` branch is based on reviewed cleanup checkpoint `a202a70f4` and contains
-  the final full-project audit work. Rollback remains the untouched native baseline `67a3c4f`;
-  `master` is not modified.
+- Functional migration is published on `port/avalonia-in-place` at `eaf456665`; the isolated,
+  fully verified cleanup is published on `cleanup/project-audit` at `cd745f4f`. The current
+  `sync/gtu-nv5settings-98e98833` follow-up contains only the later GTU `NV5Settings` synchronization.
+  Rollback remains the untouched native baseline `67a3c4f`; `master` is not modified.
 - The root `MissionPlanner.csproj` is now the net10 Avalonia application with assembly and product
   identity `MissionPlanner`. It builds one main `MissionPlanner.dll` and has no source, build or
   runtime dependency on an `external/MissionPlanner` tree.
@@ -28,7 +28,7 @@ Updated: **2026-08-24**.
   migration evidence, not a copied source tree.
 - A clean Release build of the complete test graph succeeds with zero warnings and zero errors
   after resolving all 156 inherited `ExtLibs` diagnostics without a repository-wide `NoWarn`; the
-  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1253/1253**
+  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1259/1259**
   Avalonia tests pass on Linux. A 12-second Xvfb launch reaches the normal Avalonia event loop with
   no console errors.
 - Informational version is derived from the current native Mission Planner version and formatted as
@@ -40,13 +40,14 @@ Updated: **2026-08-24**.
 - Stable and beta auto-updates now select signed manifests directly from this fork's GitHub
   Releases. The matching Ed25519 private key is present only as the repository secret
   `UPDATE_SIGNING_KEY`; the committed public key is verified again during release.
-- NV5 encryption-key handling is synchronized with GTU commit `0ae81300`: the UI generates and
-  displays exactly 32 uppercase hexadecimal digits, accepts only a 32-digit hexadecimal NV5 key,
-  and maps it to four big-endian MAVLink `UINT32` words (`CHx_KEY_W0..W3`). A complete one- or
-  two-radio snapshot is persisted through one idempotent `NV_ENCRYPTION_KEYS_SET`/
-  `NV_ENCRYPTION_KEYS_ACK` transaction rather than four independent parameter writes per radio.
-  NV4 retains its eight signed words followed by singular `REFRESH_SETTING`,
-  whose write type is verified as `UINT32`.
+- NV key handling is synchronized with GTU commit `98e98833`. NV5 accepts exactly 32 hexadecimal
+  digits, displays uppercase, and maps the 16 raw bytes to four big-endian MAVLink `INT32` words.
+  Ordinary Save writes edited words as exact typed `PARAM_SET` operations; explicit SET KEY uses
+  the idempotent post-persistence `NV_ENCRYPTION_KEYS_SET`/`NV_ENCRYPTION_KEYS_ACK` transaction and
+  mirrors the selected key to both radios when diversity is enabled. NV4 generation now uses 32
+  random bytes displayed as 64 uppercase hexadecimal digits, retains compatible printable/hex
+  input, writes eight signed words plus singular `REFRESH_SETTING`, and locks ineffective
+  `ENC_KEY_BITS` edits to 128.
 - The firmware pages now retain the official modern and legacy safe upload paths: APJ/PX4/VRX
   bootloader upload with board-id matching, STM32 DFU/HEX/BIN, and APM1/APM2 STK500/STKv2 with
   readback verification. The Legacy manifest selector exposes platform and a functional format
@@ -90,8 +91,10 @@ Updated: **2026-08-24**.
 ## GTU synchronization checkpoint
 
 - NV modem behavior was last compared with `/home/alex/src/AgroSky/GTU` at commit
-  `0ae813004079bd46d63d708966b7eff266ad5949` (`feat: use NV5 encryption key words`). The GTU
-  worktree was clean and its local `master` matched `origin/master`.
+  `98e9883335fad3e03f8f9127f854da9f7ae4a196` (`fix: wait for NV5 parameter persistence`). The GTU
+  worktree was clean and its local `master` matched freshly fetched `origin/master`. The additional
+  firmware-reference repositories named by GTU (`../nv5-proto4` and `../nv5-hub`) were not present
+  in the local AgroSky workspace at this checkpoint.
 - Before each later NV modem change and before a release, recheck both committed and uncommitted
   GTU changes with `git status`, then compare every newer change to `hermes-gui/include/nv5settings.h`,
   `hermes-gui/src/nv5settings.cpp` and `hermes-gui/test/testnv5settings.cpp`. Update this commit and

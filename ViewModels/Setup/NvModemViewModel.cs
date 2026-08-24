@@ -80,9 +80,10 @@ public partial class NvModemParameterRow : ObservableObject {
   }
 
   private void Revalidate() {
-    IsValid = TryValue(out double value);
+    IsValid = TryValue(out double value)
+        && NvModemCatalog.IsEditableValueAllowed(Name, value);
     IsChanged = IsValid && (double.IsNaN(Original)
-        || !NvModemParameterCodec.NearlyEqual(value, Original));
+        || !NvModemParameterCodec.ValuesEqual(value, Original, Type));
   }
 }
 
@@ -220,7 +221,7 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
   private static readonly TimeSpan ParameterListTimeout = TimeSpan.FromSeconds(3);
   private static readonly TimeSpan ParameterListRetry = TimeSpan.FromSeconds(2);
   private const int MaximumWriteAttempts = 3;
-  private const int MaximumParameterListRetries = 2;
+  private const int MaximumParameterListRetries = 6;
   private const ushort SetTransmitEnabledCommand = 42010;
 
   private readonly INvModemMavlinkTransport _transport;
@@ -606,16 +607,9 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
   [RelayCommand]
   private void GenerateKey() {
     NvModemDeviceState? device = SelectedState;
-    if (device?.Generation == NvModemGeneration.Nv4) {
-      const string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-      Span<char> generated = stackalloc char[NvModemCatalog.Nv4KeyBytes];
-      for (int index = 0; index < generated.Length; index++) {
-        generated[index] = alphabet[RandomNumberGenerator.GetInt32(alphabet.Length)];
-      }
-      KeyText = new string(generated);
-    } else {
-      KeyText = Convert.ToHexString(RandomNumberGenerator.GetBytes(NvModemCatalog.Nv5KeyBytes));
-    }
+    int keyBytes = device?.Generation == NvModemGeneration.Nv4
+        ? NvModemCatalog.Nv4KeyBytes : NvModemCatalog.Nv5KeyBytes;
+    KeyText = Convert.ToHexString(RandomNumberGenerator.GetBytes(keyBytes));
     if (StageEncryptionKey()) {
       SetStatus("Generated and staged a new encryption key. Nothing was sent.");
     }
@@ -635,8 +629,13 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
       if (!QueueParameterWrites(device, rows, addLegacyRefresh: true)) {
         return;
       }
-    } else if (!QueueEncryptionKeyWrite(device, (byte)(1 << (channel - 1)))) {
-      return;
+    } else {
+      byte channelMask = StagedValue("DIVERSITY", 0) != 0
+          ? (byte)0x03 : (byte)(1 << (channel - 1));
+      if (!QueueEncryptionKeyWrite(device, channelMask)) {
+        return;
+      }
+      channel = channelMask == 0x03 ? 0 : channel;
     }
     BeginQueuedWrites(device, keyOnly: true, keyChannel: channel);
   }
@@ -677,7 +676,7 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
       byte type = targetRow?.Type ?? source.ParameterTypes.GetValueOrDefault(sourceName,
           (byte)MAVLink.MAV_PARAM_TYPE.REAL32);
       if (targetRow != null && targetRow.TryValue(out double current)
-          && NvModemParameterCodec.NearlyEqual(current, value)) {
+          && NvModemParameterCodec.ValuesEqual(current, value, type)) {
         continue;
       }
       rows.Add(new NvModemParameterComparisonRow(
@@ -809,7 +808,8 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
         readOnly++;
         continue;
       }
-      if (!NvModemParameterCodec.TryParse(fields[1], row.Type, out double value)) {
+      if (!NvModemParameterCodec.TryParse(fields[1], row.Type, out double value)
+          || !NvModemCatalog.IsEditableValueAllowed(row.Name, value)) {
         invalid++;
       } else {
         imported[row.Name] = (value, row.Type);
@@ -818,7 +818,8 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
     var rows = new List<NvModemParameterComparisonRow>();
     foreach ((string name, (double value, byte type)) in imported) {
       NvModemParameterRow row = _parameterRows[name];
-      if (row.TryValue(out double current) && NvModemParameterCodec.NearlyEqual(current, value)) {
+      if (row.TryValue(out double current)
+          && NvModemParameterCodec.ValuesEqual(current, value, type)) {
         continue;
       }
       rows.Add(new NvModemParameterComparisonRow(
@@ -1070,10 +1071,17 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
 
     if (_currentWrite is { Kind: NvWriteKind.Parameter } write
         && ReferenceEquals(write.Device, device) && write.Name == name) {
-      bool accepted = NvModemParameterCodec.IsInteger(write.ParameterType)
-          ? decoded == write.Value : NvModemParameterCodec.NearlyEqual(decoded, write.Value);
+      bool nv5KeyWrite = device.Generation == NvModemGeneration.Nv5
+          && NvModemCatalog.Nv5KeyWordIndex(name) >= 0;
+      bool keyTypeAccepted = !nv5KeyWrite
+          || write.ParameterType == (byte)MAVLink.MAV_PARAM_TYPE.INT32
+          && message.param_type == (byte)MAVLink.MAV_PARAM_TYPE.INT32;
+      bool accepted = keyTypeAccepted
+          && NvModemParameterCodec.ValuesEqual(decoded, write.Value, write.ParameterType);
       if (!accepted) {
-        FailWrites($"Modem rejected {name}: reported {decoded:G9} instead of {write.Value:G9}.");
+        // PARAM_VALUE has no transaction id. A list response for the same name can arrive
+        // between PARAM_SET and its typed echo, so retain the staged value and wait for the
+        // exact echo or the normal retry timeout.
         return;
       }
       device.Parameters[name] = decoded;
@@ -1136,9 +1144,9 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
       byte[] key = channel == 1 ? write.Channel1Key : write.Channel2Key;
       for (int word = 0; word < NvModemCatalog.Nv5KeyWordCount; word++) {
         string name = NvModemCatalog.Nv5KeyWordName(channel, word);
-        double value = NvModemCatalog.Nv5KeyWord(key, word);
+        double value = NvModemCatalog.Nv5SignedKeyWord(key, word);
         device.Parameters[name] = value;
-        device.ParameterTypes[name] = (byte)MAVLink.MAV_PARAM_TYPE.UINT32;
+        device.ParameterTypes[name] = (byte)MAVLink.MAV_PARAM_TYPE.INT32;
         if (_parameterRows.TryGetValue(name, out NvModemParameterRow? row)) {
           row.Accept(value);
         }
@@ -1362,14 +1370,20 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
         }
       }
     } else {
-      for (int word = 0; word < NvModemCatalog.Nv5KeyWordCount; word++) {
-        string name = NvModemCatalog.Nv5KeyWordName(channel, word);
-        if (!_parameterRows.ContainsKey(name)
-            || !StageParameter(name, NvModemCatalog.Nv5KeyWord(bytes, word),
-                device.ParameterTypes.GetValueOrDefault(name,
-                    (byte)MAVLink.MAV_PARAM_TYPE.UINT32), false)) {
-          SetStatus("The selected NV5 did not publish the complete key-word set.", true);
-          return false;
+      bool diversity = StagedValue("DIVERSITY", 0) != 0;
+      for (int targetChannel = 1; targetChannel <= 2; targetChannel++) {
+        if (targetChannel != channel && !diversity) {
+          continue;
+        }
+        for (int word = 0; word < NvModemCatalog.Nv5KeyWordCount; word++) {
+          string name = NvModemCatalog.Nv5KeyWordName(targetChannel, word);
+          if (!_parameterRows.ContainsKey(name)
+              || !StageParameter(name, NvModemCatalog.Nv5SignedKeyWord(bytes, word),
+                  device.ParameterTypes.GetValueOrDefault(name,
+                      (byte)MAVLink.MAV_PARAM_TYPE.INT32), false)) {
+            SetStatus("The selected NV5 did not publish the complete key-word set.", true);
+            return false;
+          }
         }
       }
     }
@@ -1396,8 +1410,9 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
         }
         bytes.AddRange(BitConverter.GetBytes(unchecked((int)Math.Round(numeric))));
       }
-      KeyHint = "NV4: 32 printable characters, or hex: followed by 64 hexadecimal digits, "
-          + "mapped to eight signed 32-bit words.";
+      KeyHint = "NV4 exposes eight INT32 words (-2147483648..2147483647), packed as 32 raw "
+          + "bytes in little-endian word order. The key field shows 64 uppercase hexadecimal "
+          + "digits; all eight words must match the peer.";
       KeyFingerprint = device.LegacyKeyFingerprint.Length == 0
           ? "Stored fingerprint: unavailable"
           : "Stored fingerprint: " + device.LegacyKeyFingerprint;
@@ -1416,8 +1431,8 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
       if (complete) {
         bytes.AddRange(key);
       }
-      KeyHint = "NV5 exposes four unsigned 32-bit words per radio. AES-128 keys are shown as "
-          + "exactly 32 uppercase hexadecimal digits without spaces or a prefix.";
+      KeyHint = "NV5 exposes four INT32 words (-2147483648..2147483647) per radio. AES-128 keys "
+          + "are shown as exactly 32 uppercase hexadecimal digits without spaces or a prefix.";
       string hash = $"CH{channel}_KEY_HASH";
       KeyFingerprint = _parameterRows.TryGetValue(hash, out var hashRow)
           ? "Stored fingerprint: " + hashRow.ValueText
@@ -1425,11 +1440,7 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
     }
     int expectedBytes = device.Generation == NvModemGeneration.Nv4
         ? NvModemCatalog.Nv4KeyBytes : NvModemCatalog.Nv5KeyBytes;
-    KeyText = bytes.Count == expectedBytes
-        ? device.Generation == NvModemGeneration.Nv5
-            ? Convert.ToHexString(bytes.ToArray())
-            : EncodeKeyText(bytes.ToArray())
-        : "";
+    KeyText = bytes.Count == expectedBytes ? Convert.ToHexString(bytes.ToArray()) : "";
   }
 
   private static bool TryDecodeKeyText(
@@ -1466,17 +1477,12 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
   private static bool TryNv5KeyWord(NvModemParameterRow row, out uint value) {
     value = 0;
     if (!row.TryValue(out double numeric) || numeric != Math.Floor(numeric)
-        || numeric is < uint.MinValue or > uint.MaxValue) {
+        || numeric is < int.MinValue or > int.MaxValue) {
       return false;
     }
-    value = (uint)numeric;
+    value = unchecked((uint)(int)numeric);
     return true;
   }
-
-  private static string EncodeKeyText(byte[] bytes) =>
-      bytes.All(value => value is >= 0x20 and <= 0x7e)
-          ? Encoding.ASCII.GetString(bytes)
-          : "hex:" + Convert.ToHexString(bytes).ToLowerInvariant();
 
   private void RebuildRadioChoices() {
     NvModemDeviceState? device = SelectedState;
@@ -1532,21 +1538,12 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
         ?? CopySources.FirstOrDefault();
   }
 
-  private bool QueueParameterWrites(
+  internal bool QueueParameterWrites(
       NvModemDeviceState device, IEnumerable<NvModemParameterRow> rows,
       bool addLegacyRefresh = true) {
     bool any = false;
-    byte nv5KeyChannelMask = 0;
     foreach (NvModemParameterRow row in rows) {
       if (!row.TryValue(out double value)) {
-        continue;
-      }
-
-      if (device.Generation == NvModemGeneration.Nv5
-          && NvModemCatalog.Nv5KeyWordIndex(row.Name) >= 0) {
-        nv5KeyChannelMask |= (byte)(row.Name.StartsWith("CH1_", StringComparison.Ordinal)
-            ? 0x01 : 0x02);
-        any = true;
         continue;
       }
 
@@ -1558,11 +1555,6 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
         ParameterType = row.Type,
       });
       any = true;
-    }
-    if (nv5KeyChannelMask != 0
-        && !QueueEncryptionKeyWrite(device, nv5KeyChannelMask)) {
-      _writeQueue.Clear();
-      return false;
     }
     if (any && addLegacyRefresh && device.Generation == NvModemGeneration.Nv4
         && device.Parameters.ContainsKey("REFRESH_SETTING")) {
@@ -1616,7 +1608,7 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
     return true;
   }
 
-  private void BeginQueuedWrites(NvModemDeviceState device, bool keyOnly, int keyChannel) {
+  internal void BeginQueuedWrites(NvModemDeviceState device, bool keyOnly, int keyChannel) {
     if (_writeQueue.Count == 0) {
       return;
     }
@@ -1784,7 +1776,9 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
   }
 
   private void SendParameterRequestList(NvModemDeviceState device, bool retry = false) {
-    device.ParameterRefreshPending = true;
+    if (!retry) {
+      device.ParameterRefreshPending = true;
+    }
     device.ParameterListInProgress = true;
     device.ParameterListLastProgressUtc = _utcNow();
     device.ParameterListRetries = retry ? device.ParameterListRetries + 1 : 0;

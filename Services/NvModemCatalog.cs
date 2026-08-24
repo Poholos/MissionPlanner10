@@ -49,6 +49,9 @@ internal static class NvModemCatalog {
         | key[offset + 3];
   }
 
+  internal static int Nv5SignedKeyWord(ReadOnlySpan<byte> key, int word) =>
+      unchecked((int)Nv5KeyWord(key, word));
+
   internal static void WriteNv5KeyWord(Span<byte> key, int word, uint value) {
     int offset = checked(word * Nv5KeyWordBytes);
     if (word is < 0 or >= Nv5KeyWordCount || offset + Nv5KeyWordBytes > key.Length) {
@@ -71,6 +74,9 @@ internal static class NvModemCatalog {
       name is "MODEM_PROFILE" or "HW_VERSION" or "REFRESH_SETTING" or "RADIO_COUNT"
       || name.EndsWith("_HASH", StringComparison.Ordinal)
       || name.EndsWith("_CHIP", StringComparison.Ordinal);
+
+  internal static bool IsEditableValueAllowed(string name, double value) =>
+      name != "ENC_KEY_BITS" || value == 128;
 
   internal static bool RequiresManualReboot(NvModemGeneration generation, string name) =>
       generation == NvModemGeneration.Nv5
@@ -143,7 +149,7 @@ internal static class NvModemCatalog {
       "BANDWIDTH_MHZ" => "Total NV4 FHSS frequency span in MHz around the center frequency.",
       "PREAMBLE_LEN" => "LoRa preamble length in symbols; peers should use the same value.",
       "CHL_WIDE_KHZ" => "SX1278 LoRa channel bandwidth in kHz, normally 125, 250 or 500.",
-      "ENC_KEY_BITS" => "AES key length used by NV4; the deployed firmware is built for 128-bit AES.",
+      "ENC_KEY_BITS" => "NV4 legacy metadata; the firmware is compiled for AES-128 and does not use this field to select another key size. Keep it at 128.",
       "SPREAD_FACTOR" => "LoRa spreading factor; SX1278 normally supports 6..12.",
       "POWER_TX" => "SX1278 transmit power setting in dBm, subject to hardware and regional limits.",
       "LNA_GAIN" => "SX1278 receive gain: 0=automatic; supported fixed values depend on the radio driver.",
@@ -183,7 +189,9 @@ internal static class NvModemCatalog {
       return exact;
     }
     if (Nv4KeyWordIndex(name) >= 0) {
-      return "NV4 encryption key word as a signed 32-bit integer. Eight words are the same 32 raw bytes shown in the Key field.";
+      return "NV4 raw key word (MAVLink INT32), range -2147483648..2147483647. "
+          + "Each word stores four bytes in little-endian order. Words 1..4 supply the AES-128 "
+          + "key; all eight words also affect the FHSS schedule, so peers must match all eight.";
     }
     if (name.StartsWith("NET_BYTE_", StringComparison.Ordinal)) {
       return "One local IPv4 octet. NV4 derives the fourth octet from LOCAL_COMP_ID.";
@@ -258,9 +266,10 @@ internal static class NvModemCatalog {
     }
 
     if (Nv5KeyWordIndex(name) >= 0) {
-      return "AES-128 key word (UINT32). W0 contains bytes 0..3, W1 bytes 4..7, "
-          + "W2 bytes 8..11, and W3 bytes 12..15, each in big-endian order. "
-          + "Configure all four words identically on linked radios.";
+      return "AES-128 key word (MAVLink INT32), range -2147483648..2147483647. "
+          + "W0 contains bytes 0..3, W1 bytes 4..7, W2 bytes 8..11, and W3 bytes 12..15, "
+          + "each in big-endian order. The signed decimal value preserves the same four raw "
+          + "bytes; configure all four words identically on linked radios.";
     }
 
     if (name.EndsWith("_RADIO_CRC", StringComparison.Ordinal)) {
