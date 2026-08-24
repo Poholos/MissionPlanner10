@@ -48,6 +48,19 @@ submodule. UI-only changes were translated to Avalonia where applicable:
 
 ## Features restored during this synchronization
 
+- Firmware setup now covers the complete safe cross-platform portion of the official firmware
+  workflows. Current APJ/PX4 and legacy VRX images use the identified PX4 bootloader with board-id
+  matching; STM32 `.dfu`/Intel HEX/raw `.bin` images use DFU (raw binaries require an explicit
+  0x08000000 warning); retired APM1 1280/APM1 2560/APM2 boards use their original STK500/STKv2
+  protocols and full readback verification. The Legacy page no longer hides the official
+  manifest's APM/HEX images and offers vehicle, release, platform and working format filters.
+  Ambiguous custom HEX files require an exact target and physical serial-port choice instead of
+  the official `BoardDetect` path, whose per-port device match is commented out and can identify a
+  different USB board when several are attached. The native parser also fixes two official failure
+  modes: erased HEX gaps are `0xFF` rather than zero, and a bootloader that never connects is a
+  failure rather than a successful return. Bebop/Disco/Solo network installers remain deliberately
+  unavailable because they depend on obsolete unauthenticated Wi-Fi/ADB/SSH workflows; their
+  images are shown as unsupported rather than sent through the wrong programmer.
 - The SiK Radio setup page consolidates the official embedded and standalone tools into one native
   Avalonia workflow: classic and RFD `ATI5` settings, `ATI10`/`ATI5?` ranges, local/remote writes,
   separate AES keys, factory reset, compatible `NAME = VALUE` profiles, PPM failsafe capture, live
@@ -89,7 +102,7 @@ submodule. UI-only changes were translated to Avalonia where applicable:
   actions require a live link, a disarmed vehicle and explicit confirmation where destructive.
   Its parameter-recovery path is additionally cancellable and bound to the exact active link,
   MAVState, system and component. A modem/vehicle switch, link loss or arming event stops the
-  workflow between bounded upstream parameter calls before another write. All 67 official click
+  workflow between bounded upstream parameter calls before another write. All 68 official click
   handlers are classified in [`TEMP_HANDLER_AUDIT.md`](TEMP_HANDLER_AUDIT.md); none remains open.
 - Developer Tools now ports the official hidden `MAVLinkSerialPort` TCP bridge. One sequential TCP
   client can exchange raw bytes with TELEM1/2, GPS1/2, SHELL or SERIAL0-9 through MAVLink
@@ -838,7 +851,7 @@ Planner functional-parity gap.
 | European dynamic no-fly feed | The pinned Mission Planner `eunfz.cs` implementation has an empty download URL and is not operational upstream. [EASA currently directs operators](https://www.easa.europa.eu/en/light/topics/geo-zones-know-where-fly-your-drone) to each national aviation authority's geographical-zone source, so the port does not invent a unified feed and present it as official parity. |
 | Support Proxy | Not ported on any target until authentication, explicit consent and networking are designed and reviewed. |
 | Original WinForms/Windows driver-install UI | Not part of the Avalonia UI. Use native OS driver handling and add board-specific cross-platform DFU implementations where required. |
-| Legacy CLI firmware/log paths and AC3.3-era terminal flows | Obsolete for supported firmware and intentionally not exposed. |
+| Legacy CLI log paths and AC3.3-era terminal flows | Obsolete for supported firmware and intentionally not exposed. Legacy APM/VRX/DFU firmware selection and upload are available through the native Firmware pages instead. |
 | DroneCAN file browser | The official control is unreachable from the current Mission Planner UI and remains half-stubbed. Node parameters and firmware upload are ported; a general browser will be reconsidered when upstream exposes a complete operational workflow. |
 | X-Plane/FlightGear legacy HIL and Ateryx-specific pages | Superseded by SITL and not restored without a current user and maintenance case. |
 | IronPython script host | The portable local console uses MoonSharp Lua. Old Python scripts would require a large legacy runtime and are not enabled by default. |

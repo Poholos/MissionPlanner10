@@ -1543,10 +1543,10 @@ Updater/Properties/Resources.Designer.cs	csharp	replace	Services/Updater.cs	Mapp
 Updater/Properties/Resources.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Utilities/AirMarket.cs	csharp	remove	Porting/Reference/PORT_STATUS.md	AirMarket is an unreachable legacy third-party upload integration that stores a password-derived credential and automatically sends flight logs; it is intentionally retired pending a current API, authentication, consent and privacy review.
 Utilities/AirMarket.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Utilities/BoardDetect.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Utilities/BoardDetect.cs	csharp	replace	Services/LegacyFirmwareUploader.cs;GCSViews/Setup/InstallFirmwareView.axaml.cs;ViewModels/Setup/InstallFirmwareViewModel.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Utilities/CircleSurveyMission.cs	csharp	remove	Porting/Reference/PORT_STATUS.md	The unreferenced beta circle helper is superseded by the native Avalonia planner mission builders and was never reachable from the pinned official UI.
 Utilities/ExtensionsMP.cs	csharp	remove	Porting/Reference/PORT_STATUS.md	These are WinForms/Xamarin host, binding and DataGridView glue extensions; native Avalonia windows, bindings and lifecycle handling replace them directly.
-Utilities/Firmware.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Utilities/Firmware.cs	csharp	replace	Services/LegacyFirmwareUploader.cs;ViewModels/Setup/InstallFirmwareViewModel.cs;ViewModels/GCSViews/ConfigurationView/ConfigFirmwareLegacyViewModel.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Utilities/GStreamerUI.cs	csharp	replace	Controls/VideoControl.cs;Services/VideoSourceResolver.cs;Services/MavlinkVideoStreams.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Utilities/ImageMatch.cs	csharp	remove	Porting/Reference/PORT_STATUS.md	This unreferenced Accord imaging experiment uses hard-coded developer Windows paths and is not a shipped Mission Planner workflow.
 Utilities/LangUtility.cs	csharp	replace	Services/LocalizationService.cs;Services/ResxTranslationService.cs;Views/TranslationEditorView.axaml;ViewModels/TranslationEditorViewModel.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
@@ -1618,7 +1618,7 @@ temp.cs	csharp	replace	Views/ActionPageView.axaml;ViewModels/GCSViews/Configurat
 temp.ko-KR.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 temp.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 temp.uk.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-test/FirmwareSelection.xaml.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+test/FirmwareSelection.xaml.cs	csharp	replace	GCSViews/ConfigurationView/ConfigFirmwareLegacyView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigFirmwareLegacyViewModel.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 wix/Drivers.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
 wix/Program.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/Program.cs	Requires code-level classification before project exclusion or deletion.
 wix/Properties/AssemblyInfo.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.

@@ -73,6 +73,7 @@
     <Compile Include="Grid/GridData.cs" />
     <Compile Include="Services/CubeServiceBulletin.cs" />
     <Compile Include="Services/DataFlashLogAnonymizer.cs" />
+    <Compile Include="Services/LegacyFirmwareUploader.cs" />
     <Compile Include="Services/LocalizationService.cs" />
     <Compile Include="Services/MavlinkSerialControlPort.cs" />
     <Compile Include="Services/OsdTuningSlotService.cs" />
@@ -152,6 +153,7 @@
 
   <ItemGroup>
     <ProjectReference Include="ExtLibs/ArduPilot/MissionPlanner.ArduPilot.csproj" />
+    <ProjectReference Include="ExtLibs/Arduino/Arduino.csproj" />
     <ProjectReference Include="ExtLibs/alglibnet/alglibnet.csproj" />
     <ProjectReference Include="ExtLibs/DroneCAN/DroneCAN.csproj" />
     <ProjectReference Include="Plugin/PortableApi/MissionPlanner.PluginApi.csproj">
