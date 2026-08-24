@@ -126,6 +126,22 @@ public class NvModemTests {
   }
 
   [Fact]
+  public void Compares_integer_parameters_exactly_and_locks_nv4_aes_to_128_bits() {
+    Assert.False(NvModemParameterCodec.ValuesEqual(
+        4_000_000_000, 4_000_000_001, (byte)MAVLink.MAV_PARAM_TYPE.UINT32));
+    Assert.True(NvModemParameterCodec.ValuesEqual(
+        1.0, 1.0 + 1e-9, (byte)MAVLink.MAV_PARAM_TYPE.REAL32));
+
+    var keyBits = new NvModemParameterRow(
+        "ENC_KEY_BITS", 128, (byte)MAVLink.MAV_PARAM_TYPE.INT32);
+    Assert.True(keyBits.IsValid);
+    keyBits.ValueText = "256";
+    Assert.False(keyBits.IsValid);
+    keyBits.ValueText = "128";
+    Assert.True(keyBits.IsValid);
+  }
+
+  [Fact]
   public void Carries_nv5settings_descriptions_and_corrected_nv4_apply_parameter() {
     Assert.True(NvModemCatalog.IsNv4Signature("REFRESH_SETTING"));
     Assert.False(NvModemCatalog.IsNv4Signature("REFRESH_SETTINGS"));
@@ -139,9 +155,13 @@ public class NvModemTests {
     Assert.Equal(-1, NvModemCatalog.Nv5KeyWordIndex("CH1_KEY00"));
     Assert.Contains("big-endian", NvModemCatalog.Description("CH1_KEY_W0"),
         StringComparison.OrdinalIgnoreCase);
+    Assert.Contains("MAVLink INT32", NvModemCatalog.Description("CH1_KEY_W0"),
+        StringComparison.OrdinalIgnoreCase);
     byte[] key = Encoding.ASCII.GetBytes("ABCDEFGHIJKLMNOP");
     Assert.Equal(0x41424344u, NvModemCatalog.Nv5KeyWord(key, 0));
     Assert.Equal(0x4d4e4f50u, NvModemCatalog.Nv5KeyWord(key, 3));
+    byte[] signedKey = Convert.FromHexString("FFEEDDCC000000000000000000000000");
+    Assert.Equal(unchecked((int)0xFFEEDDCCu), NvModemCatalog.Nv5SignedKeyWord(signedKey, 0));
     var restored = new byte[NvModemCatalog.Nv5KeyBytes];
     for (int word = 0; word < NvModemCatalog.Nv5KeyWordCount; word++) {
       NvModemCatalog.WriteNv5KeyWord(restored, word, NvModemCatalog.Nv5KeyWord(key, word));
@@ -366,7 +386,7 @@ public class NvModemTests {
     foreach (NvModemParameterRow row in viewModel.Parameters.Where(row =>
                  row.Name.StartsWith("CH1_KEY", StringComparison.Ordinal)
                  && !row.Name.EndsWith("_HASH", StringComparison.Ordinal))) {
-      Assert.Equal((byte)MAVLink.MAV_PARAM_TYPE.UINT32, row.Type);
+      Assert.Equal((byte)MAVLink.MAV_PARAM_TYPE.INT32, row.Type);
     }
 
     viewModel.HandlePacket(source, Packet(NvModemMessageIds.NvEncryptionKeysAck,
@@ -383,6 +403,71 @@ public class NvModemTests {
     Assert.False(viewModel.IsBusy);
     Assert.Equal("4142434445464748494A4B4C4D4E4F50", viewModel.KeyText);
     Assert.Contains("stored atomically", viewModel.Status, StringComparison.OrdinalIgnoreCase);
+  }
+
+  [Fact]
+  public void Nv5_diversity_set_key_atomically_mirrors_the_key_to_both_radios() {
+    var transport = new FakeTransport();
+    using var viewModel = new NvModemViewModel(transport, () => DateTime.UtcNow,
+        startTimer: false);
+    var source = new NvModemLink(new MAVLinkInterface(), "UDP NV5 diversity");
+    viewModel.HandlePacket(source, Packet(NvModemMessageIds.Nv5LinkStatus,
+        new Nv5LinkStatusMessage { Channel = 1, RadioChip = 0, Role = 0 }, 15, 68));
+    viewModel.HandlePacket(source, ParameterPacket("DIVERSITY", 1,
+        (byte)MAVLink.MAV_PARAM_TYPE.UINT32, 9, 15, 68));
+    DeliverNv5KeyWords(viewModel, source, 15, 68, 1, new byte[16], 9);
+    DeliverNv5KeyWords(viewModel, source, 15, 68, 2, new byte[16], 9);
+    transport.Sent.Clear();
+    byte[] replacement = Convert.FromHexString("80FFEEDDCCBBAA998877665544332211");
+    viewModel.KeyText = Convert.ToHexString(replacement);
+
+    viewModel.SetKeyCommand.Execute(null);
+
+    var write = Assert.IsType<NvEncryptionKeysSetMessage>(Assert.Single(transport.Sent).Packet);
+    Assert.Equal(0x03, write.ChannelMask);
+    Assert.Equal(replacement, write.Channel1Key);
+    Assert.Equal(replacement, write.Channel2Key);
+    Assert.Equal(NvModemCatalog.Nv5SignedKeyWord(replacement, 0),
+        double.Parse(viewModel.Parameters.Single(row => row.Name == "CH1_KEY_W0").ValueText));
+    Assert.Equal(NvModemCatalog.Nv5SignedKeyWord(replacement, 0),
+        double.Parse(viewModel.Parameters.Single(row => row.Name == "CH2_KEY_W0").ValueText));
+  }
+
+  [Fact]
+  public void Nv5_save_writes_edited_key_words_as_exact_int32_parameters() {
+    var transport = new FakeTransport();
+    using var viewModel = new NvModemViewModel(transport, () => DateTime.UtcNow,
+        startTimer: false);
+    var source = new NvModemLink(new MAVLinkInterface(), "UDP NV5 typed key");
+    viewModel.HandlePacket(source, Packet(NvModemMessageIds.Nv5LinkStatus,
+        new Nv5LinkStatusMessage { Channel = 1, RadioChip = 0, Role = 0 }, 16, 68));
+    DeliverNv5KeyWords(viewModel, source, 16, 68, 1, new byte[16], 4);
+    transport.Sent.Clear();
+    NvModemParameterRow row = viewModel.Parameters.Single(item => item.Name == "CH1_KEY_W0");
+    row.ValueText = "-1";
+    NvModemDeviceState device = viewModel.SelectedDevice!.State;
+
+    Assert.True(viewModel.QueueParameterWrites(device, [row]));
+    viewModel.BeginQueuedWrites(device, keyOnly: false, keyChannel: 0);
+
+    var write = Assert.IsType<MAVLink.mavlink_param_set_t>(Assert.Single(transport.Sent).Packet);
+    Assert.Equal("CH1_KEY_W0", NvModemParameterCodec.Name(write.param_id));
+    Assert.Equal((byte)MAVLink.MAV_PARAM_TYPE.INT32, write.param_type);
+    Assert.DoesNotContain(transport.Sent,
+        sent => sent.Packet is NvEncryptionKeysSetMessage);
+
+    // A stale list value with the same raw bits but the old UINT32 type is not the write echo.
+    viewModel.HandlePacket(source, ParameterPacket("CH1_KEY_W0", uint.MaxValue,
+        (byte)MAVLink.MAV_PARAM_TYPE.UINT32, 4, 16, 68));
+    Assert.True(viewModel.IsBusy);
+    Assert.True(row.IsChanged);
+
+    viewModel.HandlePacket(source, ParameterPacket("CH1_KEY_W0", -1,
+        (byte)MAVLink.MAV_PARAM_TYPE.INT32, 4, 16, 68));
+    Assert.False(viewModel.IsBusy);
+    Assert.False(row.IsChanged);
+    Assert.DoesNotContain(transport.Sent,
+        sent => sent.Packet is MAVLink.mavlink_param_request_list_t);
   }
 
   [Fact]
@@ -430,6 +515,56 @@ public class NvModemTests {
     Assert.Matches("^[0-9A-F]{32}$", viewModel.KeyText);
     Assert.Contains("Generated and staged", viewModel.Status, StringComparison.Ordinal);
     Assert.Empty(transport.Sent);
+  }
+
+  [Fact]
+  public void Nv4_key_generator_uses_32_random_bytes_and_uppercase_hex() {
+    var transport = new FakeTransport();
+    using var viewModel = new NvModemViewModel(transport, () => DateTime.UtcNow,
+        startTimer: false);
+    var source = new NvModemLink(new MAVLinkInterface(), "UDP NV4");
+    viewModel.HandlePacket(source, NodeInfoPacket("RX_433/70", 17, 16));
+    for (int index = 1; index <= 8; index++) {
+      viewModel.HandlePacket(source, ParameterPacket($"ENC_KEY_BYTE{index}", 0,
+          (byte)MAVLink.MAV_PARAM_TYPE.INT32, 8, 17, 16));
+    }
+    transport.Sent.Clear();
+
+    viewModel.GenerateKeyCommand.Execute(null);
+
+    Assert.Matches("^[0-9A-F]{64}$", viewModel.KeyText);
+    Assert.Contains("Generated and staged", viewModel.Status, StringComparison.Ordinal);
+    Assert.Empty(transport.Sent);
+  }
+
+  [Fact]
+  public void Nv4_hex_key_preserves_the_full_signed_int32_word_range() {
+    var transport = new FakeTransport();
+    using var viewModel = new NvModemViewModel(transport, () => DateTime.UtcNow,
+        startTimer: false);
+    var source = new NvModemLink(new MAVLinkInterface(), "UDP NV4 signed words");
+    viewModel.HandlePacket(source, NodeInfoPacket("RX_433/70", 19, 16));
+    for (int index = 1; index <= 8; index++) {
+      viewModel.HandlePacket(source, ParameterPacket($"ENC_KEY_BYTE{index}", 0,
+          (byte)MAVLink.MAV_PARAM_TYPE.INT32, 9, 19, 16));
+    }
+    viewModel.HandlePacket(source, ParameterPacket("REFRESH_SETTING", 0,
+        (byte)MAVLink.MAV_PARAM_TYPE.UINT32, 9, 19, 16));
+    transport.Sent.Clear();
+    viewModel.KeyText = "00000080FFFFFF7F000000000000000000000000000000000000000000000000";
+
+    viewModel.SetKeyCommand.Execute(null);
+
+    var first = Assert.IsType<MAVLink.mavlink_param_set_t>(transport.Sent[^1].Packet);
+    Assert.Equal("ENC_KEY_BYTE1", NvModemParameterCodec.Name(first.param_id));
+    Assert.Equal((byte)MAVLink.MAV_PARAM_TYPE.INT32, first.param_type);
+    Assert.Equal(int.MinValue, NvModemParameterCodec.Decode(first.param_value, first.param_type));
+    viewModel.HandlePacket(source, ParameterPacket("ENC_KEY_BYTE1", int.MinValue,
+        (byte)MAVLink.MAV_PARAM_TYPE.INT32, 9, 19, 16));
+
+    var second = Assert.IsType<MAVLink.mavlink_param_set_t>(transport.Sent[^1].Packet);
+    Assert.Equal("ENC_KEY_BYTE2", NvModemParameterCodec.Name(second.param_id));
+    Assert.Equal(int.MaxValue, NvModemParameterCodec.Decode(second.param_value, second.param_type));
   }
 
   [Fact]
@@ -609,18 +744,41 @@ public class NvModemTests {
     viewModel.HandlePacket(source, Packet(NvModemMessageIds.Nv5LinkStatus, status, 5, 68));
     transport.Sent.Clear();
 
-    now += TimeSpan.FromMilliseconds(2100);
-    viewModel.ServiceTransactions();
-    now += TimeSpan.FromMilliseconds(2100);
-    viewModel.ServiceTransactions();
+    for (int retry = 0; retry < 6; retry++) {
+      now += TimeSpan.FromMilliseconds(2100);
+      viewModel.ServiceTransactions();
+    }
     now += TimeSpan.FromMilliseconds(3100);
     viewModel.ServiceTransactions();
 
-    Assert.Equal(2, transport.Sent.Count(sent =>
+    Assert.Equal(6, transport.Sent.Count(sent =>
         sent.Packet is MAVLink.mavlink_param_request_list_t));
     Assert.False(viewModel.IsBusy);
     Assert.StartsWith("Error:", viewModel.Status, StringComparison.Ordinal);
     Assert.Contains("Press Refresh selected", viewModel.Status, StringComparison.Ordinal);
+  }
+
+  [Fact]
+  public void Parameter_list_retry_preserves_values_already_received() {
+    var transport = new FakeTransport();
+    DateTime now = DateTime.UtcNow;
+    using var viewModel = new NvModemViewModel(transport, () => now, startTimer: false);
+    var source = new NvModemLink(new MAVLinkInterface(), "UDP slow NV5");
+    viewModel.HandlePacket(source, Packet(NvModemMessageIds.Nv5LinkStatus,
+        new Nv5LinkStatusMessage { Channel = 1, RadioChip = 0, Role = 0 }, 18, 68));
+    viewModel.HandlePacket(source, ParameterPacket("MODEM_PROFILE", 7,
+        (byte)MAVLink.MAV_PARAM_TYPE.UINT32, 3, 18, 68));
+    transport.Sent.Clear();
+
+    now += TimeSpan.FromMilliseconds(2100);
+    viewModel.ServiceTransactions();
+    viewModel.HandlePacket(source, ParameterPacket("CH1_MOD", 0,
+        (byte)MAVLink.MAV_PARAM_TYPE.UINT32, 3, 18, 68));
+
+    Assert.Single(transport.Sent,
+        sent => sent.Packet is MAVLink.mavlink_param_request_list_t);
+    Assert.Contains(viewModel.Parameters, row => row.Name == "MODEM_PROFILE");
+    Assert.Contains(viewModel.Parameters, row => row.Name == "CH1_MOD");
   }
 
   [Fact]
@@ -685,8 +843,8 @@ public class NvModemTests {
     for (int word = 0; word < NvModemCatalog.Nv5KeyWordCount; word++) {
       viewModel.HandlePacket(source, ParameterPacket(
           NvModemCatalog.Nv5KeyWordName(channel, word),
-          NvModemCatalog.Nv5KeyWord(key, word),
-          (byte)MAVLink.MAV_PARAM_TYPE.UINT32,
+          NvModemCatalog.Nv5SignedKeyWord(key, word),
+          (byte)MAVLink.MAV_PARAM_TYPE.INT32,
           count,
           systemId,
           componentId));
