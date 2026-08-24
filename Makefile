@@ -8,6 +8,9 @@ export DOTNET CONFIGURATION RID OUTPUT_DIR PUBLISH_PARENT
 
 .PHONY: linux-packages linux-tar linux-deb windows-packages windows-zip windows-msi
 
+linux-packages linux-tar linux-deb: RID=linux-x64
+windows-packages windows-zip windows-msi: RID=win-x64
+
 linux-packages:
 	./build/linux/package.sh all
 

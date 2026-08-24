@@ -14,6 +14,9 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" PrivateAssets="all" />
+    <!-- ArduPilot's net472 dependency graph otherwise resolves the vulnerable 4.3.0 package.
+         The fixture remains binary-compatible while forcing the patched assembly version. -->
+    <PackageReference Include="System.Text.RegularExpressions" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,0 +1,11 @@
+<Project>
+  <PropertyGroup>
+    <!-- Audit the complete transitive graph and never allow a known NuGet advisory into an
+         active build silently. Keep these errors explicit instead of hiding them in NoWarn. -->
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+    <WarningsAsErrors>$(WarningsAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsAsErrors>
+  </PropertyGroup>
+</Project>

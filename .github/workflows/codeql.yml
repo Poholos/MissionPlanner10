@@ -2,7 +2,7 @@ name: Avalonia CodeQL
 
 on:
   push:
-    branches: [master, 'port/**']
+    branches: [master, 'port/**', 'cleanup/**']
   pull_request:
     branches: [master]
   schedule:

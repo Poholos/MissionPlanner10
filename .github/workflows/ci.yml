@@ -2,7 +2,7 @@ name: Avalonia CI and packages
 
 on:
   push:
-    branches: [master, 'port/**']
+    branches: [master, 'port/**', 'cleanup/**']
   pull_request:
     branches: [master]
   workflow_dispatch:

@@ -24,6 +24,7 @@
     <PackageReference Include="SharpDX.DirectInput" Version="4.1.0" />
     <PackageReference Include="DokanNet" Version="2.1.0" />
     <PackageReference Include="System.IO.FileSystem.AccessControl" Version="5.0.0" />
+    <PackageReference Include="System.Private.Uri" Version="4.3.2" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>

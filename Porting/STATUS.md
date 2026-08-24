@@ -26,7 +26,7 @@ Updated: **2026-08-24**.
   migration evidence, not a copied source tree.
 - A clean Release build of the complete test graph succeeds with zero warnings and zero errors
   after resolving all 156 inherited `ExtLibs` diagnostics without a repository-wide `NoWarn`; the
-  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1148/1148**
+  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1149/1149**
   Avalonia tests pass on Linux. A 12-second Xvfb launch reaches the normal Avalonia event loop with
   no console errors.
 - Informational version is derived from the current native Mission Planner version and formatted as
@@ -46,7 +46,8 @@ Updated: **2026-08-24**.
   NV4 retains its eight signed words followed by singular `REFRESH_SETTING`,
   whose write type is verified as `UINT32`.
 - CI, CodeQL, Dependabot and tag-release workflows are reconciled with the in-place tree. Legacy
-  WinForms/Xamarin workflows remain available manually but no longer run against every port push.
+  Xamarin mobile workflows remain available manually; the obsolete WinForms workflow and
+  Azure/AppVeyor configurations have been removed on the separate cleanup branch.
 - No native WinForms source, RESX translation, project or plugin has been deleted. The native
   manifest still exposes 454 `unported-blocker` rows that require code-level classification before
   final cut-over is declared complete.
@@ -62,15 +63,27 @@ Updated: **2026-08-24**.
   `hermes-gui/src/nv5settings.cpp` and `hermes-gui/test/testnv5settings.cpp`. Update this commit and
   the NV regression tests whenever the source behavior advances.
 
+## Cleanup audit
+
+- Parent commit `4592f6b9b` passed packaging run `32674763049`: real default-path MSI
+  install/file checks/uninstall, Linux DEB/TAR with lintian and extracted-payload smoke, and both
+  macOS architectures all succeeded. CodeQL run `32674763054` succeeded with zero open alerts.
+- `cleanup/project-audit` is the isolated follow-up branch. It removes only proven-obsolete
+  launch/deploy/CI artifacts, fixes the vulnerable transitive package discovered by the audit and
+  records retained legacy areas in `PROJECT_CLEANUP_AUDIT.md`.
+- `Scripts/`, legacy/native projects and foreign build metadata below `ExtLibs` remain until their
+  runtime, generator or parity role is explicitly closed; non-inclusion in `MissionPlanner.slnx`
+  alone is not deletion evidence.
+
 ## Immediate next step
 
-Require the current GitHub run to perform a real default-path MSI install/uninstall, build/sign both
-`.app` archives on macOS, repeat Linux package smoke and complete CodeQL. Once that run is green,
-start the conservative unused-file/directory/build-system audit on a separate cleanup branch.
+Complete local package verification for the cleanup branch, push it, and require the Windows/macOS
+runner gates plus CodeQL before proposing it for merge. Continue closing the 454 native manifest
+blockers independently; do not mix broad source deletion with functional porting commits.
 
 ## Acceptance baseline
 
-- At least 1148 port tests retained and passing.
+- At least 1149 port tests retained and passing.
 - Clean Release build has zero errors and zero warnings.
 - `linux-x64`, `win-x64`, `osx-x64`, and `osx-arm64` publish gates pass.
 - Linux `.deb` and portable archive build and smoke successfully.

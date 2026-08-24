@@ -261,6 +261,9 @@ dotnet test MissionPlannerTests/Avalonia/MissionPlanner.Tests/MissionPlanner.Tes
 
 The clean solution build is expected to report zero warnings and zero errors. The current warning
 audit and exact reproduction commands are in [`Porting/WARNING_AUDIT.md`](Porting/WARNING_AUDIT.md).
+The conservative file/directory/build-system classification is recorded in
+[`Porting/PROJECT_CLEANUP_AUDIT.md`](Porting/PROJECT_CLEANUP_AUDIT.md); do not delete excluded native
+files merely because they are not yet in the transitional Avalonia compile list.
 
 ## License
 

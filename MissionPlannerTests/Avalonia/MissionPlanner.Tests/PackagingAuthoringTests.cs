@@ -16,6 +16,17 @@ public class PackagingAuthoringTests {
     AssertPayload(mainFeature, wix, "SqliteNativeFile", "e_sqlite3.dll");
   }
 
+  [Fact]
+  public void Make_package_targets_select_their_platform_rid() {
+    string makefile = File.ReadAllText(Path.Combine(FindRepoRoot(), "Makefile"))
+        .Replace("\r\n", "\n", StringComparison.Ordinal);
+
+    Assert.Contains("linux-packages linux-tar linux-deb: RID=linux-x64", makefile,
+        StringComparison.Ordinal);
+    Assert.Contains("windows-packages windows-zip windows-msi: RID=win-x64", makefile,
+        StringComparison.Ordinal);
+  }
+
   private static void AssertPayload(
       XElement feature, XNamespace wix, string id, string expectedName) {
     XElement file = Assert.Single(feature.Descendants(wix + "File"),

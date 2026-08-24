@@ -69,4 +69,15 @@ DOTNET_CLI_HOME=/tmp/missionplanner-inplace-dotnet \
 ```
 
 Current verified result: build `0 warnings / 0 errors`; tests
-`1143 passed / 0 failed / 0 skipped` after adding the stable GitHub-release updater test.
+`1149 passed / 0 failed / 0 skipped`.
+
+## Dependency security gate
+
+The repository now enables NuGet audit for the complete transitive graph and promotes
+`NU1901`–`NU1904` to errors. The audit found the vulnerable
+`System.Text.RegularExpressions` 4.3.0 transitively in the inherited Utilities/ArduPilot graph and
+the net472 legacy-plugin fixtures. RID-specific publish also exposed vulnerable
+`System.Private.Uri` 4.3.0 in the netstandard graph. Those paths are pinned to patched 4.3.1 and
+4.3.2 respectively; forced solution and RID restores plus
+`dotnet list MissionPlanner.slnx package --vulnerable --include-transitive` report no known
+vulnerable packages.

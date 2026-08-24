@@ -22,6 +22,7 @@
     <None Include="Platforms\**\*.*" />
     <EmbeddedResource Include="Properties\Zeroconf.rd.xml" />
     <PackageReference Include="System.Reactive" Version="4.0.0" />
+    <PackageReference Include="System.Private.Uri" Version="4.3.2" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' ">
     <Compile Include="Platforms\netstandard1.3\*.cs" />
