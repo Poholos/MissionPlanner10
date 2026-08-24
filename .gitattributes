@@ -1,0 +1,5 @@
+# Preserve native Windows project files without treating their CRLF terminator as trailing space.
+*.bat text eol=crlf whitespace=cr-at-eol
+*.cmd text eol=crlf whitespace=cr-at-eol
+*.csproj whitespace=cr-at-eol
+*.sln whitespace=cr-at-eol

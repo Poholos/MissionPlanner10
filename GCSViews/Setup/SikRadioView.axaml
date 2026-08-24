@@ -1,0 +1,242 @@
+<UserControl
+  xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:vm="using:MissionPlanner.ViewModels.Setup"
+  xmlns:ctrl="using:MissionPlanner.Controls"
+  mc:Ignorable="d"
+  d:DesignWidth="820"
+  d:DesignHeight="680"
+  x:Class="MissionPlanner.Views.Setup.SikRadioView"
+  x:DataType="vm:SikRadioViewModel"
+  Background="{DynamicResource MpControlBg}"
+>
+  <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Margin="16">
+    <TextBlock Grid.Row="0" Classes="pagetitle" Text="{Binding Title}" />
+
+    <TextBlock
+      Grid.Row="1"
+      Text="{Binding Instructions}"
+      Classes="fieldlbl"
+      TextWrapping="Wrap"
+      MaxWidth="680"
+      HorizontalAlignment="Left"
+      Margin="0,0,0,12"
+    />
+
+    <WrapPanel Grid.Row="2" Margin="0,0,0,8">
+      <CheckBox
+        Content="MAVLink TELEM1"
+        IsChecked="{Binding UseMavlinkSerialControl}"
+        ToolTip.Tip="Tunnel AT commands through the selected disarmed autopilot's SERIAL_CONTROL TELEM1 port."
+        VerticalAlignment="Center"
+        Margin="0,0,12,0"
+      />
+      <TextBlock Classes="fieldlbl" Text="Port" VerticalAlignment="Center" Margin="0,0,6,0" />
+      <ComboBox
+        ItemsSource="{Binding Ports}"
+        SelectedItem="{Binding SelectedPort}"
+        IsEnabled="{Binding !UseMavlinkSerialControl}"
+        MinWidth="140"
+        Margin="0,0,12,0"
+      />
+      <TextBlock Classes="fieldlbl" Text="Baud" VerticalAlignment="Center" Margin="0,0,6,0" />
+      <ComboBox
+        ItemsSource="{Binding Bauds}"
+        SelectedItem="{Binding SelectedBaud}"
+        MinWidth="100"
+        Margin="0,0,12,0"
+      />
+      <Button Content="Refresh" Command="{Binding RefreshPortsCommand}"
+              IsEnabled="{Binding !UseMavlinkSerialControl}" Margin="0,0,16,0" />
+      <Button Content="Load Settings" Command="{Binding LoadCommand}" Margin="0,0,8,0" />
+      <Button Content="Save Settings" Command="{Binding SaveCommand}" Margin="0,0,8,0" />
+      <Button Content="Reset to Defaults" Command="{Binding ResetDefaultsCommand}" Margin="0,0,8,0" />
+      <Button
+        Content="Upload Firmware"
+        Command="{Binding UploadFirmwareCommand}"
+        ToolTip.Tip="{Binding UploadFirmwareTooltip}"
+        Margin="0,0,8,0"
+      />
+      <Button
+        x:Name="UploadCustomFirmwareButton"
+        Content="Upload Firmware File…"
+        IsEnabled="{Binding !IsBusy}"
+        ToolTip.Tip="Select a model-specific .hex/.ihx/.bin/.gbl image; it is validated before bootloader entry."
+        Margin="0,0,8,0"
+      />
+      <CheckBox Content="Beta" IsChecked="{Binding BetaFirmware}" VerticalAlignment="Center"
+                ToolTip.Tip="Download beta channel firmware instead of stable" />
+    </WrapPanel>
+
+    <WrapPanel Grid.Row="3" Margin="0,0,0,8">
+      <TextBlock Classes="fieldlbl" Text="Status Leds" VerticalAlignment="Center" Margin="0,0,6,0" />
+      <Ellipse Width="12" Height="12" Fill="{Binding StatusLed}" VerticalAlignment="Center" Margin="0,0,6,0" />
+      <TextBlock Classes="fieldlbl" Text="{Binding StatusLedLabel}" VerticalAlignment="Center" Margin="0,0,20,0" />
+      <TextBlock Classes="fieldlbl" Text="{Binding Status, StringFormat='Status: {0}'}" Margin="0,0,20,0" />
+      <TextBlock Classes="fieldlbl" Text="{Binding LocalVersion, StringFormat='Local: {0}'}" Margin="0,0,20,0" />
+      <TextBlock Classes="fieldlbl" Text="{Binding RemoteVersion, StringFormat='Remote: {0}'}" Margin="0,0,20,0" />
+      <TextBlock Classes="fieldlbl" Text="{Binding BoardType, StringFormat='Board (ATI2): {0}'}" Margin="0,0,20,0" />
+      <TextBlock Classes="fieldlbl" Text="{Binding RemoteBoardType, StringFormat='Remote board: {0}'}" Margin="0,0,20,0" />
+      <TextBlock Classes="fieldlbl" Text="{Binding FreqBand, StringFormat='Freq (ATI3): {0}'}" Margin="0,0,20,0" />
+      <TextBlock Classes="fieldlbl" Text="{Binding CountryCode, StringFormat='Country lock: {0}'}" Margin="0,0,20,0" />
+      <TextBlock Classes="fieldlbl" Text="{Binding RemoteCountryCode, StringFormat='Remote country: {0}'}" Margin="0,0,20,0" />
+      <TextBlock Classes="fieldlbl" Text="{Binding RssiInfo, StringFormat='RSSI (ATI7): {0}'}" />
+    </WrapPanel>
+
+    <TabControl Grid.Row="4">
+      <TabItem Header="Settings">
+        <Grid RowDefinitions="Auto,*,Auto,140" ColumnDefinitions="*">
+          <Grid Grid.Row="0" ColumnDefinitions="2*,0.5*,*,*" Margin="0,4,0,4">
+            <TextBlock Grid.Column="0" Classes="fieldlbl" Text="Setting" FontWeight="Bold" />
+            <TextBlock Grid.Column="1" Classes="fieldlbl" Text="Sn" FontWeight="Bold" />
+            <TextBlock Grid.Column="2" Classes="fieldlbl" Text="Local" FontWeight="Bold" />
+            <TextBlock Grid.Column="3" Classes="fieldlbl" Text="Remote" FontWeight="Bold" />
+          </Grid>
+
+          <ScrollViewer Grid.Row="1">
+            <ItemsControl ItemsSource="{Binding Registers}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:SikRadioViewModel+SikRegister">
+                  <Grid ColumnDefinitions="2*,0.5*,*,*" Margin="0,1">
+                    <TextBlock Grid.Column="0" Classes="fieldlbl" Text="{Binding Label}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Classes="fieldlbl" Text="{Binding Num}" VerticalAlignment="Center" />
+                    <Panel Grid.Column="2" Margin="0,0,6,0">
+                      <ComboBox
+                        IsVisible="{Binding HasOptions}"
+                        ItemsSource="{Binding Options}"
+                        SelectedItem="{Binding LocalValue}"
+                        HorizontalAlignment="Stretch"
+                      />
+                      <TextBox IsVisible="{Binding !HasOptions}" Text="{Binding LocalValue}" />
+                    </Panel>
+                    <Panel Grid.Column="3">
+                      <ComboBox
+                        IsVisible="{Binding HasOptions}"
+                        ItemsSource="{Binding Options}"
+                        SelectedItem="{Binding RemoteValue}"
+                        HorizontalAlignment="Stretch"
+                      />
+                      <TextBox IsVisible="{Binding !HasOptions}" Text="{Binding RemoteValue}" />
+                    </Panel>
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+
+          <WrapPanel Grid.Row="2" Margin="0,8,0,4">
+            <Button
+              Content="Copy required to remote"
+              Command="{Binding CopyRequiredToRemoteCommand}"
+              Margin="0,0,16,0"
+            />
+            <TextBlock Classes="fieldlbl" Text="AES Key" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <TextBox
+              Text="{Binding AesKey}"
+              IsEnabled="{Binding AesEnabled}"
+              MinWidth="240"
+              Watermark="hex key (AT&amp;E)"
+              Margin="0,0,8,0"
+            />
+            <Button
+              Content="Random"
+              Command="{Binding RandomAesKeyCommand}"
+              IsEnabled="{Binding AesEnabled}"
+              Margin="0,0,12,0"
+            />
+            <TextBlock
+              Classes="fieldlbl"
+              Text="(encryption unsupported by firmware)"
+              IsVisible="{Binding !AesEnabled}"
+              VerticalAlignment="Center"
+            />
+            <TextBlock Classes="fieldlbl" Text="Remote AES" VerticalAlignment="Center" Margin="8,0,6,0" />
+            <TextBox
+              Text="{Binding RemoteAesKey}"
+              IsEnabled="{Binding RemoteAesEnabled}"
+              MinWidth="240"
+              Watermark="remote hex key (RT&amp;E)"
+              Margin="0,0,12,0"
+            />
+            <Button Content="Save local profile" x:Name="SaveLocalProfileButton" Margin="0,0,6,0" />
+            <Button Content="Load local profile" x:Name="LoadLocalProfileButton" Margin="0,0,6,0" />
+            <Button Content="Save remote profile" x:Name="SaveRemoteProfileButton" Margin="0,0,6,0" />
+            <Button Content="Load remote profile" x:Name="LoadRemoteProfileButton" Margin="0,0,12,0" />
+            <Button
+              Content="Capture local PPM failsafe"
+              Command="{Binding SetLocalPpmFailsafeCommand}"
+              Margin="0,0,6,0"
+            />
+            <Button
+              Content="Capture remote PPM failsafe"
+              Command="{Binding SetRemotePpmFailsafeCommand}"
+            />
+          </WrapPanel>
+
+          <Border Grid.Row="3" Background="Black" BorderBrush="{DynamicResource MpBg}" BorderThickness="1" Margin="0,4,0,0">
+            <ScrollViewer>
+              <TextBlock
+                Text="{Binding Log}"
+                Foreground="{DynamicResource MpAccentBrush}"
+                FontFamily="Consolas,Menlo,monospace"
+                FontSize="12"
+                Padding="8"
+                TextWrapping="Wrap"
+              />
+            </ScrollViewer>
+          </Border>
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="RSSI Graph">
+        <Grid RowDefinitions="Auto,*">
+          <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,4,0,8">
+            <Button
+              Content="{Binding RssiButtonLabel}"
+              Command="{Binding StartRssiCommand}"
+            />
+            <TextBlock
+              Classes="fieldlbl"
+              VerticalAlignment="Center"
+              Text="Streams the modem's L/R RSSI / noise debug report (requires MAVLink disconnected)."
+            />
+          </StackPanel>
+          <ctrl:LivePlot Grid.Row="1" x:Name="RssiPlot" />
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="AT Terminal">
+        <Grid RowDefinitions="Auto,*">
+          <WrapPanel Grid.Row="0" Margin="0,4,0,8">
+            <Button
+              Content="{Binding TerminalButtonLabel}"
+              Command="{Binding OpenTerminalCommand}"
+              Margin="0,0,12,0"
+            />
+            <TextBox
+              Text="{Binding CommandText}"
+              MinWidth="220"
+              Watermark="AT command"
+              Margin="0,0,8,0"
+            />
+            <Button Content="Send" Command="{Binding SendCommandCommand}" />
+          </WrapPanel>
+          <Border Grid.Row="1" Background="Black" BorderBrush="{DynamicResource MpBg}" BorderThickness="1">
+            <ScrollViewer>
+              <TextBlock
+                Text="{Binding Log}"
+                Foreground="{DynamicResource MpAccentBrush}"
+                FontFamily="Consolas,Menlo,monospace"
+                FontSize="12"
+                Padding="8"
+                TextWrapping="Wrap"
+              />
+            </ScrollViewer>
+          </Border>
+        </Grid>
+      </TabItem>
+    </TabControl>
+  </Grid>
+</UserControl>

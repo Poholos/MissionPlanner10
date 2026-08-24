@@ -1,5 +1,6 @@
 ﻿using log4net;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -15,7 +16,9 @@ namespace MissionPlanner.Utilities
     /// </summary>
     public class Settings
     {
-        static Settings _instance;
+        static volatile Settings _instance;
+        static readonly object _instanceGate = new object();
+        static readonly object _settingsFileGate = new object();
 
         public static string AppConfigName { get; set; } = "Mission Planner";
 
@@ -25,11 +28,18 @@ namespace MissionPlanner.Utilities
             {
                 if (_instance == null)
                 {
-                    _instance = new Settings();
-                    try
+                    lock (_instanceGate)
                     {
-                        _instance.Load();
-                    } catch { }
+                        if (_instance == null)
+                        {
+                            var instance = new Settings();
+                            try
+                            {
+                                instance.Load();
+                            } catch { }
+                            _instance = instance;
+                        }
+                    }
                 }
                 return _instance;
             }
@@ -42,7 +52,7 @@ namespace MissionPlanner.Utilities
         /// <summary>
         /// use to store all internal config - use Instance
         /// </summary>
-        public static Dictionary<string, string> config = new Dictionary<string, string>();
+        public static ConcurrentDictionary<string, string> config = new ConcurrentDictionary<string, string>();
 
         public static string FileName { get; set; } = "config.xml";
 
@@ -57,6 +67,12 @@ namespace MissionPlanner.Utilities
 
             set
             {
+                if (value == null)
+                {
+                    config.TryRemove(key, out _);
+                    return;
+                }
+
                 config[key] = value;
             }
         }
@@ -188,8 +204,7 @@ namespace MissionPlanner.Utilities
             //if the list is empty remove the key
             if (list == null || list.Count() == 0)
             {
-                if (config.ContainsKey(key))
-                    config.Remove(key);
+                config.TryRemove(key, out _);
                 return;
             }
             else
@@ -324,6 +339,9 @@ namespace MissionPlanner.Utilities
         /// <returns></returns>
         public static string GetDataDirectory()
         {
+            if (!string.IsNullOrWhiteSpace(CustomDataDirectory))
+                return Path.GetFullPath(CustomDataDirectory) + Path.DirectorySeparatorChar;
+
             if (isMono())
             {
                 return GetUserDataDirectory();
@@ -334,6 +352,8 @@ namespace MissionPlanner.Utilities
 
             return path;
         }
+
+        public static string CustomDataDirectory = "";
 
         public static string CustomUserDataDirectory = "";
 
@@ -497,7 +517,7 @@ namespace MissionPlanner.Utilities
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 File.Copy(GetConfigFullPath(), GetConfigFullPath() + DateTime.Now.toUnixTime() + ".failed", true);
                 throw;
@@ -505,6 +525,14 @@ namespace MissionPlanner.Utilities
         }
 
         public void Save()
+        {
+            lock (_settingsFileGate)
+            {
+                SaveCore();
+            }
+        }
+
+        private void SaveCore()
         {
             string filename = GetConfigFullPath();
 
@@ -551,10 +579,7 @@ namespace MissionPlanner.Utilities
 
         public void Remove(string key)
         {
-            if (config.ContainsKey(key))
-            {
-                config.Remove(key);
-            }
+            config.TryRemove(key, out _);
         }
 
     }

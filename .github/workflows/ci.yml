@@ -1,0 +1,196 @@
+name: Avalonia CI and packages
+
+on:
+  push:
+    branches: [master, 'port/**', 'cleanup/**']
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: avalonia-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Validate frozen native surface manifest
+        run: ./build/porting/check-native-surface.sh
+
+      - name: Build complete solution graph
+        run: dotnet build MissionPlanner.slnx -c Release -m:1 --nologo
+
+      - name: Run complete test suite
+        run: >-
+          dotnet test MissionPlannerTests/Avalonia/MissionPlanner.Tests/MissionPlanner.Tests.csproj
+          -c Release -m:1 --no-build --nologo
+
+      - name: Install Linux package validators
+        run: sudo apt-get update && sudo apt-get install -y lintian xvfb
+
+      - name: Build Linux portable archive and Debian package
+        run: ./build/linux/package.sh all
+
+      - name: Validate and smoke Debian payload
+        shell: bash
+        run: |
+          DEB=$(find out/packages -maxdepth 1 -type f -name 'missionplanner_*_amd64.deb' -print -quit)
+          test -n "$DEB"
+          lintian --tag-display-limit 0 "$DEB"
+          ROOT=$(mktemp -d "$RUNNER_TEMP/missionplanner-deb.XXXXXXXX")
+          dpkg-deb --extract "$DEB" "$ROOT"
+          test -x "$ROOT/usr/lib/missionplanner/MissionPlanner"
+          test -s "$ROOT/usr/lib/missionplanner/airports.csv"
+          test ! -e "$ROOT/usr/lib/missionplanner/simpleble-c.dll"
+          test ! -e "$ROOT/usr/lib/missionplanner/simpleble.dll"
+          test ! -e "$ROOT/usr/lib/missionplanner/libusb-1.0.dll"
+          set +e
+          timeout 12s xvfb-run -a "$ROOT/usr/lib/missionplanner/MissionPlanner"
+          STATUS=$?
+          set -e
+          test "$STATUS" -eq 0 -o "$STATUS" -eq 124
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: missionplanner-linux-x64
+          path: out/packages/*linux-x64.tar.gz
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: missionplanner-deb-amd64
+          path: out/packages/missionplanner_*_amd64.deb
+          if-no-files-found: error
+
+  package-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build Windows portable archive and MSI
+        shell: bash
+        run: ./build/windows/package.sh all
+
+      - name: Validate ZIP and MSI installation
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem out/packages/*win-x64.zip | Select-Object -First 1
+          $msi = Get-ChildItem out/packages/*win-x64.msi | Select-Object -First 1
+          if (-not $zip -or -not $msi) { throw "Windows artifacts are missing" }
+
+          $zipRoot = Join-Path $env:RUNNER_TEMP "zip"
+          Expand-Archive -Path $zip.FullName -DestinationPath $zipRoot
+          $requiredFiles = @(
+            'MissionPlanner.exe',
+            'e_sqlite3.dll',
+            'airports.csv',
+            'COPYING.txt',
+            'NOTICE.md',
+            'LICENSE',
+            'SimpleBLE-0.7.3-NOTICE.txt'
+          )
+          foreach ($requiredFile in $requiredFiles) {
+            if (-not (Get-ChildItem $zipRoot -Recurse -File -Filter $requiredFile)) {
+              throw "Portable ZIP does not contain $requiredFile"
+            }
+          }
+
+          # Exercise the real per-machine directory authored in Package.wxs. Overriding a
+          # directory property from msiexec does not validate the installer's production path
+          # and can be ignored during maintenance-mode directory resolution.
+          $msiRoot = Join-Path $env:ProgramFiles "MissionPlannerAvalonia"
+          $installLog = Join-Path $env:RUNNER_TEMP "msi-install.log"
+          try {
+            $process = Start-Process msiexec.exe -Wait -PassThru -ArgumentList @(
+              '/i', $msi.FullName, '/qn', '/norestart', '/L*V', $installLog
+            )
+            if ($process.ExitCode -ne 0) {
+              Get-Content $installLog -Tail 200
+              throw "MSI installation failed: $($process.ExitCode)"
+            }
+            foreach ($requiredFile in $requiredFiles) {
+              if (-not (Get-ChildItem $msiRoot -Recurse -File -Filter $requiredFile)) {
+                Get-Content $installLog |
+                  Select-String -Pattern 'INSTALLFOLDER|Feature: Main|Component:' |
+                  Select-Object -Last 100
+                throw "Installed MSI does not contain $requiredFile"
+              }
+            }
+          } finally {
+            $process = Start-Process msiexec.exe -Wait -PassThru -ArgumentList @(
+              '/x', $msi.FullName, '/qn', '/norestart'
+            )
+            if ($process.ExitCode -ne 0 -and $process.ExitCode -ne 1605) {
+              throw "MSI cleanup failed: $($process.ExitCode)"
+            }
+          }
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: missionplanner-windows-x64
+          path: |
+            out/packages/*win-x64.zip
+            out/packages/*win-x64.msi
+          if-no-files-found: error
+
+  package-macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [osx-x64, osx-arm64]
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish macOS self-contained application
+        shell: bash
+        run: |
+          RID=${{ matrix.rid }}
+          dotnet publish MissionPlanner.csproj -c Release -r "$RID" --self-contained true \
+            -m:1 -p:DebugType=none -p:StripSymbols=true -o "out/$RID"
+          test -x "out/$RID/MissionPlanner"
+          test -s "out/$RID/libsimpleble-c.dylib"
+          test -s "out/$RID/libsimpleble.0.dylib"
+          test -s "out/$RID/lib/libvlc.5.dylib"
+          test -d "out/$RID/plugins"
+
+      - name: Build ad-hoc signed app archive
+        shell: bash
+        run: |
+          RID=${{ matrix.rid }}
+          mkdir -p dist upload
+          ./build/macos/make-app.sh "out/$RID" "$(./build/version.sh | cut -f1)" \
+            "dist/Mission Planner.app"
+          ditto -c -k --sequesterRsrc --keepParent "dist/Mission Planner.app" \
+            "upload/MissionPlanner-${RID}.zip"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: missionplanner-${{ matrix.rid }}
+          path: upload/*.zip
+          if-no-files-found: error

@@ -1,0 +1,104 @@
+using System.Linq;
+using Avalonia.Controls;
+using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
+using MissionPlanner;
+using MissionPlanner.ViewModels;
+
+namespace MissionPlanner.Views;
+
+public partial class RawParamsView : UserControl {
+  private static readonly FilePickerFileType _paramFilter =
+      new("Parameter File") { Patterns = new[] { "*.param", "*.parm" } };
+  private bool _warningShown;
+
+  public RawParamsView() {
+    InitializeComponent();
+    this.FindControl<Button>("LoadBtn")!.Click += OnLoad;
+    this.FindControl<Button>("SaveBtn")!.Click += OnSave;
+    this.FindControl<Button>("CompareBtn")!.Click += OnCompare;
+    this.FindControl<Button>("LoadFrameDefaultsBtn")!.Click += OnLoadFrameDefaults;
+    this.FindControl<DataGrid>("ParamsGrid")!.CellEditEnded += (_, _) => Vm?.PersistFavs();
+    AttachedToVisualTree += (_, _) => ShowRawParameterWarning();
+  }
+
+  private void ShowRawParameterWarning() {
+    if (_warningShown) {
+      return;
+    }
+    _warningShown = true;
+    _ = Services.Dialogs.MessageShowAgain(
+        Strings.RawParamWarning, Strings.RawParamWarningi, "RawParamWarning");
+  }
+
+  private RawParamsViewModel? Vm => DataContext as RawParamsViewModel;
+
+  private async void OnLoad(object? sender, RoutedEventArgs e) {
+    var path = await PickOpen("Load parameters");
+    if (path != null) {
+      Vm?.LoadParamFile(path);
+    }
+  }
+
+  private async void OnCompare(object? sender, RoutedEventArgs e) {
+    var path = await PickOpen("Compare parameters");
+    if (path == null || Vm is not { } vm
+        || TopLevel.GetTopLevel(this) is not Window owner) {
+      return;
+    }
+
+    var comparison = vm.CompareParamFile(path);
+    if (comparison.Count > 0
+        && await ParamCompareWindow.ShowAsync(owner, comparison)) {
+      vm.ApplyParamComparison(comparison);
+    }
+  }
+
+  private async void OnLoadFrameDefaults(object? sender, RoutedEventArgs e) {
+    if (Vm is not { } vm || TopLevel.GetTopLevel(this) is not Window owner) {
+      return;
+    }
+    FrameDefaultComparison? comparison = await vm.DownloadFrameDefaultComparisonAsync();
+    if (comparison is { Rows.Count: > 0 }
+        && await ParamCompareWindow.ShowAsync(owner, comparison.Rows)) {
+      vm.TryApplyFrameDefaultComparison(comparison);
+    }
+  }
+
+  private async void OnSave(object? sender, RoutedEventArgs e) {
+    var top = TopLevel.GetTopLevel(this);
+    if (top is null || Vm is null) {
+      return;
+    }
+    var file = await top.StorageProvider.SaveFilePickerAsync(
+        new FilePickerSaveOptions {
+          Title = "Save parameters",
+          DefaultExtension = "param",
+          FileTypeChoices = new[] { _paramFilter },
+        }
+    );
+    var path = file?.TryGetLocalPath();
+    if (path == null || !await Services.Dialogs.ConfirmDangerous(
+            "Export vehicle parameters",
+            Services.Dialogs.SensitiveExportWarning,
+            "EXPORT PARAMETERS")) {
+      return;
+    }
+    Vm.SaveParamFile(path);
+  }
+
+  private async System.Threading.Tasks.Task<string?> PickOpen(string title) {
+    var top = TopLevel.GetTopLevel(this);
+    if (top is null) {
+      return null;
+    }
+    var files = await top.StorageProvider.OpenFilePickerAsync(
+        new FilePickerOpenOptions {
+          Title = title,
+          AllowMultiple = false,
+          FileTypeFilter = new[] { _paramFilter, new FilePickerFileType("All files") { Patterns = new[] { "*" } } },
+        }
+    );
+    return files.FirstOrDefault()?.TryGetLocalPath();
+  }
+}

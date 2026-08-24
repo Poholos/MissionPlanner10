@@ -16,7 +16,6 @@ using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("MissionPlanner")]
-[assembly: InternalsVisibleTo("MissionPlannerLib")]
 
 namespace MissionPlanner
 {
@@ -61,38 +60,8 @@ namespace MissionPlanner
             sendlinkid = (byte)(new Random().Next(256));
             signing = false;
             this.param = new MAVLinkParamList();
-            bool queuewrite = false;
-            this.param.PropertyChanged += (s, a) =>
-            {
-                lock (param)
-                {
-                    if (queuewrite == true)
-                        return;
-
-                    queuewrite = true;
-                }
-
-                new Timer((o) =>
-                {
-                    try
-                    {
-                        if (cs.uid2 == null || cs.uid2 == "" || sysid == 0)
-                            return;
-                        if (!Directory.Exists(Path.GetDirectoryName(ParamCachePath)))
-                            Directory.CreateDirectory(Path.GetDirectoryName(ParamCachePath));
-
-                        lock (this.param)
-                            File.WriteAllText(ParamCachePath, param.ToJSON());
-                    }
-                    catch (Exception e)
-                    {
-                        log.Error(e);
-                    }
-
-                    queuewrite = false;
-
-                }, null, 2000, -1);
-            };
+            // Safety policy: parameter lists are session-only. Persisting a completed list can
+            // display or write values from another UDP modem after a device/target switch.
             this.packets = new Dictionary<uint, Queue<MAVLinkMessage>>(byte.MaxValue);
             this.packetsLast = new Dictionary<uint, MAVLinkMessage>(byte.MaxValue);
             this.aptype = 0;

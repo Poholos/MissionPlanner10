@@ -97,7 +97,7 @@ namespace System.Drawing
             base.Op(columnsArea.ToSKRectI(), SKRegionOperation.Intersect);
         }
 
-        public bool IsEmpty(Graphics dc)
+        public new bool IsEmpty(Graphics dc)
         {
             return base.Bounds.IsEmpty;
         }

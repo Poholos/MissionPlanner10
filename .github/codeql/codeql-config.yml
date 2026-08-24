@@ -1,0 +1,7 @@
+name: Mission Planner Avalonia CodeQL configuration
+
+# These historical sample trees are not referenced by the root application or its test graph.
+paths-ignore:
+  - ExtLibs/uno/UnoUI/UnoUI.Wasm/**
+  - ExtLibs/Xamarin/**
+  - ExtLibs/wasm/**

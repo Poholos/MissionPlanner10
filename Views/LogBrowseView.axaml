@@ -1,0 +1,99 @@
+<UserControl
+  xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:vm="using:MissionPlanner.ViewModels"
+  xmlns:ctrl="using:MissionPlanner.Controls"
+  mc:Ignorable="d"
+  d:DesignWidth="1000"
+  d:DesignHeight="620"
+  x:Class="MissionPlanner.Views.LogBrowseView"
+  x:DataType="vm:LogBrowseViewModel"
+  Background="{DynamicResource MpControlBg}"
+>
+  <Grid Margin="10" RowDefinitions="Auto,*,Auto">
+    <WrapPanel Grid.Row="0" Orientation="Horizontal" ItemSpacing="6" LineSpacing="6">
+      <Button x:Name="OpenBtn" Content="Open log…" />
+      <Button x:Name="IndexBtn" Content="Log Index…" />
+      <Button x:Name="MagFitBtn" Content="MagFit…" />
+      <Button x:Name="GraphBtn" Content="Graph Left" />
+      <Button x:Name="GraphRightBtn" Content="Graph Right" />
+      <Button x:Name="RemoveBtn" Content="Remove Item" />
+      <Button x:Name="ClearBtn" Content="Clear graph" />
+      <Border Width="1" Background="#666" Margin="4,0" />
+      <TextBlock Text="×" Foreground="#BBB" VerticalAlignment="Center"
+                 ToolTip.Tip="Multiplicative scale applied to the next graphed curve" />
+      <NumericUpDown x:Name="ScaleBox" Width="110" Value="1" Increment="0.1"
+                     FormatString="0.###"
+                     ToolTip.Tip="Scale: y = y × scale + offset" />
+      <TextBlock Text="+" Foreground="#BBB" VerticalAlignment="Center"
+                 ToolTip.Tip="Additive offset applied to the next graphed curve" />
+      <NumericUpDown x:Name="OffsetBox" Width="110" Value="0" Increment="1"
+                     FormatString="0.###"
+                     ToolTip.Tip="Offset: y = y × scale + offset" />
+      <Border Width="1" Background="#666" Margin="4,0" />
+      <TextBlock Text="Preset:" Foreground="#BBB" VerticalAlignment="Center" />
+      <ComboBox x:Name="PresetCombo" Width="240"
+                ItemsSource="{Binding Presets}"
+                SelectedItem="{Binding SelectedPreset}">
+        <ComboBox.ItemTemplate>
+          <DataTemplate>
+            <TextBlock Text="{Binding Name}" ToolTip.Tip="{Binding Description}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <Button x:Name="PresetBtn" Content="Apply Preset" />
+      <Border Width="1" Background="#666" Margin="4,0" />
+      <Button x:Name="ModeBtn" Content="Mode" />
+      <Button x:Name="ErrBtn" Content="Errors" />
+      <Button x:Name="EvBtn" Content="Events" />
+      <Button x:Name="MsgBtn" Content="Messages" />
+      <Button x:Name="ParamsBtn" Content="Parameters" />
+      <ToggleButton x:Name="GridToggle" Content="Data Table" />
+      <ToggleButton x:Name="MapToggle" Content="Map" />
+      <Border Width="1" Background="#666" Margin="4,0" />
+      <Button x:Name="KmlBtn" Content="Create KML" />
+      <Button x:Name="GpxBtn" Content="Create GPX" />
+      <Button x:Name="MatlabBtn" Content="Create Matlab" />
+      <Button x:Name="BinLogBtn" Content="Convert Bin to Log" />
+      <Button x:Name="ExportCsvBtn" Content="Export Visible CSV" />
+    </WrapPanel>
+
+    <Grid Grid.Row="1" Margin="0,10,0,0" ColumnDefinitions="260,*">
+
+      <Grid Grid.Column="0" Margin="0,0,10,0" RowDefinitions="Auto,*,Auto">
+        <TextBlock Grid.Row="0" Text="{Binding Info}" Foreground="WhiteSmoke" TextWrapping="Wrap" />
+        <TreeView Grid.Row="1" x:Name="MsgTree" Margin="0,8,0,0"
+                  ItemsSource="{Binding Tree}"
+                  DoubleTapped="OnTreeDoubleTapped">
+          <TreeView.DataTemplates>
+            <TreeDataTemplate DataType="vm:LogTypeNode" ItemsSource="{Binding Fields}">
+              <TextBlock Text="{Binding Type}" FontWeight="Bold" />
+            </TreeDataTemplate>
+            <DataTemplate DataType="vm:LogFieldNode">
+              <TextBlock Text="{Binding Display}" />
+            </DataTemplate>
+          </TreeView.DataTemplates>
+        </TreeView>
+        <StackPanel Grid.Row="2" Spacing="4" Margin="0,8,0,0">
+          <TextBlock Text="or type TYPE.FIELD (e.g. ATT.Roll)" Foreground="#BBB" />
+          <TextBox Text="{Binding FieldExpression}" Watermark="ATT.Roll" />
+        </StackPanel>
+      </Grid>
+
+      <Grid Grid.Column="1" ColumnDefinitions="*,Auto">
+        <Grid Grid.Column="0" RowDefinitions="*,Auto">
+          <ctrl:LivePlot x:Name="Plot" Grid.Row="0" />
+          <DataGrid x:Name="RowsGrid" Grid.Row="1" Height="160"
+                    IsVisible="{Binding #GridToggle.IsChecked}"
+                    IsReadOnly="True" AutoGenerateColumns="False" />
+        </Grid>
+        <ctrl:MapView x:Name="TrackMap" Grid.Column="1" Width="340" Margin="10,0,0,0"
+                      IsVisible="{Binding #MapToggle.IsChecked}" />
+      </Grid>
+    </Grid>
+
+    <TextBlock Grid.Row="2" Margin="0,8,0,0" Text="{Binding Status}" Foreground="#9CDCFE" />
+  </Grid>
+</UserControl>

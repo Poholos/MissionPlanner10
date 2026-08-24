@@ -8,7 +8,6 @@
   
     <DebugType>portable</DebugType>
     <DebugSymbols>True</DebugSymbols>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>

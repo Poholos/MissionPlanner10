@@ -1,3 +1,6 @@
+#nullable disable
+#pragma warning disable IDE0011, IDE0161
+
 using System;
 using System.Linq;
 using System.Threading;

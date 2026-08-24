@@ -1,4 +1,7 @@
-﻿using MissionPlanner.Utilities;
+﻿#nullable disable
+#pragma warning disable IDE0011, IDE0161
+
+using MissionPlanner.Utilities;
 using System.Collections.Generic;
 
 namespace MissionPlanner.Grid

@@ -1,0 +1,85 @@
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Markup.Xaml;
+using MissionPlanner.Warnings;
+using MissionPlanner.ViewModels;
+using MissionPlanner.Views;
+
+namespace MissionPlanner;
+
+public partial class App : Application {
+  public override void Initialize() {
+    Services.LocalizationService.ApplySaved();
+    AvaloniaXamlLoader.Load(this);
+  }
+
+  public override void OnFrameworkInitializationCompleted() {
+    Services.AppPaths.Initialize();
+    Services.ElevationSourceService.InitializeFromSettings();
+    Services.NativeGdalMapService.InitializeFromSettings();
+    _ = Services.AirportService.EnsureLoadedAsync();
+    Services.DisplayViewService.Initialize();
+    Services.FlightModeNames.Initialize();
+    Services.ThemeService.ApplySaved();
+    Services.Speech.Enabled = MissionPlanner.Utilities.Settings.Instance.GetBoolean("speechenable", false);
+    // Upstream CurrentState/MAVLinkInterface speak mode, waypoint and severe-status messages
+    // once these adapters are assigned.
+    MissionPlanner.CurrentState.Speech = Services.Speech.Adapter;
+    MissionPlanner.MAVLinkInterface.Speech = Services.Speech.Adapter;
+    CustomWarning.defaultsrc = AppState.comPort.MAV.cs;
+    WarningEngine.WarningMessage -= OnWarningMessage;
+    WarningEngine.WarningMessage += OnWarningMessage;
+    WarningEngine.Start(Services.Speech.Adapter);
+    Services.SpeechAnnouncer.Start();
+
+    if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) {
+      var mainViewModel = new MainWindowViewModel();
+      desktop.MainWindow = new MainWindow { DataContext = mainViewModel };
+      Services.PluginService.Initialize(mainViewModel);
+      Avalonia.Threading.Dispatcher.UIThread.Post(
+          () => {
+            _ = mainViewModel.Connection.TryAutoConnectAsync();
+            _ = Services.PluginService.RefreshAsync();
+          });
+
+      desktop.Exit += (_, _) => {
+        try {
+          Services.PluginService.ShutdownAsync().AsTask().Wait(System.TimeSpan.FromSeconds(4));
+        } catch {
+          // A third-party plugin is never allowed to hold process shutdown indefinitely.
+        }
+        try {
+          System.Threading.Tasks.Task.Run(Services.AudioVario.Shutdown)
+              .Wait(System.TimeSpan.FromSeconds(2));
+        } catch {
+          // Do not leave the process stuck if a native audio output blocks during shutdown.
+        }
+        Services.SpeechAnnouncer.Stop();
+        WarningEngine.Stop();
+        Services.Speech.Stop();
+        Services.SystemAwakeService.Stop();
+        Services.NativeGdalMapService.Shutdown();
+        mainViewModel.Dispose();
+        AppState.JoystickControl.Dispose();
+        AppState.Traffic.Dispose();
+        AppState.LocalKml.Dispose();
+        Services.SitlLauncher.StopAll();
+        // ConnectionViewModel has already detached transports and started best-effort cleanup.
+        // Never enter an OS driver Close synchronously while the desktop is exiting.
+        try {
+          MissionPlanner.Utilities.Settings.Instance.Save();
+        } catch {
+        }
+      };
+
+      Services.SystemAwakeService.Start();
+      _ = Services.Updater.CheckOnStartupAsync();
+    }
+
+    base.OnFrameworkInitializationCompleted();
+  }
+
+  private static void OnWarningMessage(object? sender, string message) {
+    AppState.comPort.MAV.cs.messageHigh = message;
+  }
+}

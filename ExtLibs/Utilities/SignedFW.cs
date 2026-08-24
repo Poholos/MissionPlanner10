@@ -47,9 +47,6 @@ namespace MissionPlanner.Utilities
         public static byte[] CreateSignedBL(AsymmetricCipherKeyPair keyPair, string filename)
         {
             var descriptor = new byte[] { 0x4e, 0xcf, 0x4e, 0xa5, 0xa6, 0xb6, 0xf7, 0x29 };
-            var max_keys = 10;
-            var key_len = 32;
-
             var bl = File.ReadAllBytes(filename);
             var ms = new MemoryStream(bl);
 
@@ -84,7 +81,6 @@ namespace MissionPlanner.Utilities
         }
         public static byte[] CreateSignedAPJ(AsymmetricCipherKeyPair keyPair, string filename)
         {
-            var key_len = 32;
             var sig_len = 64;
             var sig_version = 30437;
             var descriptor = new byte[] { 0x41, 0xa3, 0xe5, 0xf2, 0x65, 0x69, 0x92, 0x07 };

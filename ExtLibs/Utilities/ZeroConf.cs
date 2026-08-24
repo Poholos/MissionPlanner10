@@ -18,7 +18,7 @@ namespace MissionPlanner.Utilities
 
         public static void ProbeForRTSP()
         {
-            resolverAsync();
+            _ = resolverAsync();
         }
 
         private static async Task resolverAsync()
@@ -59,7 +59,7 @@ namespace MissionPlanner.Utilities
 
         public static void ProbeForMavlink()
         {
-            resolverMavlinkAsync();
+            _ = resolverMavlinkAsync();
         }
 
         private static async Task resolverMavlinkAsync()

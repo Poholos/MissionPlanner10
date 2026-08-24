@@ -1,0 +1,87 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Mission Planner (Avalonia)"
+           Manufacturer="Mission Planner contributors"
+           Version="$(InstallerVersion)"
+           UpgradeCode="87D0A514-E6E4-4E83-87A1-B2409744F708"
+           Scope="perMachine"
+           InstallerVersion="500"
+           Compressed="yes">
+    <SummaryInformation Description="Cross-platform Mission Planner for ArduPilot" />
+    <MajorUpgrade DowngradeErrorMessage="A newer Mission Planner build is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Icon Id="MissionPlanner.exe" SourceFile="$(RepositoryRoot)/Assets/appicon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="MissionPlanner.exe" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/Rouniy/MissionPlanner" />
+    <Property Id="ARPCOMMENTS" Value="Application version $(FullVersion)" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <!-- Keep the port beside, rather than over, an official WinForms Mission Planner install. -->
+      <Directory Id="INSTALLFOLDER" Name="MissionPlannerAvalonia" />
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+    <StandardDirectory Id="DesktopFolder" />
+
+    <!-- Windows Installer installs resources only when their components belong to a feature.
+         Keep the package intentionally monolithic: the application is either present in full or
+         absent, which also gives administrative extraction and repair one authoritative set. -->
+    <Feature Id="Main" Title="Mission Planner" AllowAbsent="no">
+      <Component Id="MainExecutable" Directory="INSTALLFOLDER" Bitness="always64">
+        <File Id="MissionPlannerExecutable"
+              Name="MissionPlanner.exe"
+              Source="!(bindpath.PublishDir)MissionPlanner.exe"
+              KeyPath="yes" />
+      </Component>
+
+      <!-- SQLite's native PE is versioned but language-neutral. LANGID 0 keeps MSI repair
+           decisions deterministic and satisfies ICE60 without hiding installer validation. -->
+      <Component Id="SqliteNative" Directory="INSTALLFOLDER" Bitness="always64">
+        <File Id="SqliteNativeFile"
+              Name="e_sqlite3.dll"
+              Source="!(bindpath.PublishDir)e_sqlite3.dll"
+              DefaultLanguage="0"
+              KeyPath="yes" />
+      </Component>
+
+      <Files Directory="INSTALLFOLDER" Include="!(bindpath.PublishDir)**">
+        <Exclude Files="!(bindpath.PublishDir)MissionPlanner.exe" />
+        <Exclude Files="!(bindpath.PublishDir)e_sqlite3.dll" />
+      </Files>
+
+      <!-- Non-advertised shortcuts must use an HKCU registry value as their component
+           key path (ICE43). Keeping each shortcut in a per-user-only component also
+           avoids mixing it with the per-machine executable component (ICE57). -->
+      <Component Id="StartMenuShortcutComponent"
+                 Directory="ProgramMenuFolder" Bitness="always64">
+        <Shortcut Id="StartMenuShortcut"
+                  Name="Mission Planner (Avalonia)"
+                  Description="Ground control station for ArduPilot vehicles"
+                  Target="[INSTALLFOLDER]MissionPlanner.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="MissionPlanner.exe" />
+        <RegistryValue Root="HKCU"
+                       Key="Software\Rouniy\MissionPlannerAvalonia"
+                       Name="StartMenuShortcut"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+      </Component>
+
+      <Component Id="DesktopShortcutComponent"
+                 Directory="DesktopFolder" Bitness="always64">
+        <Shortcut Id="DesktopShortcut"
+                  Name="Mission Planner (Avalonia)"
+                  Description="Ground control station for ArduPilot vehicles"
+                  Target="[INSTALLFOLDER]MissionPlanner.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="MissionPlanner.exe" />
+        <RegistryValue Root="HKCU"
+                       Key="Software\Rouniy\MissionPlannerAvalonia"
+                       Name="DesktopShortcut"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+      </Component>
+    </Feature>
+  </Package>
+</Wix>

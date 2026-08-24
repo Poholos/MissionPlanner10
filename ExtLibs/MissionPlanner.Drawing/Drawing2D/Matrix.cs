@@ -251,6 +251,25 @@ namespace System.Drawing.Drawing2D
             return !(matrix1 == matrix2);
         }
 
+        public override bool Equals(object obj)
+        {
+            return obj is Matrix matrix && this == matrix;
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                int hash = 17;
+                hash = hash * 31 + M11.GetHashCode();
+                hash = hash * 31 + M12.GetHashCode();
+                hash = hash * 31 + M21.GetHashCode();
+                hash = hash * 31 + M22.GetHashCode();
+                hash = hash * 31 + OffsetX.GetHashCode();
+                return hash * 31 + OffsetY.GetHashCode();
+            }
+        }
+
         private bool IsDistinguishedIdentity => _type == MatrixTypes.TRANSFORM_IS_IDENTITY;
 
         public bool IsIdentity

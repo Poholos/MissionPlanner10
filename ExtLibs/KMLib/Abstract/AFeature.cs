@@ -127,7 +127,7 @@ namespace KMLib.Abstract
             }
         }
         [XmlIgnore()]
-        private bool TimeStampSpecified = false;
+        public bool TimeStampSpecified = false;
 
         private TimeSpan m_TimeSpan;
         [XmlElement("TimeSpan")]
@@ -144,7 +144,7 @@ namespace KMLib.Abstract
             }
         }
         [XmlIgnore()]
-        private bool TimeSpanSpecified = false;
+        public bool TimeSpanSpecified = false;
 
         public void AddStyle(Style style)
         {
@@ -169,7 +169,7 @@ namespace KMLib.Abstract
             }
         }
         [XmlIgnore()]
-        private bool StyleSpecified = false;
+        public bool StyleSpecified = false;
     }    
 }
 

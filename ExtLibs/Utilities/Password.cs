@@ -7,8 +7,6 @@ namespace MissionPlanner.Utilities
     // one way encryption
     public static class Password
     {
-        static string pw = "";
-
         public static void EnterPassword(string pw)
         {
             Settings.Instance["password"] =

@@ -1,0 +1,960 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Globalization;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Data.Converters;
+using Avalonia.Layout;
+using Avalonia.Media;
+using Avalonia.Platform.Storage;
+using Avalonia.Threading;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using MissionPlanner;
+using MissionPlanner.ArduPilot;
+using MissionPlanner.Joystick;
+using MissionPlanner.Utilities;
+using MissionPlanner.Services;
+
+namespace MissionPlanner.ViewModels.GCSViews.ConfigurationView;
+
+public partial class ConfigJoystickViewModel : ViewModelBase, IDisposable {
+  private const int _maxAxis = 16;
+
+  private readonly MAVLinkInterface _comPort = AppState.comPort;
+  private readonly JoystickControlService _control = AppState.JoystickControl;
+  private readonly DispatcherTimer _timer;
+  private readonly SemaphoreSlim _detectionGate = new(1, 1);
+  private JoystickBase? _joystick;
+  private LinuxJoydevJoystick? _rangeCalibrationJoystick;
+  private CancellationTokenSource? _detectCts;
+  private string? _lastPumpError;
+
+  public ObservableCollection<string> Devices { get; } = new();
+  public ObservableCollection<JoyAxisRow> Axes { get; } = new();
+  public ObservableCollection<JoyButtonRow> Buttons { get; } = new();
+
+  public IReadOnlyList<string> AxisOptions { get; } =
+      Enum.GetNames(typeof(joystickaxis));
+
+  public IReadOnlyList<string> ButtonFunctions { get; } =
+      Enum.GetNames(typeof(buttonfunction));
+
+  [ObservableProperty]
+  private string _selectedDevice = "";
+
+  [ObservableProperty]
+  private bool _elevons;
+
+  [ObservableProperty]
+  private bool _manualControl;
+
+  [ObservableProperty]
+  private string _enableLabel = "Enable";
+
+  [ObservableProperty]
+  private string _loadedConfig = "Loaded config: (default xml)";
+
+  [ObservableProperty]
+  private string _status = InitialStatus();
+
+  [ObservableProperty]
+  private string _rawInput = "Raw input appears here after the joystick is enabled.";
+
+  [ObservableProperty]
+  private bool _isDetecting;
+
+  [ObservableProperty]
+  private string _rangeCalibrationLabel = "Calibrate Range";
+
+  public bool IsEnabled => _joystick != null && _joystick.enabled;
+  public bool IsRangeCalibrationSupported => OperatingSystem.IsLinux();
+  public int ValueMinimum => ManualControl ? -1000 : 1000;
+  public int ValueMaximum => ManualControl ? 1000 : 2000;
+
+  public ConfigJoystickViewModel() {
+    _control.Stopped += OnJoystickStopped;
+    _control.SendError += OnJoystickSendError;
+    RefreshDevices();
+    LoadedConfig = "Loaded Config for " + _comPort.MAV.cs.firmware;
+
+    var source = _control.Active;
+    bool disposeSource = source == null;
+    source ??= JoystickProvider.Create(() => _comPort);
+    try {
+      for (int a = 1; a <= _maxAxis; a++) {
+        var cfg = source.getChannel(a);
+        Axes.Add(new JoyAxisRow(a) {
+          Axis = (cfg.axis).ToString(),
+          Expo = cfg.expo,
+          Reverse = cfg.reverse,
+        });
+      }
+    } finally {
+      if (disposeSource) {
+        source.Dispose();
+      }
+    }
+
+    if (_control.Active is { } active) {
+      _joystick = active;
+      SelectedDevice = active.name;
+      Elevons = active.elevons;
+      ManualControl = active.manual_control;
+      EnableLabel = "Disable";
+      Status = "Joystick enabled: " + active.name + CalibrationStatus(active);
+      BuildButtonRows();
+    }
+    _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+    _timer.Tick += (_, _) => Pump();
+    _timer.Start();
+  }
+
+  [RelayCommand]
+  private void RefreshDevices() {
+    var selected = SelectedDevice;
+    if (string.IsNullOrEmpty(selected)) {
+      selected = Settings.Instance["joystick_name"] ?? "";
+    }
+    Devices.Clear();
+    try {
+      foreach (var d in JoystickProvider.GetDevices()) {
+        Devices.Add(d);
+      }
+    } catch (Exception ex) {
+      Status = "Error getting joystick list: " + ex.Message;
+      return;
+    }
+
+    if (!string.IsNullOrEmpty(selected) && Devices.Contains(selected)) {
+      SelectedDevice = selected;
+    } else if (Devices.Count > 0) {
+      SelectedDevice = Devices[0];
+    } else {
+      Status = NoDevicesStatus();
+    }
+  }
+
+  private static string InitialStatus() {
+    if (OperatingSystem.IsLinux()) {
+      return "Select a joystick and map each RC channel to an axis. This system uses the kernel joydev interface.";
+    }
+    if (OperatingSystem.IsWindows()) {
+      return "Select a joystick and map each RC channel to an axis. This system uses DirectInput.";
+    }
+    if (OperatingSystem.IsMacOS()) {
+      return "Select a joystick and map each RC channel to an axis. This system uses the native IOKit HID interface.";
+    }
+    return "Select a joystick and map each RC channel to an axis. A native joystick backend is not yet available on this platform.";
+  }
+
+  private static string NoDevicesStatus() {
+    if (OperatingSystem.IsLinux()) {
+      return "No joysticks detected under /dev/input/by-id (connect a joydev-compatible device).";
+    }
+    if (OperatingSystem.IsWindows()) {
+      return "No DirectInput joysticks detected.";
+    }
+    if (OperatingSystem.IsMacOS()) {
+      return "No IOKit HID joysticks or game controllers detected.";
+    }
+    return "Joystick input is not yet supported on this platform.";
+  }
+
+  [RelayCommand]
+  private void ToggleEnable() {
+    if (_rangeCalibrationJoystick != null) {
+      Status = "Finish range calibration before enabling joystick control.";
+      return;
+    }
+    if (_joystick == null || !_joystick.enabled) {
+      if (!JoystickProvider.IsSupported) {
+        Status = "Joystick input is not yet supported on this platform.";
+        return;
+      }
+      if (string.IsNullOrEmpty(SelectedDevice)) {
+        Status = "Please select a joystick.";
+        return;
+      }
+
+      try {
+        _joystick?.UnAcquireJoyStick();
+      } catch {
+      }
+      try {
+        _joystick?.Dispose();
+      } catch {
+      }
+      _joystick = null;
+
+      var joy = JoystickProvider.Create(() => _comPort);
+      joy.LostAction = () => Dispatcher.UIThread.Post(() => HandleJoystickLost(joy));
+      ApplyConfigTo(joy);
+      joy.elevons = Elevons;
+      joy.manual_control = ManualControl;
+
+      if (!joy.start(SelectedDevice)) {
+        Status = "Please connect a joystick.";
+        joy.Dispose();
+        return;
+      }
+
+      joy.name = SelectedDevice;
+      joy.enabled = true;
+      _joystick = joy;
+      _control.Start(joy);
+
+      Settings.Instance["joystick_name"] = SelectedDevice;
+
+      BuildButtonRows();
+
+      EnableLabel = "Disable";
+      Status = "Joystick enabled: " + SelectedDevice + CalibrationStatus(joy);
+      RawInput = "Waiting for joystick input…";
+    } else {
+      var joystick = _joystick;
+      _control.Stop(joystick, "Joystick disabled.");
+    }
+
+    OnPropertyChanged(nameof(IsEnabled));
+  }
+
+  [RelayCommand]
+  private void Save() {
+    if (_rangeCalibrationJoystick != null) {
+      Status = "Finish range calibration before saving the channel configuration.";
+      return;
+    }
+    if (_joystick == null) {
+      Status = "Please enable a joystick before saving.";
+      return;
+    }
+
+    ApplyConfigTo(_joystick);
+    _joystick.saveconfig();
+    Status = "Joystick configuration saved.";
+  }
+
+  [RelayCommand]
+  private void ToggleRangeCalibration() {
+    if (!OperatingSystem.IsLinux()) {
+      Status = "Joystick range calibration is handled by the operating-system driver on this platform.";
+      return;
+    }
+    if (_comPort.MAV.cs.armed) {
+      Status = "Disarm the vehicle before calibrating joystick ranges.";
+      return;
+    }
+
+    if (_rangeCalibrationJoystick == null) {
+      if (string.IsNullOrEmpty(SelectedDevice)) {
+        Status = "Select a joystick before calibrating its range.";
+        return;
+      }
+
+      var calibration = new LinuxJoydevJoystick(() => _comPort) {
+        LostAction = () => { },
+      };
+      ApplyConfigTo(calibration);
+      calibration.manual_control = ManualControl;
+      if (!calibration.AcquireJoystick(SelectedDevice)) {
+        calibration.Dispose();
+        Status = "Unable to open the joystick for range calibration.";
+        return;
+      }
+
+      calibration.BeginRangeCalibration();
+      _rangeCalibrationJoystick = calibration;
+      RangeCalibrationLabel = "Finish Calibration";
+      if (_joystick is { enabled: true } active) {
+        _control.Stop(active, "Joystick control paused for safe range calibration.");
+      }
+      Status = "Control output is paused. Move every required stick and dial to both endpoints, " +
+               "then return throttle low and the other sticks to centre before clicking Finish Calibration.";
+      return;
+    }
+
+    var result = _rangeCalibrationJoystick.FinishRangeCalibration();
+    DisposeRangeCalibration();
+    RangeCalibrationLabel = "Calibrate Range";
+    Status = result.CalibratedAxes > 0
+        ? $"Joystick range calibration saved for {result.CalibratedAxes} axes. " +
+          "The endpoints now map monotonically to the full output range; enable joystick control again."
+        : "No full axis movements were detected. Start calibration and move each required axis to both endpoints.";
+  }
+
+  [RelayCommand]
+  private void ResetRangeCalibration() {
+    if (!OperatingSystem.IsLinux()) {
+      Status = "Joystick range calibration is handled by the operating-system driver on this platform.";
+      return;
+    }
+    if (string.IsNullOrEmpty(SelectedDevice)) {
+      Status = "Select a joystick before resetting its range calibration.";
+      return;
+    }
+    if (_comPort.MAV.cs.armed) {
+      Status = "Disarm the vehicle before resetting joystick ranges.";
+      return;
+    }
+
+    if (_rangeCalibrationJoystick != null) {
+      _rangeCalibrationJoystick.ClearRangeCalibration();
+      DisposeRangeCalibration();
+    } else if (_joystick is LinuxJoydevJoystick linux && _joystick.enabled) {
+      linux.ClearRangeCalibration();
+    } else {
+      JoydevCalibrationStore.Clear(SelectedDevice);
+    }
+    RangeCalibrationLabel = "Calibrate Range";
+    Status = "Joystick range calibration reset; the native joydev range is active.";
+  }
+
+  [RelayCommand]
+  private async Task ButtonSettings(JoyButtonRow row) {
+    if (row == null) {
+      return;
+    }
+
+    if (_joystick == null) {
+      Status = "Enable a joystick before configuring button actions.";
+      return;
+    }
+
+    ApplyButtonToJoystick(row);
+
+    var fn = ParseFunction(row.Function);
+    switch (fn) {
+      case buttonfunction.ChangeMode:
+        await ShowModeDialog(row.Index);
+        break;
+      case buttonfunction.Mount_Mode:
+        await ShowMountModeDialog(row.Index);
+        break;
+      case buttonfunction.Do_Set_Relay:
+        await ShowParamDialog(row.Index, "Do_Set_Relay", ("Relay No#", "p1"));
+        break;
+      case buttonfunction.Do_Set_Servo:
+        await ShowParamDialog(row.Index, "Do_Set_Servo", ("Servo No#", "p1"), ("PWM", "p2"));
+        break;
+      case buttonfunction.Do_Repeat_Relay:
+        await ShowParamDialog(row.Index, "Do_Repeat_Relay",
+            ("Relay No#", "p1"), ("Repeat #", "p2"), ("Time", "p3"));
+        break;
+      case buttonfunction.Do_Repeat_Servo:
+        await ShowParamDialog(row.Index, "Do_Repeat_Servo",
+            ("Servo No#", "p1"), ("Pwm Value", "p2"), ("Rep Time", "p3"), ("Delay (ms)", "p4"));
+        break;
+      case buttonfunction.Button_axis0:
+      case buttonfunction.Button_axis1:
+        await ShowParamDialog(row.Index, "Button_axis", ("PWM 1", "p1"), ("PWM 2", "p2"));
+        break;
+      default:
+        Status = "No settings to set for " + fn + ".";
+        break;
+    }
+  }
+
+  [RelayCommand]
+  private async Task ExportConfig() {
+    if (_joystick == null) {
+      Status = "Enable a joystick before exporting.";
+      return;
+    }
+
+    var path = await PickSaveAsync("Export joystick config", "joycfg");
+    if (string.IsNullOrEmpty(path)) {
+      return;
+    }
+
+    try {
+      ApplyConfigTo(_joystick);
+      _joystick.saveconfig();
+      _joystick.ExportConfig(path);
+      LoadedConfig = "Loaded config: " + System.IO.Path.GetFileName(path);
+      Status = "Exported joystick config to " + path;
+    } catch (Exception ex) {
+      Status = "Export failed: " + ex.Message;
+    }
+  }
+
+  [RelayCommand]
+  private async Task ImportConfig() {
+    if (!await Dialogs.Confirm("Import Joystick Config",
+            "NOTE: this will replace any existing joystick configuration.\n"
+            + "Please make sure you have saved your current configuration if needed.")) {
+      return;
+    }
+
+    var path = await PickFileAsync("Import joystick config", "*.joycfg", "Joystick config");
+    if (string.IsNullOrEmpty(path)) {
+      return;
+    }
+
+    if (_joystick != null && _joystick.enabled) {
+      ToggleEnable();
+    }
+
+    try {
+      using var temp = JoystickProvider.Create(() => _comPort);
+      temp.ImportConfig(path);
+      temp.loadconfig();
+      for (int a = 1; a <= _maxAxis && a - 1 < Axes.Count; a++) {
+        var cfg = temp.getChannel(a);
+        var rowidx = a - 1;
+        Axes[rowidx].Axis = cfg.axis.ToString();
+        Axes[rowidx].Expo = cfg.expo;
+        Axes[rowidx].Reverse = cfg.reverse;
+      }
+      LoadedConfig = "Loaded config: " + System.IO.Path.GetFileName(path);
+      Status = "Imported. Re-enable the joystick for changes to take effect.";
+    } catch (Exception ex) {
+      Status = "Import failed: " + ex.Message;
+    }
+  }
+
+  [RelayCommand]
+  private async Task DetectAxis(JoyAxisRow row) {
+    if (row == null || string.IsNullOrEmpty(SelectedDevice)) {
+      return;
+    }
+    if (!JoystickProvider.IsSupported) {
+      Status = "Joystick input is not yet supported on this platform.";
+      return;
+    }
+    if (!await _detectionGate.WaitAsync(0)) {
+      Status = "Another joystick detection is already running.";
+      return;
+    }
+
+    JoystickBase? detector = null;
+    var cts = new CancellationTokenSource();
+    _detectCts = cts;
+    IsDetecting = true;
+    try {
+      Status = "Opening joystick for axis detection…";
+      detector = JoystickProvider.Create(() => _comPort);
+      if (!await Task.Run(() => detector.AcquireJoystick(SelectedDevice), cts.Token)) {
+        Status = "Could not open the selected joystick for detection.";
+        return;
+      }
+
+      var baseline = detector.GetCurrentState();
+      Status = "Move the axis you want assigned to RC " + row.ChannelNo + "...";
+      var axis = await JoystickDetector.WaitForAxisAsync(detector, baseline, 8000,
+          TimeSpan.FromSeconds(10), cts.Token);
+      if (axis == joystickaxis.None) {
+        Status = "No joystick axis movement was detected.";
+        return;
+      }
+
+      row.Axis = axis.ToString();
+      ApplyAxisToJoystick(row);
+      Status = "RC " + row.ChannelNo + " mapped to " + row.Axis;
+    } catch (OperationCanceledException) {
+      Status = "Joystick axis detection cancelled.";
+    } catch (Exception ex) {
+      Status = "Joystick axis detection failed: " + ex.Message;
+    } finally {
+      detector?.Dispose();
+      if (ReferenceEquals(_detectCts, cts)) {
+        _detectCts = null;
+      }
+      cts.Dispose();
+      IsDetecting = false;
+      _detectionGate.Release();
+    }
+  }
+
+  [RelayCommand]
+  private async Task DetectButton(JoyButtonRow row) {
+    if (row == null || string.IsNullOrEmpty(SelectedDevice)) {
+      return;
+    }
+    if (!JoystickProvider.IsSupported) {
+      Status = "Joystick input is not yet supported on this platform.";
+      return;
+    }
+    if (!await _detectionGate.WaitAsync(0)) {
+      Status = "Another joystick detection is already running.";
+      return;
+    }
+
+    JoystickBase? detector = null;
+    var cts = new CancellationTokenSource();
+    _detectCts = cts;
+    IsDetecting = true;
+    try {
+      Status = "Opening joystick for button detection…";
+      detector = JoystickProvider.Create(() => _comPort);
+      if (!await Task.Run(() => detector.AcquireJoystick(SelectedDevice), cts.Token)) {
+        Status = "Could not open the selected joystick for detection.";
+        return;
+      }
+
+      var baseline = detector.GetCurrentState().GetButtons();
+      Status = "Press the button you want assigned…";
+      int no = await JoystickDetector.WaitForButtonAsync(detector, baseline,
+          TimeSpan.FromSeconds(10), cts.Token);
+      if (no < 0) {
+        Status = "No joystick button press was detected.";
+        return;
+      }
+
+      row.ButtonNo = no;
+      ApplyButtonToJoystick(row);
+      Status = "Button assigned: " + no;
+    } catch (OperationCanceledException) {
+      Status = "Joystick button detection cancelled.";
+    } catch (Exception ex) {
+      Status = "Joystick button detection failed: " + ex.Message;
+    } finally {
+      detector?.Dispose();
+      if (ReferenceEquals(_detectCts, cts)) {
+        _detectCts = null;
+      }
+      cts.Dispose();
+      IsDetecting = false;
+      _detectionGate.Release();
+    }
+  }
+
+  private void ApplyConfigTo(JoystickBase joy) {
+    foreach (var row in Axes) {
+      joy.setChannel(row.ChannelNo, ParseAxis(row.Axis), row.Reverse, row.Expo);
+    }
+
+    int idx = 0;
+    foreach (var row in Buttons) {
+      var cfg = joy.getButton(idx);
+      cfg.buttonno = row.ButtonNo;
+      cfg.function = ParseFunction(row.Function);
+      joy.setButton(idx, cfg);
+      idx++;
+    }
+  }
+
+  private void ApplyAxisToJoystick(JoyAxisRow row) {
+    if (_joystick == null) {
+      return;
+    }
+
+    _joystick.setChannel(row.ChannelNo, ParseAxis(row.Axis), row.Reverse, row.Expo);
+  }
+
+  private void ApplyButtonToJoystick(JoyButtonRow row) {
+    if (_joystick == null) {
+      return;
+    }
+
+    var cfg = _joystick.getButton(row.Index);
+    cfg.buttonno = row.ButtonNo;
+    cfg.function = ParseFunction(row.Function);
+    _joystick.setButton(row.Index, cfg);
+  }
+
+  private void BuildButtonRows() {
+    Buttons.Clear();
+    if (_joystick == null) {
+      return;
+    }
+
+    int count;
+    try {
+      count = Math.Min(16, _joystick.getNumButtons());
+    } catch {
+      count = 0;
+    }
+
+    for (int f = 0; f < count; f++) {
+      var cfg = _joystick.getButton(f);
+      Buttons.Add(new JoyButtonRow(f) {
+        ButtonNo = cfg.buttonno,
+        Function = cfg.function.ToString(),
+      });
+    }
+  }
+
+  private void Pump() {
+    JoystickBase? input = _rangeCalibrationJoystick ?? _joystick;
+    if (input == null || (_rangeCalibrationJoystick == null && !input.enabled)) {
+      return;
+    }
+    if (!input.IsJoystickValid()) {
+      if (ReferenceEquals(input, _rangeCalibrationJoystick)) {
+        DisposeRangeCalibration();
+        RangeCalibrationLabel = "Calibrate Range";
+        Status = "Joystick disconnected during range calibration.";
+        RawInput = "Joystick disconnected.";
+      } else {
+        HandleJoystickLost(input);
+      }
+      return;
+    }
+
+    input.elevons = Elevons;
+    input.manual_control = ManualControl;
+
+    try {
+      var state = input.GetCurrentState();
+      RawInput = JoystickDetector.Describe(state, input.getNumButtons());
+      foreach (var row in Axes) {
+        row.Value = input.getValueForChannel(row.ChannelNo);
+      }
+
+      foreach (var row in Buttons) {
+        row.Pressed = input.isButtonPressed(row.Index);
+      }
+      _lastPumpError = null;
+    } catch (Exception ex) {
+      if (!string.Equals(_lastPumpError, ex.Message, StringComparison.Ordinal)) {
+        _lastPumpError = ex.Message;
+        Status = "Joystick read failed: " + ex.Message;
+      }
+    }
+  }
+
+  private void HandleJoystickLost(JoystickBase joystick) {
+    if (!ReferenceEquals(_joystick, joystick)) {
+      return;
+    }
+    _control.Stop(joystick,
+        "Joystick disconnected. Reconnect it, refresh the list, and enable it again.");
+  }
+
+  private void OnJoystickStopped(JoystickBase joystick, string reason) {
+    void Update() {
+      if (!ReferenceEquals(_joystick, joystick)) {
+        return;
+      }
+      _joystick = null;
+      EnableLabel = "Enable";
+      if (_rangeCalibrationJoystick == null) {
+        RangeCalibrationLabel = "Calibrate Range";
+        RawInput = reason.StartsWith("Joystick disconnected", StringComparison.Ordinal)
+            ? "Joystick disconnected."
+            : "Raw input appears here after the joystick is enabled.";
+        Status = reason;
+      }
+      OnPropertyChanged(nameof(IsEnabled));
+    }
+
+    if (Dispatcher.UIThread.CheckAccess()) {
+      Update();
+    } else {
+      Dispatcher.UIThread.Post(Update);
+    }
+  }
+
+  private void OnJoystickSendError(string message) =>
+      Dispatcher.UIThread.Post(() => Status = message);
+
+  partial void OnManualControlChanged(bool value) {
+    OnPropertyChanged(nameof(ValueMinimum));
+    OnPropertyChanged(nameof(ValueMaximum));
+    foreach (var row in Axes) {
+      row.Value = value ? 0 : 1500;
+    }
+  }
+
+  partial void OnSelectedDeviceChanged(string value) {
+    _detectCts?.Cancel();
+    if (_rangeCalibrationJoystick != null) {
+      DisposeRangeCalibration();
+      RangeCalibrationLabel = "Calibrate Range";
+      Status = "Joystick range calibration cancelled because the selected device changed.";
+    }
+  }
+
+  private static string CalibrationStatus(JoystickBase joystick) =>
+      joystick is LinuxJoydevJoystick { CalibratedAxisCount: > 0 } linux
+          ? $"; range calibration loaded for {linux.CalibratedAxisCount} axes."
+          : ".";
+
+  private static joystickaxis ParseAxis(string value) {
+    if (Enum.TryParse(value, out joystickaxis axis)) {
+      return axis;
+    }
+
+    return joystickaxis.None;
+  }
+
+  private static buttonfunction ParseFunction(string value) {
+    if (Enum.TryParse(value, out buttonfunction fn)) {
+      return fn;
+    }
+
+    return buttonfunction.ChangeMode;
+  }
+
+  private async Task ShowModeDialog(int index) {
+    if (_joystick == null) {
+      return;
+    }
+
+    var cfg = _joystick.getButton(index);
+    List<KeyValuePair<int, string>> modes;
+    try {
+      modes = Common.getModesList(_comPort.MAV.cs.firmware);
+    } catch {
+      modes = new List<KeyValuePair<int, string>>();
+    }
+
+    var names = modes.Select(m => m.Value).ToList();
+    var combo = new ComboBox {
+      ItemsSource = names,
+      SelectedItem = names.FirstOrDefault(n => n == cfg.mode) ?? names.FirstOrDefault(),
+      HorizontalAlignment = HorizontalAlignment.Stretch,
+    };
+
+    if (await ShowDialog("Joy_ChangeMode", new Control[] {
+      new TextBlock { Text = "Mode" }, combo,
+    })) {
+      cfg.function = buttonfunction.ChangeMode;
+      cfg.mode = combo.SelectedItem as string ?? cfg.mode;
+      _joystick.setButton(index, cfg);
+      Status = "Button " + (index + 1) + " -> ChangeMode " + cfg.mode;
+    }
+  }
+
+  private async Task ShowMountModeDialog(int index) {
+    if (_joystick == null) {
+      return;
+    }
+
+    var cfg = _joystick.getButton(index);
+    List<KeyValuePair<int, string>> opts = new();
+    foreach (var name in new[] { "MNT1_DEFLT_MODE", "MNT_DEFLT_MODE", "MNT_MODE" }) {
+      try {
+        var item = ParameterMetaDataRepository.GetParameterOptionsInt(
+            name, _comPort.MAV.cs.firmware.ToString());
+        if (item != null && item.Count > 0) {
+          opts = item;
+          break;
+        }
+      } catch {
+      }
+    }
+
+    var names = opts.Select(o => o.Value).ToList();
+    var keys = opts.Select(o => o.Key).ToList();
+    var combo = new ComboBox {
+      ItemsSource = names,
+      SelectedIndex = Math.Max(0, keys.IndexOf((int)cfg.p1)),
+      HorizontalAlignment = HorizontalAlignment.Stretch,
+    };
+
+    if (await ShowDialog("Joy_Mount_Mode", new Control[] {
+      new TextBlock { Text = "Mount Mode" }, combo,
+    })) {
+      cfg.function = buttonfunction.Mount_Mode;
+      if (combo.SelectedIndex >= 0 && combo.SelectedIndex < keys.Count) {
+        cfg.p1 = keys[combo.SelectedIndex];
+      }
+      _joystick.setButton(index, cfg);
+      Status = "Button " + (index + 1) + " -> Mount_Mode " + cfg.p1;
+    }
+  }
+
+  private async Task ShowParamDialog(int index, string title,
+      params (string Label, string Field)[] fields) {
+    if (_joystick == null) {
+      return;
+    }
+
+    var cfg = _joystick.getButton(index);
+    var boxes = new List<(string Field, NumericUpDown Box)>();
+    var body = new List<Control>();
+    foreach (var (label, field) in fields) {
+      var box = new NumericUpDown {
+        Minimum = 0,
+        Maximum = 65535,
+        Value = (decimal)GetParam(cfg, field),
+        HorizontalAlignment = HorizontalAlignment.Stretch,
+      };
+      body.Add(new TextBlock { Text = label });
+      body.Add(box);
+      boxes.Add((field, box));
+    }
+
+    if (await ShowDialog("Joy_" + title, body.ToArray())) {
+      foreach (var (field, box) in boxes) {
+        cfg = SetParam(cfg, field, (float)(box.Value ?? 0));
+      }
+      _joystick.setButton(index, cfg);
+      Status = "Button " + (index + 1) + " -> " + title + " saved.";
+    }
+  }
+
+  private static float GetParam(JoyButton cfg, string field) => field switch {
+    "p1" => cfg.p1,
+    "p2" => cfg.p2,
+    "p3" => cfg.p3,
+    "p4" => cfg.p4,
+    _ => 0,
+  };
+
+  private static JoyButton SetParam(JoyButton cfg, string field, float value) {
+    switch (field) {
+      case "p1": cfg.p1 = value; break;
+      case "p2": cfg.p2 = value; break;
+      case "p3": cfg.p3 = value; break;
+      case "p4": cfg.p4 = value; break;
+    }
+    return cfg;
+  }
+
+  private static Task<bool> ShowDialog(string title, Control[] body) {
+    var panel = new StackPanel { Margin = new Thickness(16), Spacing = 8 };
+    panel.Children.Add(new TextBlock {
+      Text = title,
+      FontWeight = FontWeight.Bold,
+      FontSize = 14,
+    });
+    foreach (var c in body) {
+      panel.Children.Add(c);
+    }
+
+    var ok = new Button { Content = "OK", MinWidth = 80, IsDefault = true };
+    var cancel = new Button { Content = "Cancel", MinWidth = 80, IsCancel = true };
+    var row = new StackPanel {
+      Orientation = Orientation.Horizontal,
+      HorizontalAlignment = HorizontalAlignment.Right,
+      Spacing = 8,
+      Margin = new Thickness(0, 6, 0, 0),
+    };
+    row.Children.Add(ok);
+    row.Children.Add(cancel);
+    panel.Children.Add(row);
+
+    var w = new Window {
+      Title = title,
+      Width = 320,
+      SizeToContent = SizeToContent.Height,
+      CanResize = false,
+      WindowStartupLocation = WindowStartupLocation.CenterOwner,
+      Background = new SolidColorBrush(Color.Parse("#262728")),
+      Content = panel,
+    };
+    ok.Click += (_, _) => w.Close(true);
+    cancel.Click += (_, _) => w.Close(false);
+
+    var owner = (Application.Current?.ApplicationLifetime
+                 as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+    return owner != null ? w.ShowDialog<bool>(owner) : w.ShowDialog<bool>(w);
+  }
+
+  private static async Task<string?> PickFileAsync(string title, string pattern, string desc) {
+    var top = (Application.Current?.ApplicationLifetime
+               as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+    if (top == null) {
+      return null;
+    }
+    var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions {
+      Title = title,
+      AllowMultiple = false,
+      FileTypeFilter = new[] {
+        new FilePickerFileType(desc) { Patterns = new[] { pattern } },
+      },
+    });
+    return files.Count > 0 ? files[0].TryGetLocalPath() : null;
+  }
+
+  private static async Task<string?> PickSaveAsync(string title, string ext) {
+    var top = (Application.Current?.ApplicationLifetime
+               as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+    if (top == null) {
+      return null;
+    }
+    var file = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions {
+      Title = title,
+      DefaultExtension = ext,
+      FileTypeChoices = new[] {
+        new FilePickerFileType("Joystick config") { Patterns = new[] { "*.joycfg" } },
+      },
+    });
+    return file?.TryGetLocalPath();
+  }
+
+  public void Dispose() {
+    _timer.Stop();
+    _detectCts?.Cancel();
+    _control.Stopped -= OnJoystickStopped;
+    _control.SendError -= OnJoystickSendError;
+    DisposeRangeCalibration();
+    // The global service owns an enabled joystick. Closing the setup page must not stop control;
+    // Mission Planner keeps joystick output active while the operator returns to Flight Data.
+    _joystick = null;
+  }
+
+  private void DisposeRangeCalibration() {
+    var calibration = _rangeCalibrationJoystick;
+    _rangeCalibrationJoystick = null;
+    if (calibration == null) {
+      return;
+    }
+    calibration.CancelRangeCalibration();
+    calibration.Dispose();
+  }
+}
+
+public partial class JoyAxisRow : ObservableObject {
+  public JoyAxisRow(int channelNo) {
+    ChannelNo = channelNo;
+  }
+
+  public int ChannelNo { get; }
+
+  public string Label => "RC " + ChannelNo;
+
+  [ObservableProperty]
+  private string _axis = "None";
+
+  [ObservableProperty]
+  private int _expo;
+
+  [ObservableProperty]
+  private bool _reverse;
+
+  [ObservableProperty]
+  private int _value = 1500;
+}
+
+public partial class JoyButtonRow : ObservableObject {
+  public JoyButtonRow(int index) {
+    Index = index;
+  }
+
+  public int Index { get; }
+
+  public string Label => "But " + (Index + 1);
+
+  [ObservableProperty]
+  private int _buttonNo = -1;
+
+  [ObservableProperty]
+  private string _function = "ChangeMode";
+
+  [ObservableProperty]
+  private bool _pressed;
+}
+
+public class JoyPressedConverter : IValueConverter {
+  public static readonly JoyPressedConverter Instance = new();
+
+  private static readonly IBrush _on = new SolidColorBrush(Color.FromRgb(0x94, 0xC1, 0x1F));
+  private static readonly IBrush _off = new SolidColorBrush(Color.FromRgb(0x26, 0x27, 0x28));
+
+  public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) {
+    return value is true ? _on : _off;
+  }
+
+  public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) {
+    throw new NotSupportedException();
+  }
+}

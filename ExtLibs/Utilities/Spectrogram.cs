@@ -122,7 +122,6 @@ namespace MissionPlanner.Utilities
                 
                 // time , freq , [color] &freqcount
 
-                double lasttime = 0;
                 int totalsamples = data.Count();
                 int count = totalsamples / N;
                 int done = 0;

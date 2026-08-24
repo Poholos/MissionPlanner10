@@ -1,0 +1,73 @@
+<UserControl
+  xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:vm="using:MissionPlanner.ViewModels"
+  mc:Ignorable="d"
+  d:DesignWidth="900"
+  d:DesignHeight="560"
+  x:Class="MissionPlanner.Views.RawParamsView"
+  x:DataType="vm:RawParamsViewModel"
+>
+  <Grid RowDefinitions="Auto,Auto,*" Margin="8">
+    <WrapPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
+      <Button Content="Load from file" Name="LoadBtn" Margin="0,0,6,4" />
+      <Button Content="Save to file" Name="SaveBtn" Margin="0,0,6,4" />
+      <Button Content="Compare" Name="CompareBtn" Margin="0,0,6,4" />
+      <Button Content="Write Params" Command="{Binding WriteCommand}" Margin="0,0,6,4" />
+      <Button Content="Refresh Params" Command="{Binding RefreshCommand}" Margin="0,0,6,4" />
+      <Button Content="Commit to Flash" Command="{Binding CommitCommand}" Margin="0,0,6,4" />
+      <Button Content="Reset to Defaults…" Command="{Binding ResetToDefaultsCommand}"
+              Foreground="#FF7777" Margin="0,0,6,4" />
+      <Button Content="Load Demo" Command="{Binding LoadDemoCommand}" Margin="0,0,12,4" />
+      <TextBox Width="200" Watermark="Search (≥2 chars)…" Text="{Binding SearchText}" Margin="0,0,6,4" />
+      <CheckBox Content="Modified" IsChecked="{Binding ShowModifiedOnly, Mode=TwoWay}" Margin="0,0,6,4" />
+      <CheckBox Content="Non-Default" IsChecked="{Binding ShowNonDefaultOnly, Mode=TwoWay}"
+                IsVisible="{Binding HasDefaults}" Margin="0,0,6,4" />
+    </WrapPanel>
+
+    <Grid Grid.Row="1" ColumnDefinitions="Auto,360,Auto,Auto,*" ColumnSpacing="6" Margin="0,0,0,8">
+      <TextBlock Grid.Column="0" Text="ArduPilot frame defaults" Classes="fieldlbl"
+                 VerticalAlignment="Center" />
+      <ComboBox Grid.Column="1" ItemsSource="{Binding FrameDefaults}"
+                SelectedItem="{Binding SelectedFrameDefault, Mode=TwoWay}"
+                IsEnabled="{Binding !LoadingFrameDefaults}" />
+      <Button Grid.Column="2" Name="LoadFrameDefaultsBtn" Content="Compare / Stage…"
+              IsEnabled="{Binding !LoadingFrameDefaults}" />
+      <Button Grid.Column="3" Content="Load / refresh list" Command="{Binding RefreshFrameDefaultsCommand}"
+              IsEnabled="{Binding !LoadingFrameDefaults}" />
+      <TextBlock Grid.Column="4" Text="{Binding Status}" Classes="fieldlbl"
+                 TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+    </Grid>
+
+    <Grid Grid.Row="2" ColumnDefinitions="180,4,*">
+      <ListBox
+        Grid.Column="0"
+        ItemsSource="{Binding Categories}"
+        SelectedItem="{Binding SelectedCategory, Mode=TwoWay}"
+      />
+      <GridSplitter Grid.Column="1" Background="#333" />
+      <DataGrid
+        Grid.Column="2"
+        Name="ParamsGrid"
+        ItemsSource="{Binding Params}"
+        AutoGenerateColumns="False"
+        IsReadOnly="False"
+        GridLinesVisibility="All"
+        CanUserResizeColumns="True"
+        CanUserSortColumns="True"
+      >
+        <DataGrid.Columns>
+          <DataGridCheckBoxColumn Header="Fav" Binding="{Binding Fav, Mode=TwoWay}" Width="40" />
+          <DataGridTextColumn Header="Name" Binding="{Binding Name}" IsReadOnly="True" Width="200" />
+          <DataGridTextColumn Header="Value" Binding="{Binding ValueText}" Width="120" />
+          <DataGridTextColumn Header="Default" Binding="{Binding DefaultText}" IsReadOnly="True" Width="90" />
+          <DataGridTextColumn Header="Units" Binding="{Binding Units}" IsReadOnly="True" Width="80" />
+          <DataGridTextColumn Header="Options" Binding="{Binding Options}" IsReadOnly="True" Width="200" />
+          <DataGridTextColumn Header="Desc" Binding="{Binding Description}" IsReadOnly="True" Width="*" />
+        </DataGrid.Columns>
+      </DataGrid>
+    </Grid>
+  </Grid>
+</UserControl>

@@ -17,6 +17,11 @@ namespace MissionPlanner.Utilities
 
         public static event Action<double, string> OnProgress;
 
+        public static void ReportProgress(double progress, string status)
+        {
+            OnProgress?.Invoke(progress, status);
+        }
+
         public static GMapProvider GetProvider()
         {
             if(GDALBase != null)

@@ -1,0 +1,256 @@
+name: Cross-platform release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  resolve-version:
+    runs-on: ubuntu-latest
+    outputs:
+      base: ${{ steps.version.outputs.base }}
+      date: ${{ steps.version.outputs.date }}
+      commit: ${{ steps.version.outputs.commit }}
+      revision: ${{ steps.version.outputs.revision }}
+      version: ${{ steps.version.outputs.version }}
+      artifact: ${{ steps.version.outputs.artifact }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Resolve and validate release identity
+        id: version
+        shell: bash
+        run: |
+          PRERELEASE=false
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            VALUE="${GITHUB_REF_NAME#v}"
+            if [[ ! "$VALUE" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-([0-9]{8})\.([0-9a-fA-F]{8})(-beta(\.[0-9]+)?)?$ ]]; then
+              echo "::error::Tag must be v<MP-version>-<yyyyMMdd>.<8-char-hash>[-beta[.N]]."
+              exit 1
+            fi
+            export MISSIONPLANNER_UPSTREAM_VERSION="${BASH_REMATCH[1]}"
+            export MISSIONPLANNER_BUILD_DATE="${BASH_REMATCH[2]}"
+            export MISSIONPLANNER_COMMIT="${BASH_REMATCH[3],,}"
+            [[ -n "${BASH_REMATCH[4]}" ]] && PRERELEASE=true
+            ACTUAL_VERSION=$(sed -nE 's/.*AssemblyFileVersion\("([0-9]+\.[0-9]+\.[0-9]+)"\).*/\1/p' \
+              Properties/AssemblyInfo.cs | head -1)
+            ACTUAL_COMMIT=$(git rev-parse --short=8 HEAD)
+            test "$MISSIONPLANNER_UPSTREAM_VERSION" = "$ACTUAL_VERSION" || {
+              echo "::error::Tag version does not match Properties/AssemblyInfo.cs"; exit 1; }
+            test "$MISSIONPLANNER_COMMIT" = "$ACTUAL_COMMIT" || {
+              echo "::error::Tag hash does not match HEAD"; exit 1; }
+          fi
+          export MISSIONPLANNER_DIRTY_SUFFIX=""
+          source build/version.sh
+          {
+            echo "base=$MP_UPSTREAM_VERSION"
+            echo "date=$MP_BUILD_DATE"
+            echo "commit=$MP_COMMIT"
+            echo "revision=$MP_PORT_REVISION"
+            echo "version=$MP_PACKAGE_VERSION"
+            echo "artifact=$MP_ARTIFACT_VERSION"
+            echo "prerelease=$PRERELEASE"
+          } >> "$GITHUB_OUTPUT"
+
+  package:
+    needs: resolve-version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: windows-latest
+            rid: win-x64
+          - os: macos-15
+            rid: osx-x64
+          - os: macos-15
+            rid: osx-arm64
+    runs-on: ${{ matrix.os }}
+    env:
+      MP_RELEASE_BASE: ${{ needs.resolve-version.outputs.base }}
+      MP_RELEASE_DATE: ${{ needs.resolve-version.outputs.date }}
+      MP_RELEASE_COMMIT: ${{ needs.resolve-version.outputs.commit }}
+      MP_RELEASE_REVISION: ${{ needs.resolve-version.outputs.revision }}
+      MP_RELEASE_VERSION: ${{ needs.resolve-version.outputs.version }}
+      MP_RELEASE_ARTIFACT: ${{ needs.resolve-version.outputs.artifact }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Package Linux
+        if: matrix.rid == 'linux-x64'
+        shell: bash
+        run: |
+          MISSIONPLANNER_UPSTREAM_VERSION="$MP_RELEASE_BASE" \
+          MISSIONPLANNER_BUILD_DATE="$MP_RELEASE_DATE" \
+          MISSIONPLANNER_COMMIT="$MP_RELEASE_COMMIT" \
+          MISSIONPLANNER_PORT_REVISION="$MP_RELEASE_REVISION" \
+          MISSIONPLANNER_DIRTY_SUFFIX="" \
+          PACKAGE_VERSION="$MP_RELEASE_VERSION" \
+          OUTPUT_DIR="$GITHUB_WORKSPACE/upload" \
+          PUBLISH_PARENT="$GITHUB_WORKSPACE/out" \
+          ./build/linux/package.sh all
+
+      - name: Package Windows ZIP and MSI
+        if: matrix.rid == 'win-x64'
+        shell: bash
+        env:
+          WINDOWS_SIGNING_PFX_BASE64: ${{ secrets.WINDOWS_SIGNING_PFX }}
+          WINDOWS_SIGN_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PASSWORD }}
+        run: |
+          if [[ -n "$WINDOWS_SIGNING_PFX_BASE64" ]]; then
+            printf '%s' "$WINDOWS_SIGNING_PFX_BASE64" | base64 --decode > "$RUNNER_TEMP/windows-signing.pfx"
+            export WINDOWS_SIGN_PFX="$RUNNER_TEMP/windows-signing.pfx"
+          fi
+          MISSIONPLANNER_UPSTREAM_VERSION="$MP_RELEASE_BASE" \
+          MISSIONPLANNER_BUILD_DATE="$MP_RELEASE_DATE" \
+          MISSIONPLANNER_COMMIT="$MP_RELEASE_COMMIT" \
+          MISSIONPLANNER_PORT_REVISION="$MP_RELEASE_REVISION" \
+          MISSIONPLANNER_DIRTY_SUFFIX="" \
+          OUTPUT_DIR="$GITHUB_WORKSPACE/upload" \
+          PUBLISH_PARENT="$GITHUB_WORKSPACE/out" \
+          ./build/windows/package.sh all
+          rm -f "$RUNNER_TEMP/windows-signing.pfx"
+
+      - name: Package macOS app
+        if: startsWith(matrix.rid, 'osx-')
+        shell: bash
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          MACOS_NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY }}
+          MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          MACOS_NOTARY_ISSUER: ${{ secrets.MACOS_NOTARY_ISSUER }}
+        run: |
+          RID=${{ matrix.rid }}
+          mkdir -p out/macos dist upload
+          dotnet publish MissionPlanner.csproj -c Release -r "$RID" --self-contained true \
+            -m:1 -p:DebugType=none -p:StripSymbols=true \
+            -p:MissionPlannerUpstreamVersion="$MP_RELEASE_BASE" \
+            -p:MissionPlannerBuildDate="$MP_RELEASE_DATE" \
+            -p:MissionPlannerCommit="$MP_RELEASE_COMMIT" \
+            -o out/macos
+
+          if [[ -n "$MACOS_CERT_P12" && -n "$MACOS_SIGN_IDENTITY" ]]; then
+            PASSWORD=$(uuidgen)
+            KEYCHAIN="$RUNNER_TEMP/build.keychain-db"
+            security create-keychain -p "$PASSWORD" "$KEYCHAIN"
+            security set-keychain-settings -lut 21600 "$KEYCHAIN"
+            security unlock-keychain -p "$PASSWORD" "$KEYCHAIN"
+            printf '%s' "$MACOS_CERT_P12" | base64 -D > "$RUNNER_TEMP/cert.p12"
+            security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" \
+              -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple:,codesign: \
+              -s -k "$PASSWORD" "$KEYCHAIN" >/dev/null
+            security list-keychains -d user -s "$KEYCHAIN"
+            export SIGN_IDENTITY="$MACOS_SIGN_IDENTITY"
+            rm -f "$RUNNER_TEMP/cert.p12"
+          fi
+
+          ./build/macos/make-app.sh out/macos "$MP_RELEASE_BASE" "dist/Mission Planner.app"
+          ZIP="upload/MissionPlanner-$MP_RELEASE_ARTIFACT-$RID.zip"
+          (cd dist && ditto -c -k --sequesterRsrc --keepParent "Mission Planner.app" "../$ZIP")
+
+          if [[ -n "$MACOS_NOTARY_KEY" && -n "$MACOS_NOTARY_KEY_ID" && -n "$MACOS_NOTARY_ISSUER" ]]; then
+            printf '%s' "$MACOS_NOTARY_KEY" | base64 -D > "$RUNNER_TEMP/notary.p8"
+            xcrun notarytool submit "$ZIP" --key "$RUNNER_TEMP/notary.p8" \
+              --key-id "$MACOS_NOTARY_KEY_ID" --issuer "$MACOS_NOTARY_ISSUER" --wait
+            rm -f "$RUNNER_TEMP/notary.p8"
+            xcrun stapler staple "dist/Mission Planner.app"
+            rm -f "$ZIP"
+            (cd dist && ditto -c -k --sequesterRsrc --keepParent "Mission Planner.app" "../$ZIP")
+          fi
+
+      - name: Build signed GitHub-release update manifest
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+        run: |
+          test -n "$UPDATE_SIGNING_KEY" || {
+            echo "::error::UPDATE_SIGNING_KEY is required for a tagged release"; exit 1; }
+          RID=${{ matrix.rid }}
+          case "$RID" in
+            linux-x64) PUB="out/MissionPlanner-$MP_RELEASE_ARTIFACT-linux-x64" ;;
+            win-x64) PUB="out/MissionPlanner-$MP_RELEASE_ARTIFACT-win-x64" ;;
+            osx-x64|osx-arm64) PUB="out/macos" ;;
+          esac
+          if [[ "$RID" == osx-* ]]; then
+            BUNDLE="upload/MissionPlanner-$MP_RELEASE_ARTIFACT-$RID.zip"
+          else
+            BUNDLE="upload/MissionPlanner-$MP_RELEASE_ARTIFACT-$RID-update.zip"
+            python3 build/make-update-bundle.py "$PUB" "$BUNDLE"
+          fi
+          BUNDLE_NAME=$(basename "$BUNDLE")
+          BUNDLE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/$BUNDLE_NAME"
+          BUNDLE_SHA=$(shasum -a 256 "$BUNDLE" | awk '{print $1}')
+          BUNDLE_SIZE=$(python3 -c 'import os,sys; print(os.path.getsize(sys.argv[1]))' "$BUNDLE")
+          NOTES="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${GITHUB_REF_NAME}"
+          python3 build/gen-manifest.py "$PUB" "$MP_RELEASE_VERSION" "$NOTES" \
+            "upload/$RID-manifest.json" --bundle-url "$BUNDLE_URL" \
+            --bundle-sha256 "$BUNDLE_SHA" --bundle-size "$BUNDLE_SIZE"
+
+          printf '%s' "$UPDATE_SIGNING_KEY" > "$RUNNER_TEMP/update-key.pem"
+          ACTUAL_PUBLIC=$(openssl pkey -in "$RUNNER_TEMP/update-key.pem" -pubout -outform DER \
+            2>/dev/null | tail -c 32 | base64 | tr -d '\r\n')
+          EXPECTED_PUBLIC=$(tr -d '\r\n' < build/update-public-key.txt)
+          test "$ACTUAL_PUBLIC" = "$EXPECTED_PUBLIC" || {
+            echo "::error::UPDATE_SIGNING_KEY does not match build/update-public-key.txt"; exit 1; }
+          openssl pkeyutl -sign -rawin -inkey "$RUNNER_TEMP/update-key.pem" \
+            -in "upload/$RID-manifest.json" -out "$RUNNER_TEMP/update.sig"
+          base64 < "$RUNNER_TEMP/update.sig" | tr -d '\r\n' > "upload/$RID-manifest.sig"
+          rm -f "$RUNNER_TEMP/update-key.pem" "$RUNNER_TEMP/update.sig"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist-${{ matrix.rid }}
+          path: upload/*
+          if-no-files-found: error
+
+  release:
+    needs: [resolve-version, package]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: artifacts
+
+      - name: Generate SHA-256 checksums
+        shell: bash
+        run: |
+          mkdir release-files
+          while IFS= read -r -d '' source; do
+            target="release-files/$(basename "$source")"
+            test ! -e "$target" || {
+              echo "::error::Duplicate release asset name: $(basename "$source")"
+              exit 1
+            }
+            cp "$source" "$target"
+          done < <(find artifacts -type f -print0)
+          (
+            cd release-files
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 |
+              sort -z | xargs -0 sha256sum
+          ) > release-files/SHA256SUMS
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: release-files/*
+          generate_release_notes: true
+          prerelease: ${{ needs.resolve-version.outputs.prerelease == 'true' }}

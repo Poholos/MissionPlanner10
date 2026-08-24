@@ -37,7 +37,7 @@ namespace MissionPlanner.Utilities
 
         static ParameterMetaDataRepositoryAPMpdef()
         {
-            GetMetaData();
+            _ = GetMetaData();
         }
 
         /// <summary>

@@ -1,0 +1,19 @@
+path	decision	evidence	note
+Drivers/signed.cer	retain	Drivers/arduino.cat	Public certificate paired with the conservatively retained signed hardware-driver catalogs; not a private signing key.
+ExtLibs/ICSharpCode.SharpZipLib/ICSharpCode.SharpZipLib.snk	retain	ExtLibs/ICSharpCode.SharpZipLib/ICSharpCode.SharpZipLib.csproj	Strong-name key referenced by the active SharpZipLib project.
+ExtLibs/Interfaces/mykey.snk	retain	ExtLibs/Interfaces/Interfaces.csproj	Strong-name key referenced by the active interfaces project.
+ExtLibs/Mavlink/mykey.snk	retain	ExtLibs/Mavlink/MAVLink.csproj	Strong-name key referenced by the active MAVLink project.
+ExtLibs/Comms/mykey.snk	remove	ExtLibs/Comms/MissionPlanner.Comms.csproj	Unreferenced inherited strong-name key; the current communications project is not signed with it.
+ExtLibs/Core/mykey.pfx	remove	ExtLibs/Core/Core.csproj	Unreferenced inherited PFX container; it is not a release/update signing key or build input.
+ExtLibs/Core/mykey.snk	remove	ExtLibs/Core/Core.csproj	Unreferenced inherited strong-name key.
+ExtLibs/GMap.NET.Core/sn.snk	remove	ExtLibs/GMap.NET.Core/GMap.NET.Core.csproj	Unreferenced inherited strong-name key.
+ExtLibs/GeoUtility/mykey.snk	remove	ExtLibs/GeoUtility/GeoUtility.csproj	Unreferenced inherited strong-name key.
+ExtLibs/KMLib/mykey.pfx	remove	ExtLibs/KMLib/KMLib.csproj	Unreferenced duplicate PFX container; it is not a release/update signing key or build input.
+ExtLibs/KMLib/mykey.snk	remove	ExtLibs/KMLib/KMLib.csproj	Unreferenced inherited strong-name key.
+ExtLibs/LibVLC.NET/mykey.snk	remove	ExtLibs/LibVLC.NET/LibVLC.NET.csproj	Unreferenced inherited strong-name key.
+ExtLibs/MetaDataExtractorCSharp240d/dontcare.snk	remove	ExtLibs/MetaDataExtractorCSharp240d/MetaDataExtractor.csproj	Unreferenced legacy placeholder strong-name key.
+ExtLibs/MissionPlanner.Drawing/Open.snk	remove	ExtLibs/MissionPlanner.Drawing/MissionPlanner.Drawing.csproj	Unreferenced inherited strong-name key.
+ExtLibs/MissionPlanner.Drawing/ecma.pub	remove	ExtLibs/MissionPlanner.Drawing/MissionPlanner.Drawing.csproj	Unused public-key stub referenced only by a commented assembly attribute.
+ExtLibs/SharpKml/dont care.snk	remove	ExtLibs/SharpKml/SharpKml.csproj	Unreferenced legacy placeholder strong-name key.
+ExtLibs/Utilities/mykey.snk	remove	ExtLibs/Utilities/MissionPlanner.Utilities.csproj	Unreferenced inherited strong-name key.
+ExtLibs/px4uploader/mykey.snk	remove	ExtLibs/px4uploader/px4uploader.csproj	Unreferenced inherited strong-name key.

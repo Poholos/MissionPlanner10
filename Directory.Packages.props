@@ -1,0 +1,44 @@
+<Project>
+  <ItemGroup>
+    <PackageVersion Include="Avalonia" Version="11.3.18" />
+    <PackageVersion Include="Avalonia.Desktop" Version="11.3.18" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="11.3.18" />
+    <PackageVersion Include="Avalonia.Fonts.Inter" Version="11.3.18" />
+    <PackageVersion Include="Avalonia.Controls.DataGrid" Version="11.3.13" />
+    <PackageVersion Include="Avalonia.Controls.ColorPicker" Version="11.3.18" />
+    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageVersion Include="Mapsui.Avalonia" Version="5.1.0" />
+    <PackageVersion Include="Mapsui.Tiling" Version="5.1.0" />
+    <PackageVersion Include="Mapsui.Nts" Version="5.1.0" />
+    <PackageVersion Include="SkiaSharp" Version="3.119.2" />
+    <PackageVersion Include="Projektanker.Icons.Avalonia" Version="9.6.2" />
+    <PackageVersion Include="Projektanker.Icons.Avalonia.FontAwesome" Version="9.6.2" />
+    <PackageVersion Include="System.IO.Ports" Version="9.0.0" />
+    <PackageVersion Include="HidSharp" Version="2.6.4" />
+    <PackageVersion Include="Linux.Bluetooth" Version="5.67.1" />
+    <PackageVersion Include="Tmds.DBus" Version="0.92.0" />
+    <PackageVersion Include="Tmds.DBus.Protocol" Version="0.21.3" />
+    <PackageVersion Include="BouncyCastle.Cryptography" Version="2.7.0" />
+    <PackageVersion Include="SSH.NET" Version="2026.0.0" />
+    <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageVersion Include="MetadataExtractor" Version="2.9.3" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.11" />
+    <PackageVersion Include="NetTopologySuite.IO.Esri.Shapefile" Version="1.2.0" />
+    <PackageVersion Include="DotNetZip.NetStandard" Version="1.12.0" />
+    <PackageVersion Include="ScottPlot.Avalonia" Version="5.0.56" />
+    <PackageVersion Include="MoonSharp" Version="2.0.0" />
+    <PackageVersion Include="IronPython" Version="3.4.2" />
+    <PackageVersion Include="IronPython.StdLib" Version="3.4.2" />
+    <PackageVersion Include="LibVLCSharp.Avalonia" Version="3.10.0" />
+    <PackageVersion Include="VideoLAN.LibVLC.Windows" Version="3.0.23.1" />
+
+    <PackageVersion Include="Avalonia.Headless.XUnit" Version="11.3.18" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageVersion Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.2" />
+    <PackageVersion Include="coverlet.collector" Version="10.0.1" />
+    <PackageVersion Include="System.Text.RegularExpressions" Version="4.3.1" />
+    <PackageVersion Include="System.Private.Uri" Version="4.3.2" />
+  </ItemGroup>
+</Project>

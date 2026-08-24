@@ -1,0 +1,31 @@
+path	decision	evidence	note
+Drivers/DPInstx64.exe	retain	Drivers/dpinst.xml	Retained conservatively with the signed legacy driver bundle pending a separate hardware-support/distribution decision.
+Drivers/DPInstx86.exe	retain	Drivers/dpinst.xml	Retained conservatively with the signed legacy driver bundle pending a separate hardware-support/distribution decision.
+Drivers/amd64/WdfCoInstaller01009.dll	retain	Drivers/dpinst.xml	Architecture-specific co-installer paired with retained device INF/catalog files.
+Drivers/amd64/winusbcoinstaller2.dll	retain	Drivers/dpinst.xml	Architecture-specific WinUSB co-installer paired with retained device INF/catalog files.
+Drivers/devcon.exe	retain	Drivers/ChibiOS.inf	Hardware driver utility retained with the source driver bundle, not copied into current packages.
+Drivers/x86/WdfCoInstaller01009.dll	retain	Drivers/dpinst.xml	Architecture-specific co-installer paired with retained device INF/catalog files.
+Drivers/x86/winusbcoinstaller2.dll	retain	Drivers/dpinst.xml	Architecture-specific WinUSB co-installer paired with retained device INF/catalog files.
+ExtLibs/Comms/simpleble-c.dll	retain	ExtLibs/Comms/MissionPlanner.Comms.csproj	Conditional Windows SimpleBLE native runtime; explicitly stripped from non-Windows packages.
+ExtLibs/Comms/simpleble.dll	retain	ExtLibs/Comms/MissionPlanner.Comms.csproj	Conditional Windows SimpleBLE native runtime; explicitly stripped from non-Windows packages.
+ExtLibs/Utilities/libusb-1.0.dll	retain	ExtLibs/Utilities/MissionPlanner.Utilities.csproj	Conditional Windows libusb runtime used by the firmware/USB path and stripped from non-Windows packages.
+Utilities/protogen/protobuf-net.dll	retain	Utilities/protogen/csharp.xslt	Runtime dependency of the retained standalone protobuf code generator.
+Utilities/protogen/protogen.exe	retain	Utilities/protogen/csharp.xslt	Retained protobuf source generator, not part of the application package.
+ExtLibs/AStar.dll	remove	MissionPlanner.slnx	Unreferenced prebuilt legacy assembly with no compile, runtime, generator or package consumer.
+ExtLibs/BitMiracle.LibTiff.NetStandard.dll	remove	ExtLibs/Utilities/MissionPlanner.Utilities.csproj	Stale binary duplicate; the active project restores BitMiracle.LibTiff.NET from NuGet.
+ExtLibs/CoreCompat.System.Drawing.dll	remove	MissionPlanner.csproj	Unreferenced System.Drawing compatibility binary from retired UI experiments.
+ExtLibs/DirectShowLib-2005.dll	remove	Porting/FEATURE_AUDIT.md	Unreferenced DirectShow binary; current video and recording use cross-platform LibVLC/Skia paths.
+ExtLibs/DotSpatial.Projections.dll	remove	ExtLibs/Utilities/MissionPlanner.Utilities.csproj	Stale binary duplicate; the active graph restores MP.DotSpatial.Projections from NuGet.
+ExtLibs/Ionic.Zip.NetStandard.dll	remove	ExtLibs/Utilities/MissionPlanner.Utilities.csproj	Stale binary duplicate; the active graph restores DotNetZip.NetStandard from NuGet.
+ExtLibs/Ionic.Zip.NetStandard.pdb	remove	ExtLibs/Utilities/MissionPlanner.Utilities.csproj	Debug symbols for the removed stale DotNetZip binary.
+ExtLibs/MonoMac.dll	remove	MissionPlanner.csproj	Unreferenced obsolete MonoMac compatibility assembly; the macOS product is native Avalonia/CoreCLR.
+ExtLibs/OpenTK-1.0.dll	remove	MissionPlanner.csproj	Unreferenced OpenTK 1.0 binary from the retired WinForms/OpenGL graph.
+ExtLibs/System.Data.SQLite.DLL	remove	MissionPlanner.csproj	Unreferenced framework-era SQLite provider; current storage uses Microsoft.Data.Sqlite.
+ExtLibs/System.IO.Compression.dll	remove	MissionPlanner.csproj	Unreferenced framework assembly duplicate; .NET 10 provides System.IO.Compression.
+ExtLibs/System.Reactive.dll	remove	ExtLibs/Zeroconf/Zeroconf/Zeroconf.csproj	Stale binary duplicate; active consumers restore System.Reactive as a package.
+ExtLibs/System.Speech.dll	remove	Services/Speech.cs	Unreferenced binary; Windows speech loads the operating-system System.Speech assembly out of process.
+ExtLibs/Transitions.dll	remove	MissionPlanner.slnx	Prebuilt copy of the retired WinForms-era transition helper.
+ExtLibs/gdal_csharp.dll	remove	Services/NativeGdalApi.cs	Obsolete generated GDAL wrapper replaced by dynamic current native-GDAL bindings.
+ExtLibs/gdalconst_csharp.dll	remove	Services/NativeGdalApi.cs	Obsolete generated GDAL constants wrapper replaced by dynamic current native-GDAL bindings.
+ExtLibs/ogr_csharp.dll	remove	Services/NativeGdalApi.cs	Obsolete generated OGR wrapper with no active consumer.
+ExtLibs/osr_csharp.dll	remove	Services/NativeGdalApi.cs	Obsolete generated OSR wrapper with no active consumer.

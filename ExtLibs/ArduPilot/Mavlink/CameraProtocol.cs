@@ -26,6 +26,8 @@ namespace MissionPlanner.ArduPilot.Mavlink
         // Tracks whether we have received a `CAMERA_INFORMATION` message yet
         private bool have_camera_information = false;
 
+        public bool HasCameraInformation => have_camera_information;
+
         public MAVLink.mavlink_camera_information_t CameraInformation { get; private set; }
         public MAVLink.mavlink_camera_settings_t CameraSettings { get; private set; }
         public MAVLink.mavlink_camera_capture_status_t CameraCaptureStatus { get; private set; }

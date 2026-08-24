@@ -57,8 +57,8 @@ namespace MissionPlanner.Comms
         public override long Length { get; }
 
         public override long Position { get; set; }
-        public int ReadTimeout { get; set; }
-        public int WriteTimeout { get; set; }
+        public override int ReadTimeout { get; set; }
+        public override int WriteTimeout { get; set; }
 
         public void DiscardInBuffer()
         {
@@ -447,16 +447,36 @@ namespace MissionPlanner.Comms
             Write(ASCIIEncoding.ASCII.GetBytes(text), 0, text.Length);
         }
 
-        public void Close()
+        public override void Close()
         {
-            simpleble_peripheral_disconnect(peripheral);
-            string peripheral_address = simpleble_peripheral_address(peripheral);
-            IsOpen = false;
+            Disconnect();
+            base.Close();
         }
 
-        public void Dispose()
+        protected override void Dispose(bool disposing)
         {
-            Close();
+            Disconnect();
+            base.Dispose(disposing);
+        }
+
+        private void Disconnect()
+        {
+            if (peripheral == IntPtr.Zero)
+            {
+                IsOpen = false;
+                return;
+            }
+
+            try
+            {
+                simpleble_peripheral_disconnect(peripheral);
+            }
+            finally
+            {
+                simpleble_peripheral_release_handle(peripheral);
+                peripheral = IntPtr.Zero;
+                IsOpen = false;
+            }
         }
 
 

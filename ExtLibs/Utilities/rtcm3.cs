@@ -1178,9 +1178,6 @@ namespace MissionPlanner.Utilities
                     i += 6;
                 }
 
-                var lam1 = CLIGHT / FREQ1;
-                var lam2 = CLIGHT / FREQ2;
-
                 var sig = 0;
                 var cellmaskused = 0;
 
@@ -1397,7 +1394,6 @@ namespace MissionPlanner.Utilities
                     if (rrv != -16384) rrf[j] = rrv * 0.0001;
                 }
 
-                var lam1 = CLIGHT / FREQ1;
                 var sig = 0;
                 var cellmaskused = 0;
 

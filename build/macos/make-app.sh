@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Wrap a `dotnet publish` output directory into a macOS .app bundle.
+# Usage: make-app.sh <publish-dir> <version> <output-app-path>
+
+PUBLISH_DIR="$1"
+VERSION="$2"
+APP="$3"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+EXE="MissionPlanner"
+
+rm -rf "$APP"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+
+cp -R "$PUBLISH_DIR"/. "$APP/Contents/MacOS/"
+cp "$HERE/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
+sed "s/__VERSION__/$VERSION/g" "$HERE/Info.plist" > "$APP/Contents/Info.plist"
+chmod +x "$APP/Contents/MacOS/$EXE"
+
+if [[ -n "${SIGN_IDENTITY:-}" ]]; then
+  # Real Developer ID + hardened runtime (required for notarization). --deep signs every nested
+  # Mach-O — native dylibs, the ReadyToRun managed assemblies, createdump — each with a secure
+  # timestamp and the runtime flag; the entitlements bind to the bundle's main executable. Hand-
+  # rolled inside-out signing is brittle here: .NET mixes plain PE assemblies with R2R Mach-O ones,
+  # and signing the main executable before its sibling assemblies makes codesign seal the bundle
+  # early and fail with "subcomponent … not signed at all".
+  codesign --force --deep --timestamp --options runtime \
+    --entitlements "$HERE/entitlements.plist" --sign "$SIGN_IDENTITY" "$APP"
+  codesign --verify --strict --verbose=2 "$APP"
+elif command -v codesign >/dev/null 2>&1; then
+  # Ad-hoc sign the whole bundle (preview / forks / local, no Developer ID). The apphost
+  # ships with a standalone signature that is malformed for a bundle; strip it, then --deep
+  # ad-hoc sign so Info.plist is bound and _CodeSignature is sealed (else Gatekeeper: "damaged").
+  codesign --remove-signature "$APP/Contents/MacOS/$EXE" 2>/dev/null || true
+  codesign --force --deep --sign - --identifier io.github.rouniy.missionplanner "$APP"
+  codesign --verify --strict --verbose=2 "$APP"
+fi
+
+echo "Built $APP"

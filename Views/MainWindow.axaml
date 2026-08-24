@@ -1,0 +1,239 @@
+<Window
+  xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:vm="using:MissionPlanner.ViewModels"
+  xmlns:local="using:MissionPlanner"
+  xmlns:i="https://github.com/projektanker/icons.avalonia"
+  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  mc:Ignorable="d"
+  d:DesignWidth="1100"
+  d:DesignHeight="700"
+  x:Class="MissionPlanner.Views.MainWindow"
+  x:DataType="vm:MainWindowViewModel"
+  Background="{DynamicResource MpBg}"
+  Width="1280"
+  Height="800"
+  MinWidth="1120"
+  MinHeight="720"
+  Icon="/Assets/appicon.ico"
+  Title="{Binding WindowTitle}"
+>
+  <Design.DataContext>
+    <vm:MainWindowViewModel />
+  </Design.DataContext>
+
+  <Window.Resources>
+    <local:StringEqualsConverter x:Key="Eq" />
+  </Window.Resources>
+
+  <DockPanel>
+    <Border DockPanel.Dock="Top" Background="{DynamicResource MpBg}"
+            Height="{Binding HeaderHeight}"
+            PointerEntered="OnHeaderPointerEntered"
+            PointerExited="OnHeaderPointerExited">
+      <Border.ContextMenu>
+        <ContextMenu>
+          <MenuItem Header="Auto Hide Menu" ToggleType="CheckBox"
+                    IsChecked="{Binding MenuAutoHide, Mode=TwoWay}"
+                    IsVisible="{Binding ShowMenuAutoHideOption}" />
+          <MenuItem Header="Full Screen" Click="OnFullScreen" />
+          <MenuItem Header="Readonly" Click="OnToggleReadonly" />
+          <Separator />
+          <MenuItem Header="Link Stats" Click="OnLinkStats" />
+          <MenuItem Header="Connection Options" Click="OnConnectionOptions" />
+          <MenuItem Header="Download Logs (MAVLink)" Click="OnDownloadLogs" />
+          <MenuItem Header="Tlog Convert / Extract" Click="OnMavlinkLogConvert" />
+          <Separator />
+          <MenuItem Header="Connection List…" Click="OnConnectionList" />
+        </ContextMenu>
+      </Border.ContextMenu>
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+        <ScrollViewer
+          Grid.Column="0"
+          HorizontalScrollBarVisibility="Auto"
+          VerticalScrollBarVisibility="Disabled"
+        >
+          <StackPanel Orientation="Horizontal">
+            <Button
+              Classes="nav"
+              Classes.active="{Binding ActiveTab, Converter={StaticResource Eq}, ConverterParameter=DATA}"
+              Command="{Binding NavigateCommand}"
+              CommandParameter="DATA"
+            >
+              <StackPanel>
+                <i:Icon Value="fa-solid fa-chart-line" FontSize="20" Foreground="#E0E0E0"
+                        HorizontalAlignment="Center" />
+                <TextBlock Classes="navtxt" Text="DATA" />
+              </StackPanel>
+            </Button>
+            <Button
+              Classes="nav"
+              Classes.active="{Binding ActiveTab, Converter={StaticResource Eq}, ConverterParameter=PLAN}"
+              Command="{Binding NavigateCommand}"
+              CommandParameter="PLAN"
+            >
+              <StackPanel>
+                <i:Icon Value="fa-solid fa-map-location-dot" FontSize="20" Foreground="#E0E0E0"
+                        HorizontalAlignment="Center" />
+                <TextBlock Classes="navtxt" Text="PLAN" />
+              </StackPanel>
+            </Button>
+            <Button
+              Classes="nav"
+              Classes.active="{Binding ActiveTab, Converter={StaticResource Eq}, ConverterParameter=SETUP}"
+              Command="{Binding NavigateCommand}"
+              CommandParameter="SETUP"
+            >
+              <StackPanel>
+                <i:Icon Value="fa-solid fa-screwdriver-wrench" FontSize="20" Foreground="#E0E0E0"
+                        HorizontalAlignment="Center" />
+                <TextBlock Classes="navtxt" Text="SETUP" />
+              </StackPanel>
+            </Button>
+            <Button
+              Classes="nav"
+              Classes.active="{Binding ActiveTab, Converter={StaticResource Eq}, ConverterParameter=CONFIG}"
+              Command="{Binding NavigateCommand}"
+              CommandParameter="CONFIG"
+            >
+              <StackPanel>
+                <i:Icon Value="fa-solid fa-sliders" FontSize="20" Foreground="#E0E0E0"
+                        HorizontalAlignment="Center" />
+                <TextBlock Classes="navtxt" Text="CONFIG" />
+              </StackPanel>
+            </Button>
+            <Button
+              Classes="nav"
+              IsVisible="{Binding ShowSimulation}"
+              Classes.active="{Binding ActiveTab, Converter={StaticResource Eq}, ConverterParameter=SIMULATION}"
+              Command="{Binding NavigateCommand}"
+              CommandParameter="SIMULATION"
+            >
+              <StackPanel>
+                <i:Icon Value="fa-solid fa-gamepad" FontSize="20" Foreground="#E0E0E0"
+                        HorizontalAlignment="Center" />
+                <TextBlock Classes="navtxt" Text="SIMULATION" />
+              </StackPanel>
+            </Button>
+            <Button
+              Classes="nav"
+              IsVisible="{Binding ShowHelp}"
+              Classes.active="{Binding ActiveTab, Converter={StaticResource Eq}, ConverterParameter=HELP}"
+              Command="{Binding NavigateCommand}"
+              CommandParameter="HELP"
+            >
+              <StackPanel>
+                <i:Icon Value="fa-solid fa-circle-question" FontSize="20" Foreground="#E0E0E0"
+                        HorizontalAlignment="Center" />
+                <TextBlock Classes="navtxt" Text="HELP" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </ScrollViewer>
+
+        <Menu Grid.Column="1" Background="Transparent" VerticalAlignment="Center">
+          <MenuItem Header="TOOLS">
+            <MenuItem Header="Developer Tools     Ctrl+F" Click="OnAdvancedTools" />
+            <MenuItem Header="Plugin Manager     Ctrl+P" Click="OnPluginManager" />
+            <Separator />
+            <MenuItem Header="MAVLink Inspector     Ctrl+I" Click="OnMavlinkInspector" />
+            <MenuItem Header="MAVLink Mirror" Click="OnMavlinkMirror" />
+            <MenuItem Header="NMEA Output     Ctrl+G" Click="OnNmeaOutput" />
+            <MenuItem Header="Cursor-on-Target / TAK Output" Click="OnCotOutput" />
+            <MenuItem Header="DataFlash Spectrogram     Ctrl+L" Click="OnSpectrogram" />
+            <MenuItem Header="Map Tile Cache     Ctrl+X" Click="OnMapCache" />
+            <MenuItem Header="3D Terrain View" Click="OnTerrain3D" />
+            <MenuItem Header="MAVLink Device Operations     Ctrl+J" Click="OnDeviceOperations" />
+            <MenuItem Header="RF Propagation Settings     Ctrl+W" Click="OnPropagationSettings" />
+            <MenuItem Header="Follow Me (NMEA GPS)…" Click="OnFollowMe" />
+            <MenuItem Header="External Guided (File)…" Click="OnExternalGuided" />
+            <MenuItem Header="Moving Base (NMEA GPS)…" Click="OnMovingBase" />
+            <MenuItem Header="Swarm Formation (Beta)" Click="OnFormationControl" />
+            <MenuItem Header="Swarm Follow Path (Beta)" Click="OnFollowPathControl" />
+            <MenuItem Header="Swarm Follow Leader (Beta)" Click="OnFollowLeaderControl" />
+            <MenuItem Header="Swarm Waypoint Leader (Beta)" Click="OnWaypointLeaderControl" />
+            <MenuItem Header="Swarm Sequence Layout Editor (Beta)" Click="OnSequenceControl" />
+            <Separator />
+            <MenuItem Header="Link Statistics" Click="OnLinkStats" />
+            <MenuItem Header="Connection Options" Click="OnConnectionOptions" />
+            <MenuItem Header="Download Logs (MAVLink)" Click="OnDownloadLogs" />
+            <MenuItem Header="Tlog Convert / Extract" Click="OnMavlinkLogConvert" />
+            <MenuItem Header="OSD Video — Telemetry Overlay" Click="OnOsdVideoOverlay" />
+          </MenuItem>
+        </Menu>
+
+        <Button
+          Grid.Column="2"
+          Command="{Binding OpenArduPilotSiteCommand}"
+          Background="Transparent"
+          BorderThickness="0"
+          Padding="0"
+          Cursor="Hand"
+          ToolTip.Tip="ardupilot.org"
+          VerticalAlignment="Center"
+          Margin="16,0"
+        >
+          <TextBlock
+            Text="ARDUPILOT"
+            FontSize="26"
+            FontWeight="Bold"
+            FontStyle="Italic"
+            Foreground="#F2C200"
+          />
+        </Button>
+
+        <Grid
+          Grid.Column="3"
+          RowDefinitions="Auto,Auto"
+          VerticalAlignment="Center"
+          Margin="8,0,12,0"
+          DataContext="{Binding Connection}"
+        >
+          <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6">
+            <ComboBox
+              Width="180"
+              ItemsSource="{Binding Ports}"
+              SelectedItem="{Binding SelectedPort}"
+              PlaceholderText="serial port"
+              IsEnabled="{Binding CanEditConnection}"
+            />
+            <NumericUpDown Width="105" Minimum="1" Maximum="10000000" Increment="1"
+                           FormatString="0" Value="{Binding SelectedBaud}"
+                           IsEnabled="{Binding CanEditBaud}"
+                           ToolTip.Tip="Serial baud rate; saved separately for each port" />
+            <ComboBox Width="170" ItemsSource="{Binding VehicleChoices}"
+                      SelectedItem="{Binding SelectedVehicle}"
+                      IsVisible="{Binding VehicleSelectorVisible}"
+                      ToolTip.Tip="Active MAVLink system and component" />
+            <CheckBox Content="Auto" IsChecked="{Binding AutoConnect}" VerticalAlignment="Center"
+                      ToolTip.Tip="Connect to the saved endpoint when the application starts" />
+            <Button Content="⟳" Command="{Binding RefreshPortsCommand}" ToolTip.Tip="Refresh ports" />
+            <Button Content="{Binding ConnectText}" Command="{Binding ToggleConnectCommand}" MinWidth="110" />
+          </StackPanel>
+          <Grid Grid.Row="1" ColumnDefinitions="*,120" ColumnSpacing="6" Margin="0,2,0,0">
+            <TextBlock Text="{Binding Status}" FontSize="10" TextTrimming="CharacterEllipsis"
+                       VerticalAlignment="Center" ToolTip.Tip="{Binding Status}" />
+            <ProgressBar Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding Progress}"
+                         Height="4" VerticalAlignment="Center" />
+          </Grid>
+        </Grid>
+      </Grid>
+    </Border>
+
+    <Grid>
+      <ContentControl Content="{Binding FlightData}"
+        IsVisible="{Binding ActiveTab, Converter={StaticResource Eq}, ConverterParameter=DATA}" />
+      <ContentControl Content="{Binding FlightPlanner}"
+        IsVisible="{Binding ActiveTab, Converter={StaticResource Eq}, ConverterParameter=PLAN}" />
+      <ContentControl Content="{Binding Setup}"
+        IsVisible="{Binding ActiveTab, Converter={StaticResource Eq}, ConverterParameter=SETUP}" />
+      <ContentControl Content="{Binding Config}"
+        IsVisible="{Binding ActiveTab, Converter={StaticResource Eq}, ConverterParameter=CONFIG}" />
+      <ContentControl Content="{Binding Simulation}"
+        IsVisible="{Binding ActiveTab, Converter={StaticResource Eq}, ConverterParameter=SIMULATION}" />
+      <ContentControl Content="{Binding Help}"
+        IsVisible="{Binding ActiveTab, Converter={StaticResource Eq}, ConverterParameter=HELP}" />
+    </Grid>
+  </DockPanel>
+</Window>
