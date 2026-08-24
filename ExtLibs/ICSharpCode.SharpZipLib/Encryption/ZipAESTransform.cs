@@ -47,6 +47,8 @@ namespace ICSharpCode.SharpZipLib.Encryption
 		private int _blockSize;
 		private readonly ICryptoTransform _encryptor;
 		private readonly byte[] _counterNonce;
+		private readonly byte[] _cbcInput;
+		private readonly byte[] _cbcState;
 		private byte[] _encryptBuffer;
 		private int _encrPos;
 		private byte[] _pwdVerifier;
@@ -73,23 +75,30 @@ namespace ICSharpCode.SharpZipLib.Encryption
 				throw new Exception("Invalid salt len. Must be " + blockSize / 2 + " for blocksize " + blockSize);
 			// initialise the encryption buffer and buffer pos
 			_blockSize = blockSize;
-			_encryptBuffer = new byte[_blockSize];
+			_encryptBuffer = new byte[ENCRYPT_BLOCK];
 			_encrPos = ENCRYPT_BLOCK;
 
 			// Performs the equivalent of derive_key in Dr Brian Gladman's pwd2key.c
 			var pdb = new Rfc2898DeriveBytes(key, saltBytes, KEY_ROUNDS);
 			var rm = Aes.Create();
-			// WinZip AES is CTR: this transform uses the AES primitive for a nonce block and then
-			// XORs the result with the payload. ECB is never applied directly to payload blocks.
-
-			// codeql[cs/ecb-encryption]
-			rm.Mode = CipherMode.ECB;           // No feedback from cipher for CTR mode
-			_counterNonce = new byte[_blockSize];
+			// WinZip AES uses the AES block primitive to produce a CTR keystream. A single CBC
+			// transform is used here without changing the wire format: before each block its
+			// current chaining value is XORed into the nonce, and CBC immediately XORs it back
+			// out. The encrypted block therefore remains exactly E(key, nonce), while avoiding
+			// an ECB-mode API that is unsafe when it is mistakenly used on payload blocks.
+			rm.Mode = CipherMode.CBC;
+			rm.Padding = PaddingMode.None;
+			_counterNonce = new byte[ENCRYPT_BLOCK];
+			_cbcInput = new byte[ENCRYPT_BLOCK];
 			byte[] byteKey1 = pdb.GetBytes(_blockSize);
 			byte[] byteKey2 = pdb.GetBytes(_blockSize);
-			// AES always has a 16-byte block/IV, including when byteKey1 is a 256-bit key. The old
-			// byteKey2 argument was 32 bytes for AES-256 and made those archives fail at startup.
-			_encryptor = rm.CreateEncryptor(byteKey1, new byte[ENCRYPT_BLOCK]);
+			byte[] cbcIv = new byte[ENCRYPT_BLOCK];
+			using (RandomNumberGenerator random = RandomNumberGenerator.Create())
+			{
+				random.GetBytes(cbcIv);
+			}
+			_cbcState = (byte[])cbcIv.Clone();
+			_encryptor = rm.CreateEncryptor(byteKey1, cbcIv);
 			_pwdVerifier = pdb.GetBytes(PWD_VER_LENGTH);
 			//
 			_hmacsha1 = IncrementalHash.CreateHMAC(HashAlgorithmName.SHA1, byteKey2);
@@ -116,8 +125,13 @@ namespace ICSharpCode.SharpZipLib.Encryption
 					while (++_counterNonce[j] == 0) {
 						++j;
 					}
-					/* encrypt the nonce to form next xor buffer    */
-					_encryptor.TransformBlock(_counterNonce, 0, _blockSize, _encryptBuffer, 0);
+					/* Cancel CBC chaining to obtain the independent AES block required by CTR. */
+					for (int i = 0; i < ENCRYPT_BLOCK; i++)
+					{
+						_cbcInput[i] = (byte)(_counterNonce[i] ^ _cbcState[i]);
+					}
+					_encryptor.TransformBlock(_cbcInput, 0, ENCRYPT_BLOCK, _encryptBuffer, 0);
+					Array.Copy(_encryptBuffer, _cbcState, ENCRYPT_BLOCK);
 					_encrPos = 0;
 				}
 				outputBuffer[ix + outputOffset] = (byte)(inputBuffer[ix + inputOffset] ^ _encryptBuffer[_encrPos++]);

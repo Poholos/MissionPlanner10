@@ -40,6 +40,7 @@
     <PackageReference Include="LibUsbDfu" Version="1.1.0" />
     <PackageReference Include="log4net" Version="3.3.2" />
     <PackageReference Include="MathParser.org-mXparser" Version="4.3.3" />
+    <PackageReference Include="MetadataExtractor" Version="2.9.3" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="3.9.0" />
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="3.1.13" />
@@ -71,7 +72,6 @@
     <ProjectReference Include="..\KMLib\KMLib.csproj" />
     <ProjectReference Include="..\LibVLC.NET\LibVLC.NET.csproj" />
     <ProjectReference Include="..\Mavlink\MAVLink.csproj" />
-    <ProjectReference Include="..\MetaDataExtractorCSharp240d\MetaDataExtractor.csproj" />
     <ProjectReference Include="..\MissionPlanner.Drawing\MissionPlanner.Drawing.csproj">
       <Aliases></Aliases>
     </ProjectReference>

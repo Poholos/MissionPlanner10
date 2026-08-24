@@ -33,10 +33,6 @@ public static class TlogExportService {
           csv ? "yyyy-MM-dd'T'HH:mm:ss.fff'Z'" : "O", CultureInfo.InvariantCulture);
       writer.Write(timestamp);
       writer.Write(csv ? "," : " ");
-      // Every UI entry point requires the reject-by-default sensitive telemetry export
-      // confirmation before the operator-selected destination reaches this serializer.
-
-      // codeql[cs/exposure-of-sensitive-information]
       writer.Write(text);
       count++;
     }
