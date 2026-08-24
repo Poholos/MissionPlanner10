@@ -47,7 +47,8 @@ ExtLibs/tlogThumbnailHandler	remove	Services/LogIndexService.cs	Windows shell ex
 ExtLibs/zlib.net	remove	MissionPlanner.slnx	Unreferenced legacy zlib snapshot; active compression paths use current framework/SharpZipLib implementations.
 LogAnalyzer	remove	Services/LogAnalyzer.cs	Python 2/py2exe analyzer replaced by the in-process cross-platform implementation of all 17 enabled checks and regression tests.
 ExtLibs/px4uploader/android.bat	remove	ExtLibs/px4uploader/px4uploader.csproj	Obsolete netcoreapp3.1 Android publish command; the retained uploader is a net10 desktop library in the active graph.
-ExtLibs/MetaDataExtractorCSharp240d/AssemblyInfo.cs	remove	ExtLibs/MetaDataExtractorCSharp240d/MetaDataExtractor.csproj	Empty source file with no attributes or generated-build role.
+ExtLibs/MetaDataExtractorCSharp240d	remove	MissionPlanner.csproj	Unreferenced 2004-era EXIF project; active GeoRef and Survey workflows use the maintained MetadataExtractor package.
+ExtLibs/MetaDataExtractorCSharp240d/AssemblyInfo.cs	remove	MissionPlanner.csproj	Empty source file from the retired legacy EXIF project.
 MissionPlanner.GCSViews.ConfigurationView.ConfigGPSOrder+GPSCAN.datasource	remove	GCSViews/ConfigurationView/ConfigGPSOrderView.axaml	Generated WinForms object-data-source metadata; the current GPS-order editor is native Avalonia.
 MissionPlanner.GCSViews.ConfigurationView.ConfigHWCompass2+CompassDeviceInfo.datasource	remove	GCSViews/ConfigurationView/ConfigCompassView.axaml	Generated WinForms object-data-source metadata; the current compass editor is native Avalonia.
 MissionPlanner.GCSViews.ConfigurationView.DeviceInfo.datasource	remove	GCSViews/ConfigurationView/ConfigDroneCanView.axaml	Generated WinForms object-data-source metadata; current device information is rendered by native views.
