@@ -26,7 +26,7 @@ Updated: **2026-08-24**.
   migration evidence, not a copied source tree.
 - A clean Release build of the complete test graph succeeds with zero warnings and zero errors
   after resolving all 156 inherited `ExtLibs` diagnostics without a repository-wide `NoWarn`; the
-  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1218/1218**
+  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1223/1223**
   Avalonia tests pass on Linux. A 12-second Xvfb launch reaches the normal Avalonia event loop with
   no console errors.
 - Informational version is derived from the current native Mission Planner version and formatted as
@@ -55,12 +55,16 @@ Updated: **2026-08-24**.
   live `MAV`/`cs`/`Ports`/`Script` bindings. Output is streamed into the Avalonia page and Abort uses
   a cooperative per-line trace hook instead of the original unsupported `Thread.Abort`. The local
   MoonSharp console remains available as a separate optional Lua tool.
+- Flight Planner's visible live KML workflow is restored by an on-demand, loopback-only read server
+  with bounded headers, responses and concurrency. It serves live vehicle/mission KML and the
+  aircraft model on port 56781 while deliberately excluding the old public bind, guided-mode HTTP
+  writes, raw MAVLink WebSocket, Mavelous host and WinForms/GDI MJPEG capture surface.
 - CI, CodeQL, Dependabot and tag-release workflows are reconciled with the in-place tree. Legacy
   WinForms/Xamarin workflows remain available manually but no longer run against every port push.
 - The frozen native inventory remains complete in `NATIVE_SURFACE.tsv`, while replaced WinForms
   sources are explicitly mapped to tested Avalonia artifacts and selected source files whose
   behavior is fully superseded have been removed. RESX translations remain preserved. The manifest
-  now exposes **7** `unported-blocker` rows: the embedded HTTP service; Dowding; and old WiX
+  now exposes **6** `unported-blocker` rows: Dowding and old WiX
   bootstrap sources. Obsolete directories, standalone projects and other build-system remnants are
   intentionally deferred to `cleanup/project-audit` after these functional blockers are closed.
 - Claude remains temporarily disabled by user instruction.
@@ -77,7 +81,7 @@ Updated: **2026-08-24**.
 
 ## Immediate next step
 
-Close the remaining 7 functional manifest blockers without mixing repository cleanup into this
+Close the remaining 6 functional manifest blockers without mixing repository cleanup into this
 branch. Then require the GitHub run to perform a real default-path MSI install/uninstall, build/sign
 both `.app` archives on macOS, repeat Linux package smoke and complete CodeQL. Once functional and
 packaging gates are green, run the conservative unused-file/directory/build-system audit on the
@@ -85,7 +89,7 @@ separate `cleanup/project-audit` branch.
 
 ## Acceptance baseline
 
-- At least 1218 port tests retained and passing.
+- At least 1223 port tests retained and passing.
 - Clean Release build has zero errors and zero warnings.
 - `linux-x64`, `win-x64`, `osx-x64`, and `osx-arm64` publish gates pass.
 - Linux `.deb` and portable archive build and smoke successfully.

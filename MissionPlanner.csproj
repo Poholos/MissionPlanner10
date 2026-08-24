@@ -75,6 +75,7 @@
     <Compile Include="Services/DataFlashLogAnonymizer.cs" />
     <Compile Include="Services/LegacyFirmwareUploader.cs" />
     <Compile Include="Services/LocalizationService.cs" />
+    <Compile Include="Services/LocalKmlServer.cs" />
     <Compile Include="Services/MavlinkSerialControlPort.cs" />
     <Compile Include="Services/OsdTuningSlotService.cs" />
     <Compile Include="Services/PythonScriptHost.cs" />

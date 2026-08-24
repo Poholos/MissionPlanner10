@@ -62,6 +62,7 @@ public partial class App : Application {
         mainViewModel.Dispose();
         AppState.JoystickControl.Dispose();
         AppState.Traffic.Dispose();
+        AppState.LocalKml.Dispose();
         Services.SitlLauncher.StopAll();
         // ConnectionViewModel has already detached transports and started best-effort cleanup.
         // Never enter an OS driver Close synchronously while the desktop is exiting.

@@ -37,6 +37,7 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
 
   public FlightPlannerViewModel() {
     Waypoints.CollectionChanged += OnWaypointsCollectionChanged;
+    WaypointsChanged += PublishLocalKmlMission;
     Services.DisplayViewService.Changed += OnDisplayViewChanged;
     RefreshDisplayView();
     try {
@@ -86,6 +87,7 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
   public void Dispose() {
     Services.DisplayViewService.Changed -= OnDisplayViewChanged;
     Waypoints.CollectionChanged -= OnWaypointsCollectionChanged;
+    WaypointsChanged -= PublishLocalKmlMission;
     SavePlannerSettings();
   }
 
@@ -1432,19 +1434,25 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
     if (pts.Count == 0) {
       return "No waypoints to export.";
     }
-    var sb = new System.Text.StringBuilder();
-    sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
-    sb.AppendLine("<kml xmlns=\"http://www.opengis.net/kml/2.2\"><Document><name>Mission</name>");
-    sb.AppendLine("<Placemark><name>Route</name><LineString><tessellate>1</tessellate><coordinates>");
-    foreach (var w in pts) {
-      sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0},{1},{2}", w.Lng, w.Lat, w.Alt));
+    PublishLocalKmlMission();
+    try {
+      Uri networkLink = AppState.LocalKml.EnsureStarted();
+      Services.Dialogs.OpenUrl(networkLink.ToString());
+      return $"Opened live mission KML on loopback port {networkLink.Port}.";
+    } catch (Exception ex) {
+      string kml = Services.LocalKmlServer.BuildMissionKml(
+          pts.Select(w => new Services.LocalKmlWaypoint(
+              $"WP {w.Seq}", w.Lat, w.Lng, w.Alt)));
+      var path = Path.Combine(Path.GetTempPath(), "mission.kml");
+      File.WriteAllText(path, kml);
+      Services.Dialogs.OpenUrl(path);
+      return "Live KML server unavailable; opened a static mission KML instead (" + ex.Message + ").";
     }
-    sb.AppendLine("</coordinates></LineString></Placemark></Document></kml>");
-    var path = Path.Combine(Path.GetTempPath(), "mission.kml");
-    File.WriteAllText(path, sb.ToString());
-    Services.Dialogs.OpenUrl(path);
-    return "Opened mission KML.";
   }
+
+  private void PublishLocalKmlMission() => AppState.LocalKml.UpdateMission(
+      Waypoints.Select(w => new Services.LocalKmlWaypoint(
+          $"WP {w.Seq}", w.Lat, w.Lng, w.Alt)));
 
   [Obsolete]
   private void WriteRadiusParams() {

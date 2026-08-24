@@ -105,6 +105,7 @@ declare -A native_replacement_by_logical_path=(
   ["temp"]="Views/ActionPageView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigDeveloperToolsViewModel.cs;Porting/Reference/TEMP_HANDLER_AUDIT.md"
   ["Utilities/BoardDetect"]="Services/LegacyFirmwareUploader.cs;GCSViews/Setup/InstallFirmwareView.axaml.cs;ViewModels/Setup/InstallFirmwareViewModel.cs"
   ["Utilities/Firmware"]="Services/LegacyFirmwareUploader.cs;ViewModels/Setup/InstallFirmwareViewModel.cs;ViewModels/GCSViews/ConfigurationView/ConfigFirmwareLegacyViewModel.cs"
+  ["Utilities/httpserver"]="Services/LocalKmlServer.cs;GCSViews/FlightPlannerView.axaml;ViewModels/FlightPlannerViewModel.cs;ViewModels/GeoRefViewModel.cs;MissionPlannerTests/Avalonia/MissionPlanner.Tests/LocalKmlServerTests.cs"
   ["test/FirmwareSelection.xaml"]="GCSViews/ConfigurationView/ConfigFirmwareLegacyView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigFirmwareLegacyViewModel.cs"
   ["Plugin/Plugin"]="Plugin/LegacyCompatibility/PluginCompatibility.cs;Plugin/PortableApi/Plugin.cs;Plugin/PortableApi/PluginHost.cs"
   ["Plugin/PluginLoader"]="Services/PluginRuntime.cs;Services/PluginService.cs"

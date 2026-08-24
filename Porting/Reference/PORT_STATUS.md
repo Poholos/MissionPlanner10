@@ -599,6 +599,11 @@ submodule. UI-only changes were translated to Avalonia where applicable:
   choices now survive restart (icons, Russian layout, ground palette, battery cell count, swap,
   individual indicators and custom fields/prefixes), and the map menu can import/export both legacy
   three-column and altitude-preserving four-column POI files and switch directly to Flight Planner.
+- Flight Planner's **View KML** again opens a live Google Earth network link on port 56781. The
+  replacement server starts only on demand, binds only `127.0.0.1`, publishes read-only vehicle and
+  mission KML plus the packaged aircraft model, caps headers/responses and admits at most eight
+  concurrent clients. Mission edits update its immutable snapshot immediately; GeoRef continues to
+  write a portable standalone `location.kml` beside geotagged images.
 - The complete 19-item upstream flight-action selector and Simple Actions tab are present. Command
   implementations match upstream for calibration, safety, engine, scripting, high-latency, ADS-B
   IDENT and system time; flight termination and SD-card formatting add explicit destructive-action
@@ -853,7 +858,7 @@ Planner functional-parity gap.
 
 | Area | Decision |
 | --- | --- |
-| Embedded Mission Planner HTTP/KML/MJPEG server | Not compiled on any target. Do not restore the older server implementation; any replacement needs the current authentication and anti-DoS model. GeoRef emits a portable static `location.kml` instead of the old loopback network link. |
+| Legacy HTTP write/raw/MJPEG endpoints | The visible read-only live KML workflow is ported through the loopback-only on-demand server. The old always-on `IPAddress.Any` root, unauthenticated `/guided` and `/guide` writes, bidirectional raw MAVLink WebSocket, Mavelous file host and GDI/WinForms HUD/map MJPEG capture are deliberately not recreated. Current guided controls stay in the confirmed UI, SERIAL_CONTROL tunnelling uses the dedicated guarded TCP bridge, inbound video uses libVLC and GeoRef emits a portable static `location.kml`. |
 | TFR download/overlay | Current Mission Planner disabled its Jepptech-backed background download on 2020-09-30 when the service ended (`b26095f9a`) and later removed the parser/Flight Data handler. The port retains the compatible `showtfr` preference but does not invent a replacement feed and incorrectly present it as upstream parity. |
 | European dynamic no-fly feed | The pinned Mission Planner `eunfz.cs` implementation has an empty download URL and is not operational upstream. [EASA currently directs operators](https://www.easa.europa.eu/en/light/topics/geo-zones-know-where-fly-your-drone) to each national aviation authority's geographical-zone source, so the port does not invent a unified feed and present it as official parity. |
 | Support Proxy | Not ported on any target until authentication, explicit consent and networking are designed and reviewed. |
