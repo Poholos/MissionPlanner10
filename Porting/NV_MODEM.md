@@ -1,11 +1,12 @@
 # NV Modem setup
 
 Setup > NV Modem is the Avalonia port of the `NV5Settings` widget from the local AgroSky GTU tree.
-The committed baseline is GTU `98e9883335fad3e03f8f9127f854da9f7ae4a196`. The later explicit
-per-radio diversity-key behavior was synchronized from the local uncommitted `NV5Settings`
-worktree based on that commit; fetched `origin/master` `b9b03e12` has no intervening committed
-change to these files. The relevant source specification is `hermes-gui/include/nv5settings.h`
-plus `hermes-gui/src/nv5settings.cpp` and its regression tests.
+The latest comparison used clean GTU `master`/`origin/master`
+`6c2a4b04f03fa4e693d8e6adc2b39b734e817856`. Commit
+`77af510a47f8cbe7ea02fcc047019b07fb2c0c26` is the only change to the `NV5Settings` source,
+header, UI or tests after the earlier `98e98833` baseline, and all of its modem behavior is
+represented here. The relevant source specification is `hermes-gui/include/nv5settings.h` plus
+`hermes-gui/src/nv5settings.cpp`, `hermes-gui/src/nv5settings.ui` and its regression tests.
 
 ## Connection and device identity
 
