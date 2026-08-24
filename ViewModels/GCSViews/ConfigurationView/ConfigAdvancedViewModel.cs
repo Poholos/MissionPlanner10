@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -219,10 +220,6 @@ public class ConfigAdvancedViewModel : ActionPageViewModel {
     }
 
     var ext = Path.GetExtension(input).ToLowerInvariant();
-    if (ext == ".bin") {
-      ext = ".log";
-    }
-
     var suggested = Path.GetFileNameWithoutExtension(input) + "-anon" + ext;
     var save = await sp.SaveFilePickerAsync(new FilePickerSaveOptions {
       Title = "Save anonymised log",
@@ -235,12 +232,48 @@ public class ConfigAdvancedViewModel : ActionPageViewModel {
       return;
     }
 
-    AppendLog($"Anonymising {input} -> {output} …");
     try {
-      await Task.Run(() => Privacy.anonymise(input, output));
-      AppendLog("Anon Log: done.");
+      if (ext == ".bin") {
+        string? latitudeText = await Dialogs.InputBox(
+            "Anonymize BIN log", "Latitude offset in degrees (blank = random)", "");
+        if (latitudeText == null) {
+          return;
+        }
+        string? longitudeText = await Dialogs.InputBox(
+            "Anonymize BIN log", "Longitude offset in degrees (blank = random)", "");
+        if (longitudeText == null) {
+          return;
+        }
+        if (!TryAnonymizeOffset(latitudeText, out double latitudeOffset)
+            || !TryAnonymizeOffset(longitudeText, out double longitudeOffset)) {
+          await Dialogs.Alert("Anonymize BIN log",
+              "Offsets must be blank or finite numbers using '.' as the decimal separator.");
+          return;
+        }
+        AppendLog($"Anonymising binary DataFlash log {input} -> {output} …");
+        DataFlashAnonymizeResult result = await Task.Run(() =>
+            DataFlashLogAnonymizer.AnonymizeFile(
+                input, output, latitudeOffset, longitudeOffset));
+        AppendLog($"Anon Log: preserved {result.InputBytes} binary bytes and patched "
+            + $"{result.PatchedValues} coordinate value(s) across "
+            + $"{result.CoordinateFields} field definition(s); offsets "
+            + $"{latitudeOffset:+0.000000;-0.000000;0}/{longitudeOffset:+0.000000;-0.000000;0}°.");
+      } else {
+        AppendLog($"Anonymising {input} -> {output} …");
+        await Task.Run(() => Privacy.anonymise(input, output));
+        AppendLog("Anon Log: done.");
+      }
     } catch (Exception ex) {
       AppendLog("Anon Log failed: " + ex.Message);
     }
+  }
+
+  private static bool TryAnonymizeOffset(string text, out double value) {
+    if (string.IsNullOrWhiteSpace(text)) {
+      value = DataFlashLogAnonymizer.GenerateRandomOffset();
+      return true;
+    }
+    return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value)
+        && double.IsFinite(value);
   }
 }

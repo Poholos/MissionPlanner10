@@ -1391,7 +1391,7 @@ Plugin/PluginLoader.cs	csharp	unported-blocker		Requires code-level classificati
 Plugin/PluginUI.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
 Plugin/PluginUI.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
 Plugin/PluginUI.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Plugins/AnonymizeBinlogPlugin.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Plugins/AnonymizeBinlogPlugin.cs	csharp	replace	Services/DataFlashLogAnonymizer.cs;ViewModels/GCSViews/ConfigurationView/ConfigAdvancedViewModel.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Plugins/OpenDroneID2/NMEA_GPS_Connection.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
 Plugins/OpenDroneID2/NMEA_GPS_Connection.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
 Plugins/OpenDroneID2/NMEA_GPS_Connection.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.

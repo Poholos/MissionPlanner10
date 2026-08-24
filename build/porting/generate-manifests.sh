@@ -73,6 +73,7 @@ done < "$port_files"
 # retaining their user workflow in the Avalonia port. Keep the mapping explicit so deleting the
 # replaced C# files cannot erase the evidence from the frozen native-surface inventory.
 declare -A native_replacement_by_logical_path=(
+  ["Plugins/AnonymizeBinlogPlugin"]="Services/DataFlashLogAnonymizer.cs;ViewModels/GCSViews/ConfigurationView/ConfigAdvancedViewModel.cs"
   ["GCSViews/ConfigurationView/ConfigAC_Fence"]="GCSViews/ConfigurationView/ConfigAC_FenceView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigAC_FenceViewModel.cs"
   ["GCSViews/ConfigurationView/ConfigADSB"]="GCSViews/ConfigurationView/ConfigADSBView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigADSBViewModel.cs"
   ["GCSViews/ConfigurationView/ConfigAccelerometerCalibration"]="GCSViews/ConfigurationView/ConfigAccelCalibrationView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigCalibrationPages.cs"
