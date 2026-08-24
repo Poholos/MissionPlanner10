@@ -60,6 +60,10 @@ and its current package workflows; this cleanup does not claim Android/iOS produ
   packages or consume the resulting readme/license warnings.
 - Restricted the PE application icon property to Windows/RID builds while preserving the same icon
   as an Avalonia resource on all platforms.
+- Moved synchronous SimpleBLE scan/connect calls from the shared managed thread pool to dedicated
+  blocking workers. A fully parallel CI run exposed that a blocked or slowly scheduled native BLE
+  call could delay cancellation and peripheral cleanup; the cancellation regression now passes the
+  complete suite and repeated stress runs without relaxing its timeout.
 - Kept transitive NuGet auditing enabled and promoted `NU1901` through `NU1904` to errors. The
   active graph reports no known vulnerable packages.
 - The `temp.cs` regression now validates the frozen 68-handler audit directly, so preserving the

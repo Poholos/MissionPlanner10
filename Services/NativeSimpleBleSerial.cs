@@ -319,8 +319,8 @@ internal sealed class NativeSimpleBleBackend : IBleUartBackend {
     duration = ClampDuration(duration);
     await _scanGate.WaitAsync(cancellationToken).ConfigureAwait(false);
     try {
-      return await Task.Run(() => DiscoverCore(duration, cancellationToken),
-          CancellationToken.None).ConfigureAwait(false);
+      return await RunBlockingNative(
+          () => DiscoverCore(duration, cancellationToken)).ConfigureAwait(false);
     } catch (Exception ex) when (IsNativeLoadFailure(ex)) {
       throw new IOException(
           "The SimpleBLE 0.7.3 native runtime could not be loaded for this platform.", ex);
@@ -340,9 +340,9 @@ internal sealed class NativeSimpleBleBackend : IBleUartBackend {
     IntPtr peripheral;
     await _scanGate.WaitAsync(cancellationToken).ConfigureAwait(false);
     try {
-      peripheral = await Task.Run(
-          () => FindPeripheralCore(address, _openScanDuration, cancellationToken),
-          CancellationToken.None).ConfigureAwait(false);
+      peripheral = await RunBlockingNative(
+          () => FindPeripheralCore(address, _openScanDuration, cancellationToken))
+          .ConfigureAwait(false);
     } catch (Exception ex) when (IsNativeLoadFailure(ex)) {
       throw new IOException(
           "The SimpleBLE 0.7.3 native runtime could not be loaded for this platform.", ex);
@@ -355,9 +355,8 @@ internal sealed class NativeSimpleBleBackend : IBleUartBackend {
           $"BLE device {address} was not found. Ensure it is powered and in range.");
     }
 
-    Task<IBleUartSession> worker = Task.Run(
-        () => ConnectCore(peripheral, received, disconnected, cancellationToken),
-        CancellationToken.None);
+    Task<IBleUartSession> worker = RunBlockingNative(
+        () => ConnectCore(peripheral, received, disconnected, cancellationToken));
     try {
       return await worker.WaitAsync(cancellationToken).ConfigureAwait(false);
     } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
@@ -567,6 +566,14 @@ internal sealed class NativeSimpleBleBackend : IBleUartBackend {
 
   private static bool IsNativeLoadFailure(Exception exception) =>
       exception is DllNotFoundException or BadImageFormatException or EntryPointNotFoundException;
+
+  // SimpleBLE scan/connect calls are synchronous native operations and may remain blocked while
+  // the operating system waits for a radio. A dedicated worker prevents one slow device from
+  // starving unrelated async work and also guarantees that cancellation can promptly call the
+  // native disconnect callback even when the managed thread pool is busy.
+  private static Task<T> RunBlockingNative<T>(Func<T> operation) =>
+      Task.Factory.StartNew(operation, CancellationToken.None,
+          TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
   private static async Task CloseAbandonedSessionAsync(Task<IBleUartSession> worker) {
     try {
