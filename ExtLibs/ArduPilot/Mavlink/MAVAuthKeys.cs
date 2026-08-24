@@ -15,11 +15,18 @@ namespace MissionPlanner.Mavlink
         private static readonly ILog log =
     LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-        static string keyfile = Settings.GetUserDataDirectory() + "authkeys.xml";
-
-        static Crypto Rij = new Crypto();
+        private static readonly object Sync = new object();
+        private static readonly string KeyFile =
+            Path.Combine(Settings.GetUserDataDirectory(), "authkeys.xml");
+        private static readonly string MaterialFile =
+            Path.Combine(Settings.GetUserDataDirectory(), "authkeys.key");
+        private static readonly MavAuthKeyStore Store = new MavAuthKeyStore(KeyFile, MaterialFile);
 
         public static AuthKeys Keys = new AuthKeys();
+
+        public static Exception LoadFailure { get; private set; }
+
+        public static bool IsAvailable => LoadFailure == null;
 
         //https://msdn.microsoft.com/en-us/library/aa347850(v=vs.110).aspx
 
@@ -44,52 +51,55 @@ namespace MissionPlanner.Mavlink
 
         public static void AddKey(string name, string seed)
         {
-            // sha the user input string
-            using (SHA256CryptoServiceProvider signit = new SHA256CryptoServiceProvider())
+            lock (Sync)
             {
-                var shauser = signit.ComputeHash(Encoding.UTF8.GetBytes(seed));
-                Array.Resize(ref shauser, 32);
-                
-                Keys[name] = new AuthKey() {Key = shauser, Name = name};
+                EnsureAvailable();
+                // sha the user input string
+                using (SHA256CryptoServiceProvider signit = new SHA256CryptoServiceProvider())
+                {
+                    var shauser = signit.ComputeHash(Encoding.UTF8.GetBytes(seed));
+                    Array.Resize(ref shauser, 32);
+
+                    Keys[name] = new AuthKey() {Key = shauser, Name = name};
+                }
             }
         }
 
         public static void Save()
         {
-            // save config
-            DataContractSerializer writer =
-                new DataContractSerializer(typeof(AuthKeys),
-                    new Type[] {typeof (AuthKey)});
-
-            using (var fs = new FileStream(keyfile, FileMode.Create))
-            using (var sw = new CryptoStream(fs, Rij.algorithm.CreateEncryptor(), CryptoStreamMode.Write))
+            lock (Sync)
             {
-                writer.WriteObject(sw, Keys);
+                EnsureAvailable();
+                Store.Save(Keys);
             }
         }
 
         internal static void Load()
         {
-            if (!File.Exists(keyfile))
-                return;
-
-            try
+            lock (Sync)
             {
-
-                DataContractSerializer reader =
-                    new DataContractSerializer(typeof (AuthKeys),
-                        new Type[] {typeof (AuthKey)});
-
-                using (var fs = new FileStream(keyfile, FileMode.Open))
-                using (var sr = new CryptoStream(fs, Rij.algorithm.CreateDecryptor(), CryptoStreamMode.Read))
+                try
                 {
-                    Keys = (AuthKeys) reader.ReadObject(sr);
+                    Keys = Store.Load();
+                    LoadFailure = null;
+                }
+                catch (Exception ex)
+                {
+                    // Never replace an unreadable file with an empty collection. Save/Add are
+                    // disabled until a later process can decrypt it or the user restores its key.
+                    Keys = new AuthKeys();
+                    LoadFailure = ex;
+                    log.Error("MAVLink signing keys could not be loaded; preserving the existing file.", ex);
                 }
             }
-            catch (Exception ex)
-            {
-                log.Error(ex);
-            }
+        }
+
+        private static void EnsureAvailable()
+        {
+            if (LoadFailure != null)
+                throw new InvalidOperationException(
+                    "The existing MAVLink signing-key file could not be loaded and was left unchanged.",
+                    LoadFailure);
         }
     }
 }

@@ -77,6 +77,15 @@ public class ConfigAdvancedViewModel : ActionPageViewModel {
   }
 
   private async Task ManageSigningAsync() {
+    if (!MAVAuthKeys.IsAvailable) {
+      await Dialogs.Alert(
+          "MAVLink Signing",
+          "Stored signing keys could not be decrypted. The existing authkeys.xml file was " +
+          "preserved and changes are disabled to prevent data loss.\n\n" +
+          MAVAuthKeys.LoadFailure.Message);
+      return;
+    }
+
     while (true) {
       var current = CurrentSigningKeyName();
       var choice = await Dialogs.Choice(
