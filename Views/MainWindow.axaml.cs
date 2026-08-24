@@ -13,7 +13,6 @@ public partial class MainWindow : Window {
 
     AddHandler(InputElement.KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel,
         handledEventsToo: true);
-    Closed += (_, _) => (DataContext as System.IDisposable)?.Dispose();
   }
 
   private MainWindowViewModel? Vm => DataContext as MainWindowViewModel;
