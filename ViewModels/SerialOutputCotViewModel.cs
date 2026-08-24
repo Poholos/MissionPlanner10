@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Net;
@@ -33,6 +34,8 @@ public partial class SerialOutputCotViewModel : ViewModelBase, IDisposable {
   private readonly List<System.Net.Sockets.TcpClient> _clients = new();
   private readonly HashSet<CotIdentityRow> _subscribedIdentityRows = [];
   private CancellationTokenSource? _runCts;
+  private Task? _outputTask;
+  private Task? _endpointTask;
   private System.Net.Sockets.UdpClient? _udp;
   private IPEndPoint? _udpDestination;
   private TcpListener? _listener;
@@ -40,6 +43,7 @@ public partial class SerialOutputCotViewModel : ViewModelBase, IDisposable {
   private SerialPort? _serial;
   private CotIdentitySnapshot[] _identitySnapshot = [];
   private bool _identitiesDirty;
+  private int _disposed;
 
   public SerialOutputCotViewModel() {
     Host = "239.2.3.1";
@@ -93,7 +97,7 @@ public partial class SerialOutputCotViewModel : ViewModelBase, IDisposable {
   [ObservableProperty] private string _connectButtonText = "Connect";
   [ObservableProperty] private string _lastEvent = "";
 
-  public bool IsRunning => _runCts != null;
+  public bool IsRunning => Volatile.Read(ref _runCts) != null;
   public bool IsNetworkEndpoint => SelectedEndpoint is TakMulticast or UdpClient or UdpHost or TcpClient or TcpHost;
   public bool IsSerialEndpoint => !string.IsNullOrWhiteSpace(SelectedEndpoint) && !IsNetworkEndpoint;
 
@@ -189,7 +193,10 @@ public partial class SerialOutputCotViewModel : ViewModelBase, IDisposable {
   [RelayCommand]
   private async Task ToggleConnect() {
     if (IsRunning) {
-      Stop();
+      await StopAsync();
+      return;
+    }
+    if (Volatile.Read(ref _disposed) != 0) {
       return;
     }
     if (string.IsNullOrWhiteSpace(SelectedEndpoint)) {
@@ -202,10 +209,17 @@ public partial class SerialOutputCotViewModel : ViewModelBase, IDisposable {
     }
 
     var cts = new CancellationTokenSource();
+    if (Interlocked.CompareExchange(ref _runCts, cts, null) != null) {
+      cts.Dispose();
+      return;
+    }
+    OnPropertyChanged(nameof(IsRunning));
     try {
       await OpenEndpointAsync(SelectedEndpoint, cts.Token);
-      _runCts = cts;
-      _ = Task.Run(() => OutputLoopAsync(cts.Token), cts.Token);
+      if (!IsCurrentRun(cts)) {
+        return;
+      }
+      _outputTask = OutputLoopAsync(cts);
       ConnectButtonText = "Stop";
       var runningStatus = SelectedEndpoint == UdpHost
           ? $"Listening for a UDP peer on port {Port}."
@@ -216,11 +230,24 @@ public partial class SerialOutputCotViewModel : ViewModelBase, IDisposable {
       } catch (Exception ex) {
         Status = runningStatus + " Settings could not be saved: " + ex.Message;
       }
-      OnPropertyChanged(nameof(IsRunning));
     } catch (Exception ex) {
-      cts.Dispose();
-      CloseEndpoint();
-      Status = "Unable to start CoT output: " + ex.Message;
+      bool ownsRun = ReferenceEquals(
+          Interlocked.CompareExchange(ref _runCts, null, cts), cts);
+      if (ownsRun) {
+        try {
+          cts.Cancel();
+        } catch (ObjectDisposedException) {
+        }
+        CloseEndpoint();
+        await ObserveTasksAsync(_outputTask, _endpointTask);
+        _outputTask = null;
+        _endpointTask = null;
+        cts.Dispose();
+        OnPropertyChanged(nameof(IsRunning));
+      }
+      if (Volatile.Read(ref _disposed) == 0 && ex is not OperationCanceledException) {
+        Status = "Unable to start CoT output: " + ex.Message;
+      }
     }
   }
 
@@ -247,23 +274,24 @@ public partial class SerialOutputCotViewModel : ViewModelBase, IDisposable {
     switch (endpoint) {
       case TakMulticast:
       case UdpClient: {
-          var address = await ResolveAddressAsync(Host);
+          var address = await ResolveAddressAsync(Host, token);
+          token.ThrowIfCancellationRequested();
           _udpDestination = new IPEndPoint(address, Port);
           _udp = new System.Net.Sockets.UdpClient(address.AddressFamily);
           break;
         }
       case UdpHost:
         _udp = UdpSerial.CreateSharedListener(Port);
-        _ = Task.Run(() => LearnUdpPeerAsync(_udp, token), token);
+        _endpointTask = LearnUdpPeerAsync(_udp, _runCts!, token);
         break;
       case TcpClient:
         _tcpClient = new System.Net.Sockets.TcpClient();
-        await _tcpClient.ConnectAsync(Host, Port, token);
+        await _tcpClient.ConnectAsync(Host, Port, token).ConfigureAwait(false);
         break;
       case TcpHost:
         _listener = new TcpListener(ParseListenAddress(Host), Port);
         _listener.Start();
-        _ = Task.Run(() => AcceptClientsAsync(_listener, token), token);
+        _endpointTask = AcceptClientsAsync(_listener, _runCts!, token);
         break;
       default:
         _serial = new SerialPort { PortName = endpoint, BaudRate = Baud };
@@ -272,11 +300,13 @@ public partial class SerialOutputCotViewModel : ViewModelBase, IDisposable {
     }
   }
 
-  private static async Task<IPAddress> ResolveAddressAsync(string host) {
+  private static async Task<IPAddress> ResolveAddressAsync(
+      string host, CancellationToken cancellationToken) {
     if (IPAddress.TryParse(host, out var address)) {
       return address;
     }
-    var addresses = await Dns.GetHostAddressesAsync(host);
+    var addresses = await Dns.GetHostAddressesAsync(host, cancellationToken)
+        .ConfigureAwait(false);
     return addresses.First(address => address.AddressFamily is AddressFamily.InterNetwork
         or AddressFamily.InterNetworkV6);
   }
@@ -286,38 +316,57 @@ public partial class SerialOutputCotViewModel : ViewModelBase, IDisposable {
           ? IPAddress.Any
           : IPAddress.Parse(host);
 
-  private async Task LearnUdpPeerAsync(System.Net.Sockets.UdpClient udp, CancellationToken token) {
+  private async Task LearnUdpPeerAsync(
+      System.Net.Sockets.UdpClient udp,
+      CancellationTokenSource run,
+      CancellationToken token) {
     try {
       while (!token.IsCancellationRequested) {
-        var received = await udp.ReceiveAsync(token);
+        var received = await udp.ReceiveAsync(token).ConfigureAwait(false);
+        if (!IsCurrentRun(run)) {
+          return;
+        }
         _udpDestination = received.RemoteEndPoint;
-        Dispatcher.UIThread.Post(() => Status =
+        PostForRun(run, () => Status =
             $"Emitting Cursor-on-Target events to UDP peer {received.RemoteEndPoint}.");
       }
     } catch (OperationCanceledException) {
     } catch (ObjectDisposedException) {
     } catch (Exception ex) {
-      Dispatcher.UIThread.Post(() => Status = "UDP host error: " + ex.Message);
+      PostForRun(run, () => Status = "UDP host error: " + ex.Message);
     }
   }
 
-  private async Task AcceptClientsAsync(TcpListener listener, CancellationToken token) {
+  private async Task AcceptClientsAsync(
+      TcpListener listener,
+      CancellationTokenSource run,
+      CancellationToken token) {
     try {
       while (!token.IsCancellationRequested) {
-        var client = await listener.AcceptTcpClientAsync(token);
+        var client = await listener.AcceptTcpClientAsync(token).ConfigureAwait(false);
+        if (!IsCurrentRun(run)) {
+          client.Dispose();
+          return;
+        }
         lock (_clientsSync) {
+          if (!IsCurrentRun(run)) {
+            client.Dispose();
+            return;
+          }
           _clients.Add(client);
         }
-        Dispatcher.UIThread.Post(() => Status = $"CoT TCP client connected: {client.Client.RemoteEndPoint}.");
+        string remote = client.Client.RemoteEndPoint?.ToString() ?? "client";
+        PostForRun(run, () => Status = $"CoT TCP client connected: {remote}.");
       }
     } catch (OperationCanceledException) {
     } catch (ObjectDisposedException) {
     } catch (Exception ex) {
-      Dispatcher.UIThread.Post(() => Status = "TCP host error: " + ex.Message);
+      PostForRun(run, () => Status = "TCP host error: " + ex.Message);
     }
   }
 
-  private async Task OutputLoopAsync(CancellationToken token) {
+  private async Task OutputLoopAsync(CancellationTokenSource run) {
+    CancellationToken token = run.Token;
     while (!token.IsCancellationRequested) {
       try {
         var identities = Volatile.Read(ref _identitySnapshot);
@@ -334,17 +383,17 @@ public partial class SerialOutputCotViewModel : ViewModelBase, IDisposable {
               identity: AdvancedMode && eventUid.Length > 0 ? identity?.ToDetail() : null);
         }).ToArray();
         foreach (var xml in events) {
-          await SendAsync(xml + "\n", token);
+          await SendAsync(xml + "\n", token).ConfigureAwait(false);
         }
         string preview = string.Join(Environment.NewLine, events);
-        Dispatcher.UIThread.Post(() => LastEvent = preview);
-        await Task.Delay(TimeSpan.FromSeconds(UpdateSeconds), token);
+        PostForRun(run, () => LastEvent = preview);
+        await Task.Delay(TimeSpan.FromSeconds(UpdateSeconds), token).ConfigureAwait(false);
       } catch (OperationCanceledException) {
         break;
       } catch (Exception ex) {
-        Dispatcher.UIThread.Post(() => Status = "CoT output warning: " + ex.Message);
+        PostForRun(run, () => Status = "CoT output warning: " + ex.Message);
         try {
-          await Task.Delay(TimeSpan.FromSeconds(1), token);
+          await Task.Delay(TimeSpan.FromSeconds(1), token).ConfigureAwait(false);
         } catch (OperationCanceledException) {
           break;
         }
@@ -355,10 +404,10 @@ public partial class SerialOutputCotViewModel : ViewModelBase, IDisposable {
   private async Task SendAsync(string text, CancellationToken token) {
     var bytes = Encoding.UTF8.GetBytes(text);
     if (_udp != null && _udpDestination != null) {
-      await _udp.SendAsync(bytes, _udpDestination, token);
+      await _udp.SendAsync(bytes, _udpDestination, token).ConfigureAwait(false);
     }
     if (_tcpClient?.Connected == true) {
-      await _tcpClient.GetStream().WriteAsync(bytes, token);
+      await _tcpClient.GetStream().WriteAsync(bytes, token).ConfigureAwait(false);
     }
     List<System.Net.Sockets.TcpClient> clients;
     lock (_clientsSync) {
@@ -366,7 +415,7 @@ public partial class SerialOutputCotViewModel : ViewModelBase, IDisposable {
     }
     foreach (var client in clients) {
       try {
-        await client.GetStream().WriteAsync(bytes, token);
+        await client.GetStream().WriteAsync(bytes, token).ConfigureAwait(false);
       } catch {
         lock (_clientsSync) {
           _clients.Remove(client);
@@ -379,16 +428,59 @@ public partial class SerialOutputCotViewModel : ViewModelBase, IDisposable {
     }
   }
 
-  private void Stop() {
-    var cts = _runCts;
-    _runCts = null;
-    cts?.Cancel();
-    CloseEndpoint();
-    cts?.Dispose();
+  public async Task StopAsync() {
+    await StopCoreAsync();
+    if (Volatile.Read(ref _disposed) != 0) {
+      return;
+    }
     ConnectButtonText = "Connect";
     Status = "Stopped.";
     OnPropertyChanged(nameof(IsRunning));
   }
+
+  private async Task StopCoreAsync() {
+    var cts = Interlocked.Exchange(ref _runCts, null);
+    Task? outputTask = _outputTask;
+    Task? endpointTask = _endpointTask;
+    _outputTask = null;
+    _endpointTask = null;
+    if (cts != null) {
+      try {
+        cts.Cancel();
+      } catch (ObjectDisposedException) {
+      }
+    }
+    CloseEndpoint();
+    await ObserveTasksAsync(outputTask, endpointTask).ConfigureAwait(false);
+    cts?.Dispose();
+  }
+
+  private static async Task ObserveTasksAsync(params Task?[] tasks) {
+    Task[] pending = tasks.Where(task => task != null).Cast<Task>().ToArray();
+    if (pending.Length == 0) {
+      return;
+    }
+    try {
+      await Task.WhenAll(pending).WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+    } catch (OperationCanceledException) {
+    } catch (TimeoutException ex) {
+      Trace.WriteLine($"CoT output cleanup timed out: {ex}");
+    } catch (Exception ex) {
+      Trace.WriteLine($"CoT output cleanup failed: {ex}");
+    }
+  }
+
+  private bool IsCurrentRun(CancellationTokenSource run) =>
+      Volatile.Read(ref _disposed) == 0
+      && !run.IsCancellationRequested
+      && ReferenceEquals(Volatile.Read(ref _runCts), run);
+
+  private void PostForRun(CancellationTokenSource run, Action action) =>
+      Dispatcher.UIThread.Post(() => {
+        if (IsCurrentRun(run)) {
+          action();
+        }
+      });
 
   private void CloseEndpoint() {
     try { _listener?.Stop(); } catch { }
@@ -508,6 +600,9 @@ public partial class SerialOutputCotViewModel : ViewModelBase, IDisposable {
       value == null ? JValue.CreateNull() : new JValue(value);
 
   public void Dispose() {
+    if (Interlocked.Exchange(ref _disposed, 1) != 0) {
+      return;
+    }
     try {
       SaveSettings();
     } catch {
@@ -517,7 +612,7 @@ public partial class SerialOutputCotViewModel : ViewModelBase, IDisposable {
     foreach (var row in _subscribedIdentityRows.ToArray()) {
       UnsubscribeIdentity(row);
     }
-    Stop();
+    StopCoreAsync().GetAwaiter().GetResult();
   }
 
   private sealed record CotIdentitySnapshot(
