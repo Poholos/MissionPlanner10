@@ -155,6 +155,42 @@ public sealed class PluginRuntimeTests {
   }
 
   [Fact]
+  public async Task Windows_internet_zone_plugin_is_reported_without_executing_code() {
+    string root = CreateTempRoot();
+    string plugins = Path.Combine(root, "plugins");
+    Directory.CreateDirectory(plugins);
+    CopyFixturePlugin(plugins);
+    int hostCalls = 0;
+    await using var runtime = new PluginRuntime(
+        [plugins],
+        [],
+        (_, type) => {
+          Interlocked.Increment(ref hostCalls);
+          return new FakePluginHost(Path.Combine(root, type.Name));
+        },
+        zoneIdentifier: _ => 3);
+
+    await runtime.RefreshAsync();
+
+    IReadOnlyList<PluginFileSnapshot> snapshots = runtime.Snapshot();
+    Assert.NotEmpty(snapshots);
+    Assert.All(snapshots, snapshot => {
+      Assert.Equal(PluginFileState.Blocked, snapshot.State);
+      Assert.Contains("blocked by Windows", snapshot.Error, StringComparison.OrdinalIgnoreCase);
+    });
+    Assert.Equal(0, hostCalls);
+  }
+
+  [Theory]
+  [InlineData("[ZoneTransfer]\r\nZoneId=3\r\n", 3)]
+  [InlineData("[ZoneTransfer]\n zoneid = 4 \nHostUrl=https://example.test", 4)]
+  [InlineData("[ZoneTransfer]\r\nHostUrl=https://example.test\r\n", null)]
+  public void Windows_zone_identifier_parser_is_bounded_to_the_zone_field(
+      string content, int? expected) {
+    Assert.Equal(expected, PluginRuntime.ParseZoneIdentifier(content));
+  }
+
+  [Fact]
   public async Task InvalidDllProducesVisibleFailureWithoutEscapingRefresh() {
     string root = CreateTempRoot();
     string plugins = Path.Combine(root, "plugins");
