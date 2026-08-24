@@ -1186,7 +1186,26 @@ namespace MissionPlanner
         }
 
         [DisplayFieldName("distTraveled.Field")]
-        [DisplayText("Dist Traveled (dist)")][GroupText("Position")] public float distTraveled { get; set; }
+        [DisplayText("Dist Traveled (dist)")]
+        [GroupText("Position")]
+        public float distTraveled
+        {
+            get { return _distTraveledMeters * DistanceDisplayMultiplier; }
+            set { _distTraveledMeters = value / DistanceDisplayMultiplier; }
+        }
+
+        private float _distTraveledMeters;
+
+        private static float DistanceDisplayMultiplier
+        {
+            get
+            {
+                return multiplierdist > 0 && !float.IsNaN(multiplierdist) &&
+                       !float.IsInfinity(multiplierdist)
+                    ? multiplierdist
+                    : 1;
+            }
+        }
 
         [DisplayText("Time in Air (sec)")][GroupText("Position")] public float timeSinceArmInAir { get; set; }
 
@@ -1473,7 +1492,7 @@ namespace MissionPlanner
         [GroupText("Battery")]
         [DisplayFieldName("battery_mahperkm.Field")]
         [DisplayText("Bat efficiency (mah/km)")]
-        public double battery_mahperkm => battery_usedmah / (distTraveled / 1000.0f);
+        public double battery_mahperkm => battery_usedmah / (_distTraveledMeters / 1000.0f);
 
         [GroupText("Battery")]
         [DisplayFieldName("battery_kmleft.Field")]
@@ -4608,8 +4627,8 @@ namespace MissionPlanner
                                 !mavinterface.logreadmode)
                                 distTraveled = 0;
 
-                            distTraveled += (float)lastpos.GetDistance(new PointLatLngAlt(lat, lng, 0, "")) *
-                                            multiplierdist;
+                            _distTraveledMeters +=
+                                (float)lastpos.GetDistance(new PointLatLngAlt(lat, lng, 0, ""));
                             lastpos = new PointLatLngAlt(lat, lng, 0, "");
                         }
                         else

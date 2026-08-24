@@ -1,4 +1,5 @@
 using Avalonia.Headless.XUnit;
+using MissionPlanner.ArduPilot;
 using MissionPlanner.Controls;
 using MissionPlanner.ViewModels;
 
@@ -52,6 +53,19 @@ public class FlightMapOverlayTests {
     Assert.Contains("Camera overlap count", names);
     Assert.Contains("Camera target", names);
     Assert.Contains("Other vehicles", names);
+  }
+
+  [Theory]
+  [InlineData(Firmwares.ArduCopter2, 1, 2, 150, true)]
+  [InlineData(Firmwares.ArduCopter2, 1, 3, 150, true)]
+  [InlineData(Firmwares.ArduCopter2, 0, 2, 150, false)]
+  [InlineData(Firmwares.ArduCopter2, 1, 1, 150, false)]
+  [InlineData(Firmwares.ArduCopter2, 1, 2, 0, false)]
+  [InlineData(Firmwares.ArduPlane, 1, 2, 150, false)]
+  public void Legacy_copter_fence_requires_enabled_horizontal_circle_bit(
+      Firmwares firmware, double enabled, double type, double radius, bool expected) {
+    Assert.Equal(expected,
+        MapView.ShouldShowLegacyCircularFence(firmware, enabled, type, radius));
   }
 
   [Fact]

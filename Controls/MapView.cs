@@ -16,6 +16,7 @@ using Mapsui.Styles;
 using Mapsui.Tiling.Layers;
 using Mapsui.UI.Avalonia;
 using MissionPlanner;
+using MissionPlanner.ArduPilot;
 using MissionPlanner.Utilities;
 using MissionPlanner.Services;
 using NetTopologySuite.Geometries;
@@ -390,7 +391,7 @@ public class MapView : MapControl {
     }
 
     UpdateMissionOverlay(mav.wps.OrderBy(item => item.Key).ToArray(), mav.cs);
-    UpdateFenceOverlay(mav.fencepoints.OrderBy(item => item.Key).ToArray());
+    UpdateFenceOverlay(mav.fencepoints.OrderBy(item => item.Key).ToArray(), mav);
     UpdateRallyOverlay(mav.rallypoints.OrderBy(item => item.Key).ToArray());
     UpdateMovingBaseOverlay(mav.cs);
     UpdatePoiOverlay();
@@ -450,7 +451,8 @@ public class MapView : MapControl {
   }
 
   private void UpdateFenceOverlay(
-      IReadOnlyList<KeyValuePair<int, MAVLink.mavlink_mission_item_int_t>> items) {
+      IReadOnlyList<KeyValuePair<int, MAVLink.mavlink_mission_item_int_t>> items,
+      MAVState mav) {
     _fence.Clear();
     int index = 0;
     while (index < items.Count) {
@@ -488,7 +490,44 @@ public class MapView : MapControl {
       }
       index++;
     }
+
+    if (TryGetLegacyCircularFenceRadius(mav, out double radius)) {
+      PointLatLngAlt? home = mav.cs.HomeLocation;
+      if (home == null || !ValidLatLng(home.Lat, home.Lng)
+          || (home.Lat == 0 && home.Lng == 0)) {
+        home = mav.cs.PlannedHomeLocation;
+      }
+      if (home != null && ValidLatLng(home.Lat, home.Lng)
+          && (home.Lat != 0 || home.Lng != 0)) {
+        AddFenceCircle(home.Lat, home.Lng, radius, inclusion: true);
+      }
+    }
     _fence.DataHasChanged();
+  }
+
+  private static bool TryGetLegacyCircularFenceRadius(MAVState mav, out double radius) {
+    radius = 0;
+    try {
+      double enabled = mav.param["FENCE_ENABLE"]?.Value ?? 0;
+      double typeValue = mav.param["FENCE_TYPE"]?.Value ?? 0;
+      radius = mav.param["FENCE_RADIUS"]?.Value ?? 0;
+      return ShouldShowLegacyCircularFence(
+          mav.cs.firmware, enabled, typeValue, radius);
+    } catch {
+      radius = 0;
+      return false;
+    }
+  }
+
+  internal static bool ShouldShowLegacyCircularFence(
+      Firmwares firmware, double enabled, double typeValue, double radius) {
+    if (firmware != Firmwares.ArduCopter2 || !double.IsFinite(enabled)
+        || !double.IsFinite(typeValue) || !double.IsFinite(radius) || enabled < 0.5
+        || radius <= 0 || typeValue < 0 || typeValue > uint.MaxValue) {
+      return false;
+    }
+    uint type = (uint)Math.Truncate(typeValue);
+    return (type & (1u << 1)) != 0;
   }
 
   private void AddFencePolygon(

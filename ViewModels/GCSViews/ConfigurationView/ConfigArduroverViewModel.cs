@@ -18,6 +18,7 @@ public class ConfigArduroverViewModel : TuningPageBase {
         .Num("Cruise Throttle", "CRUISE_THROTTLE")
         .Combo("Brake", "ATC_BRAKE")
         .Num("Accel Max (m/s/s)", "ATC_ACCEL_MAX")
+        .Num("Decel Max (m/s/s)", "ATC_DECEL_MAX")
         .Num("P", "SPEED2THR_P", "ATC_SPEED_P")
         .Num("I", "SPEED2THR_I", "ATC_SPEED_I")
         .Num("D", "SPEED2THR_D", "ATC_SPEED_D")
@@ -25,11 +26,23 @@ public class ConfigArduroverViewModel : TuningPageBase {
 
     Groups.Add(new TuningGroup("Navigation")
         .Num("WP Speed", "WP_SPEED")
-        .Num("Lat Acc Cntl Period", "NAVL1_PERIOD")
-        .Num("Lat Acc Cntl Damp", "NAVL1_DAMPING")
-        .Num("WP Overshoot", "WP_OVERSHOOT")
         .Num("WP Radius", "WP_RADIUS")
-        .Num("Turn G Max", "TURN_MAX_G", "ATC_TURN_MAX_G"));
+        .Num("Turn Radius", "TURN_RADIUS")
+        .Num("Turn G Max", "TURN_MAX_G", "ATC_TURN_MAX_G")
+        .Num("Pivot Angle", "WP_PIVOT_ANGLE")
+        .Num("Pivot Rate", "WP_PIVOT_RATE"));
+
+    Groups.Add(new TuningGroup("Position Controller")
+        .Num("Position P", "PSC_POS_P")
+        .Num("Velocity P", "PSC_VEL_P")
+        .Num("Velocity I", "PSC_VEL_I")
+        .Num("Velocity D", "PSC_VEL_D")
+        .Num("Velocity IMAX", "PSC_VEL_IMAX")
+        .Num("Velocity FF", "PSC_VEL_FF"));
+
+    Groups.Add(new TuningGroup("Steering Angle")
+        .Num("P", "ATC_STR_ANG_P")
+        .Num("Acceleration Max", "ATC_STR_ACC_MAX"));
 
     Groups.Add(new TuningGroup("Steering Rate")
         .Num("P", "STEER2SRV_P", "ATC_STR_RAT_P")
@@ -48,9 +61,6 @@ public class ConfigArduroverViewModel : TuningPageBase {
         .Num("Turn Time", "SONAR_TURN_TIME", "RNGFND_TURN_TIME")
         .Num("Sonar Debounce", "SONAR_DEBOUNCE", "RNGFND_DEBOUNCE");
     Groups.Add(avoidance);
-
-    Groups.Add(new TuningGroup("Steering Mode")
-        .Num("Turn Radius", "TURN_RADIUS"));
 
     Groups.Add(new TuningGroup("Channel Options")
         .Combo("RC7 Opt", "CH7_OPTION", "RC7_OPTION")

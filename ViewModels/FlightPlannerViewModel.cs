@@ -38,6 +38,7 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
   public FlightPlannerViewModel() {
     Waypoints.CollectionChanged += OnWaypointsCollectionChanged;
     WaypointsChanged += PublishLocalKmlMission;
+    AppState.ConnectionChanged += OnConnectionChanged;
     Services.DisplayViewService.Changed += OnDisplayViewChanged;
     RefreshDisplayView();
     try {
@@ -63,6 +64,11 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
   private void OnDisplayViewChanged(object? sender, EventArgs e) =>
       Dispatcher.UIThread.Post(RefreshDisplayView);
 
+  private void OnConnectionChanged() => Dispatcher.UIThread.Post(() => {
+    OnPropertyChanged(nameof(ShowLoiterRadius));
+    OnPropertyChanged(nameof(VehicleFirmware));
+  });
+
   private void RefreshDisplayView() {
     var profile = Services.DisplayViewService.Current;
     ShowVerifyHeight = profile.displayCheckHeightBox;
@@ -85,6 +91,7 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
   }
 
   public void Dispose() {
+    AppState.ConnectionChanged -= OnConnectionChanged;
     Services.DisplayViewService.Changed -= OnDisplayViewChanged;
     Waypoints.CollectionChanged -= OnWaypointsCollectionChanged;
     WaypointsChanged -= PublishLocalKmlMission;
@@ -706,6 +713,13 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
   public string WpRadiusLabel => $"WP Radius ({CurrentState.DistanceUnit})";
 
   public string LoiterRadiusLabel => $"Loiter Radius ({CurrentState.DistanceUnit})";
+
+  public Firmwares VehicleFirmware => _comPort.MAV.cs.firmware;
+
+  public bool ShowLoiterRadius => SupportsGlobalLoiterRadius(VehicleFirmware);
+
+  internal static bool SupportsGlobalLoiterRadius(Firmwares firmware) =>
+      firmware != Firmwares.ArduCopter2;
 
   [ObservableProperty]
   private bool _verifyHeight;
@@ -1464,8 +1478,10 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
     }
     Set("WP_RADIUS", WpRadius);
     Set("WP_RADIUS_M", WpRadius);
-    Set("WP_LOITER_RAD", LoiterRadius);
-    Set("LOITER_RAD", LoiterRadius);
+    if (SupportsGlobalLoiterRadius(VehicleFirmware)) {
+      Set("WP_LOITER_RAD", LoiterRadius);
+      Set("LOITER_RAD", LoiterRadius);
+    }
   }
 
   public async Task SaveFileAsync(string path) {
@@ -2892,7 +2908,7 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
 
     // Preserve the port's earlier mission-outline workflow as a compatibility fallback,
     // while matching upstream's drawn-polygon workflow whenever a polygon is available.
-    return Waypoints.Where(row => Services.MissionRoute.IsNavigation(row.Command)
+    return Waypoints.Where(row => Services.MissionRoute.IsFlightPath(row.Command)
                                   && !(row.Lat == 0 && row.Lng == 0))
         .Select(row => new PointLatLngAlt(row.Lat, row.Lng, altitude))
         .ToList();
@@ -3010,9 +3026,14 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
                      : new PointLatLngAlt(HomeLat, HomeLng, HomeAlt);
       PointLatLngAlt? last = home;
       double total = 0, prev = 0;
+      double distanceMultiplier = double.IsFinite(CurrentState.multiplierdist)
+                                  && CurrentState.multiplierdist > 0
+          ? CurrentState.multiplierdist
+          : 1;
+      double configuredLoiterRadius = LoiterRadius / distanceMultiplier;
       bool first = true;
       foreach (var w in Waypoints) {
-        if ((MissionType == "Mission" && !Services.MissionRoute.IsNavigation(w.Command))
+        if ((MissionType == "Mission" && !Services.MissionRoute.IsFlightPath(w.Command))
             || (w.Lat == 0 && w.Lng == 0)) {
           w.Grad = w.Angle = w.Dist = w.Az = "";
           continue;
@@ -3038,6 +3059,9 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
           }
           prev = leg;
         }
+
+        total += Services.MissionRoute.AdditionalLoiterDistance(
+            w.Command, w.P1, w.P3, configuredLoiterRadius, VehicleFirmware);
 
         last = cur;
         first = false;

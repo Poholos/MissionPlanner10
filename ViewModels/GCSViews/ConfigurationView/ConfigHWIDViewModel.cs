@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.Input;
@@ -7,6 +9,29 @@ using MissionPlanner.Utilities;
 namespace MissionPlanner.ViewModels.GCSViews.ConfigurationView;
 
 public partial class ConfigHWIDViewModel : ViewModelBase {
+  private static readonly IReadOnlyDictionary<uint, string> MavPortDeviceNames =
+      new Dictionary<uint, string> {
+        [0] = "Unknown",
+        [6] = "USB0",
+        [14] = "SERIAL1",
+        [22] = "SERIAL2",
+        [30] = "SERIAL3",
+        [38] = "SERIAL4",
+        [46] = "SERIAL5",
+        [54] = "SERIAL6",
+        [62] = "SERIAL7",
+        [70] = "SERIAL8",
+        [78] = "SERIAL9",
+        [174] = "NET_P1",
+        [182] = "NET_P2",
+        [190] = "NET_P3",
+        [198] = "NET_P4",
+        [334] = "CAN_D1_UC_S1",
+        [414] = "CAN_D2_UC_S1",
+        [494] = "SCR_SDEV1",
+        [502] = "SCR_SDEV2",
+      };
+
   private readonly MAVLinkInterface _comPort = AppState.comPort;
 
   public ObservableCollection<HwIdRow> Devices { get; } = new();
@@ -39,6 +64,15 @@ public partial class ConfigHWIDViewModel : ViewModelBase {
   }
 
   private static HwIdRow Decode(string paramName, uint id) {
+    if (IsMavPortDeviceId(paramName)) {
+      return new HwIdRow {
+        ParamName = paramName,
+        DevID = unchecked((int)id),
+        BusType = "MAVLink",
+        DevType = DecodeMavPortDeviceId(id),
+      };
+    }
+
     var devid = new Device.DeviceStructure(paramName, id);
 
     string busType = devid.bus_type.ToString().Replace("BUS_TYPE_", "");
@@ -64,6 +98,29 @@ public partial class ConfigHWIDViewModel : ViewModelBase {
       DevType = devType,
     };
   }
+
+  internal static bool IsMavPortDeviceId(string paramName) {
+    const string prefix = "MAV";
+    const string suffix = "_DEVID";
+    if (!paramName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+        || !paramName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)
+        || paramName.Length <= prefix.Length + suffix.Length) {
+      return false;
+    }
+
+    int digitsEnd = paramName.Length - suffix.Length;
+    for (int index = prefix.Length; index < digitsEnd; index++) {
+      if (!char.IsAsciiDigit(paramName[index])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  internal static string DecodeMavPortDeviceId(uint id) =>
+      MavPortDeviceNames.TryGetValue(id, out string? name)
+          ? name
+          : $"Unknown ({id})";
 }
 
 public class HwIdRow {

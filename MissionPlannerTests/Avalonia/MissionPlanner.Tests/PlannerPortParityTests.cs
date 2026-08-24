@@ -583,9 +583,46 @@ public class PlannerPortParityTests {
   public void Planner_route_excludes_roi_and_radius_display_units_convert_to_metres() {
     Assert.True(MissionRoute.IsNavigation((ushort)MAVLink.MAV_CMD.WAYPOINT));
     Assert.True(MissionRoute.IsNavigation((ushort)MAVLink.MAV_CMD.SPLINE_WAYPOINT));
+    Assert.True(MissionRoute.IsNavigation((ushort)MAVLink.MAV_CMD.DO_LAND_START));
+    Assert.False(MissionRoute.IsFlightPath((ushort)MAVLink.MAV_CMD.DO_LAND_START));
+    Assert.True(MissionRoute.IsFlightPath((ushort)MAVLink.MAV_CMD.WAYPOINT));
     Assert.False(MissionRoute.IsNavigation(80)); // legacy MAV_CMD_NAV_ROI
     Assert.False(MissionRoute.IsNavigation(201)); // MAV_CMD_DO_SET_ROI
     Assert.Equal(100, FlightPlannerMap.RadiusInMeters(328.084, 3.28084), 5);
+  }
+
+  [Theory]
+  [InlineData(0, 100, Firmwares.ArduCopter2, 0)]
+  [InlineData(0, 100, Firmwares.ArduPlane, 100)]
+  [InlineData(-25, 100, Firmwares.ArduCopter2, 25)]
+  public void Loiter_turns_radius_respects_copter_panorama_semantics(
+      double commandRadius, double configuredRadius, Firmwares firmware, double expected) {
+    Assert.Equal(expected,
+        FlightPlannerMap.LoiterTurnsRadius(commandRadius, configuredRadius, firmware));
+  }
+
+  [Fact]
+  public void Global_loiter_radius_is_not_exposed_for_copter() {
+    Assert.False(FlightPlannerViewModel.SupportsGlobalLoiterRadius(Firmwares.ArduCopter2));
+    Assert.True(FlightPlannerViewModel.SupportsGlobalLoiterRadius(Firmwares.ArduPlane));
+  }
+
+  [Theory]
+  [InlineData(Firmwares.ArduPlane, 2, 25, 100, 314.1592653589793)]
+  [InlineData(Firmwares.ArduPlane, 2, 0, 100, 1256.6370614359173)]
+  [InlineData(Firmwares.ArduCopter2, 2, 0, 100, 0)]
+  [InlineData(Firmwares.ArduCopter2, 0, 25, 100, 0)]
+  public void Loiter_turns_add_the_flyable_orbit_length_to_mission_distance(
+      Firmwares firmware, double turns, double commandRadius, double configuredRadius,
+      double expected) {
+    double actual = MissionRoute.AdditionalLoiterDistance(
+        (ushort)MAVLink.MAV_CMD.LOITER_TURNS,
+        turns, commandRadius, configuredRadius, firmware);
+
+    Assert.Equal(expected, actual, 9);
+    Assert.Equal(0, MissionRoute.AdditionalLoiterDistance(
+        (ushort)MAVLink.MAV_CMD.LOITER_TIME,
+        turns, commandRadius, configuredRadius, firmware));
   }
 
   [Fact]

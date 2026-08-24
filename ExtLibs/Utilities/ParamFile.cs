@@ -82,6 +82,40 @@ namespace MissionPlanner.Utilities
             return param;
         }
 
+        /// <summary>
+        /// Loads a parameter file without forcing values to be numeric. DroneCAN parameters can
+        /// legitimately contain strings (including spaces, commas and an empty value), so only
+        /// the first separator belongs to the file structure.
+        /// </summary>
+        public static Dictionary<string, string> LoadTextParamFile(string filename)
+        {
+            var parameters = new Dictionary<string, string>(StringComparer.Ordinal);
+            using (var reader = new StreamReader(filename))
+            {
+                while (!reader.EndOfStream)
+                {
+                    string line = reader.ReadLine();
+                    if (String.IsNullOrWhiteSpace(line) ||
+                        line.TrimStart().StartsWith("#", StringComparison.Ordinal))
+                        continue;
+
+                    int separator = line.IndexOfAny(new[] { ',', '\t', ' ' });
+                    if (separator <= 0)
+                        continue;
+
+                    string name = line.Substring(0, separator).Trim();
+                    if (name.Length == 0)
+                        continue;
+
+                    string value = line.Substring(separator + 1);
+                    if (line[separator] != ',')
+                        value = value.TrimStart(' ', '\t');
+                    parameters[name] = value;
+                }
+            }
+            return parameters;
+        }
+
         public static void SaveParamFile(string fn, Hashtable paramlist)
         {
             using (StreamWriter sw = new StreamWriter(File.Open(fn, FileMode.Create)))
@@ -96,6 +130,32 @@ namespace MissionPlanner.Utilities
 
                     sw.WriteLine(item + "," + valueasstring);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Saves numeric and string parameters in the conventional NAME,value format. Newlines
+        /// are rejected because they would create additional parameter records on import.
+        /// </summary>
+        public static void SaveTextParamFile(string filename,
+            IEnumerable<KeyValuePair<string, string>> parameters)
+        {
+            var sorted = new SortedDictionary<string, string>(StringComparer.Ordinal);
+            foreach (KeyValuePair<string, string> parameter in parameters)
+            {
+                string name = parameter.Key;
+                string value = parameter.Value ?? String.Empty;
+                if (String.IsNullOrWhiteSpace(name) || name.IndexOfAny(new[] { ',', '\t', ' ', '\r', '\n' }) >= 0)
+                    throw new InvalidDataException("Invalid parameter name: " + name);
+                if (value.IndexOfAny(new[] { '\r', '\n' }) >= 0)
+                    throw new InvalidDataException("Parameter " + name + " contains a newline.");
+                sorted[name] = value;
+            }
+
+            using (var writer = new StreamWriter(File.Open(filename, FileMode.Create)))
+            {
+                foreach (KeyValuePair<string, string> parameter in sorted)
+                    writer.WriteLine(parameter.Key + "," + parameter.Value);
             }
         }
     }

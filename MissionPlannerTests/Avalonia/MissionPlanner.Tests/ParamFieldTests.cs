@@ -25,4 +25,18 @@ public class ParamFieldTests {
     Assert.True(f.IsCombo);
     Assert.False(f.IsNumeric);
   }
+
+  [Fact]
+  public void Bitmask_editor_does_not_round_bits_above_float_integer_precision() {
+    var field = new ParamField("ZZ_BITMASK", "bitmask");
+    var bit24 = new BitOption(field, 24, "High bit");
+    var bit2 = new BitOption(field, 2, "Low bit");
+    field.BitOptions.Add(bit24);
+    field.BitOptions.Add(bit2);
+
+    bit24.IsSet = true;
+    bit2.IsSet = true;
+
+    Assert.Equal(16_777_220d, field.Value);
+  }
 }

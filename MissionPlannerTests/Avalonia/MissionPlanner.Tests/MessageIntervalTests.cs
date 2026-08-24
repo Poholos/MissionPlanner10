@@ -27,4 +27,15 @@ public class MessageIntervalTests {
   public void ClampsExcessiveRatesToProtocolSafeMaximum() {
     Assert.Equal(1_000, FlightDataViewModel.MessageIntervalMicroseconds(10_000));
   }
+
+  [Fact]
+  public void Message_picker_excludes_the_legacy_offspec_video_duplicate() {
+    IReadOnlyList<MavlinkMessageOption> options =
+        FlightDataViewModel.BuildMessageIntervalOptions();
+
+    Assert.Contains(options, option =>
+        option.Name == nameof(MAVLink.MAVLINK_MSG_ID.VIDEO_STREAM_INFORMATION));
+    Assert.DoesNotContain(options, option => option.Name == "zVIDEO_STREAM_INFORMATION");
+    Assert.Equal(options.Count, options.Select(option => option.Id).Distinct().Count());
+  }
 }

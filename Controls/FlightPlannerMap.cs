@@ -12,6 +12,7 @@ using Mapsui.Styles;
 using Mapsui.Tiling.Layers;
 using Mapsui.UI.Avalonia;
 using MissionPlanner;
+using MissionPlanner.ArduPilot;
 using MissionPlanner.Services;
 using NetTopologySuite.Geometries;
 
@@ -40,6 +41,7 @@ public class FlightPlannerMap : MapControl {
       _wps = new();
   private double _wpRadius;
   private double _loiterRadius;
+  private Firmwares _firmware;
   private (double Lat, double Lng) _homeLatLng;
   private double _homeAltitude;
   private readonly List<(MPoint Pt, int AfterSeq)> _midSegs = new();
@@ -132,9 +134,10 @@ public class FlightPlannerMap : MapControl {
   public void SetWaypoints(
       IReadOnlyList<(int Seq, double Lat, double Lng, ushort Cmd, double P1, double P2, double P3,
           double P4)> wps,
-      double wpRadius, double loiterRadius) {
+      double wpRadius, double loiterRadius, Firmwares firmware) {
     _wpRadius = RadiusInMeters(wpRadius, CurrentState.multiplierdist);
     _loiterRadius = RadiusInMeters(loiterRadius, CurrentState.multiplierdist);
+    _firmware = firmware;
     _wps.Clear();
     foreach (var w in wps) {
       if (w.Lat == 0 && w.Lng == 0) {
@@ -345,7 +348,7 @@ public class FlightPlannerMap : MapControl {
       var w = _wps[i];
       var (x, y) = SphericalMercator.FromLonLat(w.Lng, w.Lat);
       var pt = new MPoint(x, y);
-      bool routeItem = fence || rally || MissionRoute.IsNavigation(w.Cmd);
+      bool routeItem = fence || rally || MissionRoute.IsFlightPath(w.Cmd);
       if (routeItem) {
         routePoints.Add(pt);
         routeWaypoints.Add(w);
@@ -438,6 +441,10 @@ public class FlightPlannerMap : MapControl {
           ? displayMultiplier
           : 1);
 
+  internal static double LoiterTurnsRadius(
+      double commandRadius, double configuredRadius, Firmwares firmware) =>
+      MissionRoute.LoiterTurnsRadius(commandRadius, configuredRadius, firmware);
+
   private (double Radius, Color Color, Color? Fill) RingFor(ushort cmd, double p1, double p2,
       double p3) {
     var lightBlue = new Color(173, 216, 230);
@@ -445,6 +452,7 @@ public class FlightPlannerMap : MapControl {
       case MAVLink.MAV_CMD.SPLINE_WAYPOINT:
         return (_wpRadius, new Color(0, 128, 0), null);
       case MAVLink.MAV_CMD.LOITER_TURNS:
+        return (LoiterTurnsRadius(p3, _loiterRadius, _firmware), lightBlue, null);
       case MAVLink.MAV_CMD.LOITER_UNLIM:
         return (Math.Abs(p3 != 0 ? p3 : _loiterRadius), lightBlue, null);
       case MAVLink.MAV_CMD.LOITER_TO_ALT:

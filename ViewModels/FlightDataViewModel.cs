@@ -1676,7 +1676,15 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
   }
 
   public IReadOnlyList<MavlinkMessageOption> MessageOptions { get; } =
+      BuildMessageIntervalOptions();
+
+  internal static IReadOnlyList<MavlinkMessageOption> BuildMessageIntervalOptions() =>
       Enum.GetValues<MAVLink.MAVLINK_MSG_ID>()
+          // This legacy off-spec camera announcement is not a requestable MAVLink message. It is
+          // retained in the decoder for old logs/devices, but must not appear beside the standard
+          // VIDEO_STREAM_INFORMATION entry in the SET_MESSAGE_INTERVAL UI.
+          .Where(value => !string.Equals(
+              value.ToString(), "zVIDEO_STREAM_INFORMATION", StringComparison.Ordinal))
           .GroupBy(value => Convert.ToUInt32(value, CultureInfo.InvariantCulture))
           .Select(group => new MavlinkMessageOption(group.Key, group.First().ToString()))
           .OrderBy(option => option.Id)

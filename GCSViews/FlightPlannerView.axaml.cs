@@ -521,7 +521,8 @@ public partial class FlightPlannerView : UserControl {
     } else if (e.PropertyName == nameof(FlightPlannerViewModel.MissionType)) {
       Map.SetRenderMode(Vm.MissionType);
     } else if (e.PropertyName == nameof(FlightPlannerViewModel.WpRadius)
-               || e.PropertyName == nameof(FlightPlannerViewModel.LoiterRadius)) {
+               || e.PropertyName == nameof(FlightPlannerViewModel.LoiterRadius)
+               || e.PropertyName == nameof(FlightPlannerViewModel.VehicleFirmware)) {
       OnWaypointsChanged();
     }
   }
@@ -533,7 +534,7 @@ public partial class FlightPlannerView : UserControl {
 
     Map.SetWaypoints(
         Vm.Waypoints.Select(w => (w.Seq, w.Lat, w.Lng, w.Command, w.P1, w.P2, w.P3, w.P4)).ToList(),
-        Vm.WpRadius, Vm.LoiterRadius);
+        Vm.WpRadius, Vm.LoiterRadius, Vm.VehicleFirmware);
   }
 
   private void OnWaypointDragged(int seq, double lat, double lng) => Vm?.MoveWaypoint(seq, lat, lng);
@@ -913,7 +914,7 @@ public partial class FlightPlannerView : UserControl {
     IReadOnlyList<BruTile.TileInfo> tiles = pathOnly
         ? Services.MapTileSourceFactory.PathTiles(
             Vm.Waypoints
-                .Where(row => Services.MissionRoute.IsNavigation(row.Command)
+                .Where(row => Services.MissionRoute.IsFlightPath(row.Command)
                               && (row.Lat != 0 || row.Lng != 0))
                 .Select(row => (row.Lat, row.Lng)).ToList(), minimum, maximum)
         : Services.MapTileSourceFactory.AreaTiles(Map.VisibleTileExtent, minimum, maximum);
