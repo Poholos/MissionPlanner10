@@ -2,6 +2,7 @@
 using System.CodeDom;
 using System.Collections.Generic;
 using System.IO;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -32,6 +33,7 @@ namespace MissionPlanner.ArduPilot.Mavlink
         const byte rwSize = 80;
 
         private static readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+        private static readonly UTF8Encoding StrictUtf8 = new UTF8Encoding(false, true);
         private readonly byte _compid;
         private readonly MAVLinkInterface _mavint;
         private readonly byte _sysid;
@@ -1301,58 +1303,19 @@ namespace MissionPlanner.ArduPilot.Mavlink
                     if (ftphead.opcode != FTPOpcode.kRspAck)
                         return true;
                     var requested_offset = ftphead.offset;
-                    var offset = 0;
-                    while (offset < ftphead.size)
+                    List<FtpFileInfo> packetEntries;
+                    string parseError;
+                    if (!TryParseDirectoryEntries(
+                            ftphead.data, ftphead.size, dir, out packetEntries, out parseError))
                     {
-                        var b = ftphead.data[offset++];
-                        switch (b)
-                        {
-                            case kDirentFile:
-                                var filename = new StringBuilder();
-                                while (b != 0x0)
-                                {
-                                    b = ftphead.data[offset++];
-                                    if (b != 0x0)
-                                        filename.Append((char) b);
-                                }
-
-                                var items = filename.ToString().Split('\t');
-                                var size = ulong.Parse(items[1]);
-                                answer.Add(new FtpFileInfo(items[0], dir, false, size));
-                                break;
-                            case kDirentDir:
-                                var name = new StringBuilder();
-                                while (b != 0x0)
-                                {
-                                    b = ftphead.data[offset++];
-                                    if (b != 0x0)
-                                        name.Append((char) b);
-                                }
-
-                                answer.Add(new FtpFileInfo(name.ToString(), dir, true));
-                                break;
-                            case kDirentSkip:
-                                while (b != 0x0)
-                                {
-                                    b = ftphead.data[offset++];
-                                }
-
-                                answer.Add(new FtpFileInfo("", dir, true));
-                                break;
-                            default:
-                                var nameextra = new StringBuilder();
-                                while (b != 0x0)
-                                {
-                                    b = ftphead.data[offset++];
-                                    if (b != 0x0)
-                                        nameextra.Append((char) b);
-                                }
-
-                                if (nameextra.ToString() != "")
-                                    answer.Add(new FtpFileInfo(nameextra.ToString(), dir, false));
-                                break;
-                        }
+                        timeout.Retries = 0;
+                        timeout.Complete = true;
+                        ex = new InvalidDataException(
+                            $"Malformed MAVFTP directory response at offset {requested_offset}: {parseError}");
+                        log.Error(ex.Message);
+                        return true;
                     }
+                    answer.AddRange(packetEntries);
 
                     // 0 records
                     if (answer.Count == 0)
@@ -1386,6 +1349,104 @@ namespace MissionPlanner.ArduPilot.Mavlink
             if (ex != null)
                 throw ex;
             return answer;
+        }
+
+        internal static bool TryParseDirectoryEntries(
+            uint8_t[] data, int count, string directory,
+            out List<FtpFileInfo> entries, out string error)
+        {
+            entries = new List<FtpFileInfo>();
+            error = "";
+            if (data == null)
+            {
+                error = "payload is null";
+                return false;
+            }
+            if (count < 0 || count > data.Length)
+            {
+                error = $"payload size {count} exceeds the {data.Length}-byte buffer";
+                return false;
+            }
+
+            int offset = 0;
+            while (offset < count)
+            {
+                uint8_t entryType = data[offset++];
+                if (entryType == 0)
+                    continue;
+
+                string value;
+                if (!TryExtractNullTerminatedUtf8(
+                        data, offset, count, out value, out offset, out error))
+                {
+                    entries.Clear();
+                    return false;
+                }
+
+                switch (entryType)
+                {
+                    case kDirentFile:
+                        int separator = value.LastIndexOf('\t');
+                        ulong size;
+                        if (separator <= 0 || separator == value.Length - 1 ||
+                            !ulong.TryParse(value.Substring(separator + 1), NumberStyles.None,
+                                CultureInfo.InvariantCulture, out size))
+                        {
+                            entries.Clear();
+                            error = "file entry has no valid tab-separated size";
+                            return false;
+                        }
+                        entries.Add(new FtpFileInfo(
+                            value.Substring(0, separator), directory, false, size));
+                        break;
+                    case kDirentDir:
+                        entries.Add(new FtpFileInfo(value, directory, true));
+                        break;
+                    case kDirentSkip:
+                        entries.Add(new FtpFileInfo("", directory, true));
+                        break;
+                    default:
+                        // Preserve the legacy handling of vendor-specific entry tags, but decode
+                        // their names safely and never read past the reported packet size.
+                        if (value.Length != 0)
+                            entries.Add(new FtpFileInfo(value, directory, false));
+                        break;
+                }
+            }
+            return true;
+        }
+
+        internal static bool TryExtractNullTerminatedUtf8(
+            uint8_t[] data, int offset, int limit, out string value, out int nextOffset,
+            out string error)
+        {
+            value = "";
+            nextOffset = offset;
+            error = "";
+            if (data == null || offset < 0 || limit < offset || limit > data.Length)
+            {
+                error = "invalid string bounds";
+                return false;
+            }
+
+            int tail = Array.IndexOf(data, (uint8_t)0, offset, limit - offset);
+            if (tail < 0)
+            {
+                error = "directory entry is not null terminated";
+                return false;
+            }
+
+            try
+            {
+                value = StrictUtf8.GetString(data, offset, tail - offset);
+                nextOffset = tail + 1;
+                return true;
+            }
+            catch (DecoderFallbackException)
+            {
+                error = "directory entry contains invalid UTF-8";
+                return false;
+            }
         }
 
         public bool kCmdOpenFileWO(string file, ref int size, CancellationTokenSource cancel)
