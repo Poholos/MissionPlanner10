@@ -90,7 +90,7 @@ namespace MissionPlanner.Utilities
                 {
                     try
                     {
-                        var client = new UdpClient(connectionInfo.Port);
+                        var client = UdpSerial.CreateSharedListener(connectionInfo.Port);
                         client.BeginReceive(clientdataMAVLink, client);
                     }
                     catch (Exception ex)
@@ -284,7 +284,8 @@ namespace MissionPlanner.Utilities
                 {
                     try
                     {
-                        var client = new UdpClient(connectionInfo.Port, AddressFamily.InterNetwork);
+                        var client = UdpSerial.CreateSharedListener(
+                            connectionInfo.Port, AddressFamily.InterNetwork);
                         client.BeginReceive(clientdataVideo, client);
                     }
                     catch (Exception ex)

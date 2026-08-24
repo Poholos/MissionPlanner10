@@ -112,8 +112,7 @@ public partial class SerialPassThroughViewModel : ViewModelBase, IDisposable {
           }
 
         case "UDP Host - 14550": {
-            var udp = new UdpSerial { Port = "14550" };
-            udp.client = new UdpClient(14550);
+            var udp = new UdpSerial(UdpSerial.CreateSharedListener(14550)) { Port = "14550" };
             inner = udp;
             break;
           }

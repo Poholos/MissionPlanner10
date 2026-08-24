@@ -714,7 +714,7 @@ public partial class OpenDroneIdViewModel : ViewModelBase, IDisposable {
           return (tcp, null);
         }
       case UdpHost:
-        return (new UdpSerial(new UdpClient(port)) { ReadTimeout = 1000 }, null);
+        return (new UdpSerial(UdpSerial.CreateSharedListener(port)) { ReadTimeout = 1000 }, null);
       case UdpClient: {
           if (string.IsNullOrWhiteSpace(host)) {
             throw new InvalidOperationException("Enter a remote UDP host.");

@@ -273,7 +273,7 @@ public partial class MovingBaseViewModel : ViewModelBase, IDisposable {
           return (tcp, null);
         }
       case UdpHost: {
-          var udp = new UdpSerial(new System.Net.Sockets.UdpClient(port)) { ReadTimeout = 1000 };
+          var udp = new UdpSerial(UdpSerial.CreateSharedListener(port)) { ReadTimeout = 1000 };
           return (udp, null);
         }
       case UdpClient: {
