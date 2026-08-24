@@ -187,7 +187,6 @@ jobs:
           fi
 
       - name: Build signed GitHub-release update manifest
-        if: startsWith(github.ref, 'refs/tags/')
         shell: bash
         env:
           UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}

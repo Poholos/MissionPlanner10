@@ -74,6 +74,10 @@ MissionPlanner-<artifact>-<rid>.zip         # complete macOS app
 MissionPlanner-<artifact>-<rid>.dmg         # human-installable macOS image
 ```
 
+A manual workflow dispatch performs the same package and updater-signature work without publishing
+a GitHub Release. This makes the updater key and platform OpenSSL behavior testable before a tag is
+created.
+
 The application queries `Rouniy/MissionPlanner` GitHub Releases directly. Stable updates select a
 non-prerelease; Beta Updates select a prerelease. Both require an Ed25519-signed manifest and a
 SHA-256-pinned full bundle. Debian installs contain `.package-managed` and deliberately defer
