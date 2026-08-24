@@ -78,6 +78,27 @@ public class RawParamsImportTests {
   }
 
   [Fact]
+  public void Compare_reports_parameters_missing_from_either_side_without_staging_them() {
+    var currentOnly = Row("CURRENT_ONLY", 7);
+    var changed = Row("CHANGED", 1);
+
+    var comparison = RawParamsViewModel.BuildComparison(
+        new[] { currentOnly, changed },
+        new Dictionary<string, double> { ["FILE_ONLY"] = 9, ["CHANGED"] = 2 });
+
+    Assert.Equal(new[] { "CHANGED", "CURRENT_ONLY", "FILE_ONLY" },
+        comparison.Select(row => row.Name));
+    Assert.Equal("Not found", comparison.Single(row => row.Name == "CURRENT_ONLY").FileText);
+    Assert.Equal("Not found", comparison.Single(row => row.Name == "FILE_ONLY").CurrentText);
+    Assert.False(comparison.Single(row => row.Name == "CURRENT_ONLY").Use);
+    Assert.False(comparison.Single(row => row.Name == "FILE_ONLY").Use);
+    Assert.Equal(1, RawParamsViewModel.StageSelectedComparison(
+        new[] { currentOnly, changed }, comparison));
+    Assert.Equal("2", changed.ValueText);
+    Assert.Equal("7", currentOnly.ValueText);
+  }
+
+  [Fact]
   public void Compare_never_exposes_or_stages_protected_parameters() {
     var normal = Row("RTL_ALT", 1000);
     var protectedRow = Row("FORMAT_VERSION", 120);

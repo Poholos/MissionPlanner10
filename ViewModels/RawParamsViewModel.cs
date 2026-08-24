@@ -335,7 +335,7 @@ public partial class RawParamsViewModel : ViewModelBase, IDisposable {
       return [];
     }
 
-    var rows = BuildComparison(_all, fileParams);
+    var rows = BuildComparison(_all, fileParams, includeMissing: true);
     if (rows.Count == 0) {
       _ = Services.Dialogs.Alert("Compare parameters",
           $"{System.IO.Path.GetFileName(path)}: no differing matched parameters.");
@@ -411,7 +411,7 @@ public partial class RawParamsViewModel : ViewModelBase, IDisposable {
         Status = "Vehicle changed while the profile was loading; the old result was discarded.";
         return null;
       }
-      var comparison = CompareParamFile(path);
+      var comparison = BuildComparison(_all, ParamFile.loadParamFile(path), includeMissing: false);
       Status = comparison.Count == 0
           ? $"{selected.Name}: no differing matched parameters."
           : $"{selected.Name}: choose which of {comparison.Count} differences to stage.";
@@ -499,13 +499,26 @@ public partial class RawParamsViewModel : ViewModelBase, IDisposable {
   }
 
   internal static IReadOnlyList<ParamComparisonRow> BuildComparison(
-      IEnumerable<ParamRow> current, IReadOnlyDictionary<string, double> imported) {
+      IEnumerable<ParamRow> current, IReadOnlyDictionary<string, double> imported,
+      bool includeMissing = true) {
     var rows = new List<ParamComparisonRow>();
-    foreach (var row in current) {
-      if (!IsProtectedFileParameter(row.Name)
-          && imported.TryGetValue(row.Name, out double importedValue)
-          && !ParameterValuesEqual(importedValue, row.CurrentValue, row.ParameterType)) {
-        rows.Add(new ParamComparisonRow(row.Name, row.CurrentValue, importedValue));
+    var currentByName = current
+        .Where(row => !IsProtectedFileParameter(row.Name))
+        .ToDictionary(row => row.Name, StringComparer.OrdinalIgnoreCase);
+    foreach (var row in currentByName.Values) {
+      if (imported.TryGetValue(row.Name, out double importedValue)) {
+        if (!ParameterValuesEqual(importedValue, row.CurrentValue, row.ParameterType)) {
+          rows.Add(new ParamComparisonRow(row.Name, row.CurrentValue, importedValue));
+        }
+      } else if (includeMissing) {
+        rows.Add(new ParamComparisonRow(row.Name, row.CurrentValue, null));
+      }
+    }
+    if (includeMissing) {
+      foreach (var item in imported) {
+        if (!IsProtectedFileParameter(item.Key) && !currentByName.ContainsKey(item.Key)) {
+          rows.Add(new ParamComparisonRow(item.Key, null, item.Value));
+        }
       }
     }
     return rows.OrderBy(row => row.Name, StringComparer.OrdinalIgnoreCase).ToList();
@@ -513,8 +526,9 @@ public partial class RawParamsViewModel : ViewModelBase, IDisposable {
 
   internal static int StageSelectedComparison(
       IEnumerable<ParamRow> current, IEnumerable<ParamComparisonRow> comparison) {
-    var selected = comparison.Where(row => row.Use)
-        .ToDictionary(row => row.Name, row => row.FileValue, StringComparer.OrdinalIgnoreCase);
+    var selected = comparison.Where(row => row.Use && row.FileValue.HasValue)
+        .ToDictionary(
+            row => row.Name, row => row.FileValue!.Value, StringComparer.OrdinalIgnoreCase);
     int staged = 0;
     foreach (var row in current) {
       if (!IsProtectedFileParameter(row.Name)
@@ -832,21 +846,30 @@ public sealed record FrameDefaultFile(string Name, string Path) {
 }
 
 public partial class ParamComparisonRow : ObservableObject, IParameterComparisonRow {
-  public ParamComparisonRow(string name, double currentValue, double fileValue) {
+  public ParamComparisonRow(string name, double? currentValue, double? fileValue) {
     Name = name;
     CurrentValue = currentValue;
     FileValue = fileValue;
+    _use = CanApply;
   }
 
   public string Name { get; }
-  public double CurrentValue { get; }
-  public double FileValue { get; }
-  public string CurrentText => CurrentValue.ToString(CultureInfo.InvariantCulture);
-  public string FileText => FileValue.ToString(CultureInfo.InvariantCulture);
+  public double? CurrentValue { get; }
+  public double? FileValue { get; }
+  public bool CanApply => CurrentValue.HasValue && FileValue.HasValue;
+  public string CurrentText => CurrentValue.HasValue
+      ? CurrentValue.Value.ToString(CultureInfo.InvariantCulture)
+      : "Not found";
+  public string FileText => FileValue.HasValue
+      ? FileValue.Value.ToString(CultureInfo.InvariantCulture)
+      : "Not found";
   public string ProposedText => FileText;
 
-  [ObservableProperty]
-  private bool _use = true;
+  private bool _use;
+  public bool Use {
+    get => _use;
+    set => SetProperty(ref _use, CanApply && value);
+  }
 }
 
 public partial class ParamRow : ObservableObject {
