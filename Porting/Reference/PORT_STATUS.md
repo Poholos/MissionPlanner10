@@ -604,6 +604,13 @@ submodule. UI-only changes were translated to Avalonia where applicable:
   IDENT and system time; flight termination and SD-card formatting add explicit destructive-action
   warnings. Ground-station action output and connection status/progress are now visible, and
   rejected commands are no longer reported as successfully sent.
+- Flight Data local scripting again runs the official `.py` workflow through IronPython 3.4.2 (the
+  net10-compatible patch successor to the pinned native project's 3.4.1). The portable host preserves
+  `MAV`, `cs`, `Ports`, `Script`, `mavutil`, `MainV2`, `FlightData`, `FlightPlanner` and `Joystick`,
+  including parameter/mode/RC helpers and streamed
+  output. A Python trace hook replaces the original unsupported `Thread.Abort`, so Abort also stops
+  ordinary interpreted loops without terminating the application thread. The separate Setup local
+  Lua REPL remains an additional port tool and no longer masquerades as the Flight Data workflow.
 - Flight Data home and EKF-origin actions use terrain-backed AMSL altitudes with the upstream
   ocean/terrain safety policy. Legacy mount control uses upstream centidegree conversion, preserves
   the final slider position under throttling and resets into MAVLink targeting mode.
@@ -854,7 +861,6 @@ Planner functional-parity gap.
 | Legacy CLI log paths and AC3.3-era terminal flows | Obsolete for supported firmware and intentionally not exposed. Legacy APM/VRX/DFU firmware selection and upload are available through the native Firmware pages instead. |
 | DroneCAN file browser | The official control is unreachable from the current Mission Planner UI and remains half-stubbed. Node parameters and firmware upload are ported; a general browser will be reconsidered when upstream exposes a complete operational workflow. |
 | X-Plane/FlightGear legacy HIL and Ateryx-specific pages | Superseded by SITL and not restored without a current user and maintenance case. |
-| IronPython script host | The portable local console uses MoonSharp Lua. Old Python scripts would require a large legacy runtime and are not enabled by default. |
 | Historical third-party service plugins | AltitudeAngel, DigitalSky, AirMarket and similar integrations require current API, authentication and privacy review before any port. |
 | DirectShow device enumeration | Replaced by libVLC video input so the feature can share one API across Windows, macOS and Linux. |
 | GDI+ HUD renderer switch | Not applicable to Avalonia: the port uses the cross-platform Skia renderer on every target, so the inherited GDI+ option is shown disabled. |

@@ -562,11 +562,11 @@
 
         <TabItem Header="Scripts">
           <Grid Margin="8" RowDefinitions="Auto,Auto,Auto,*,Auto,*">
-            <TextBlock Grid.Row="0" Text="{Binding ScriptStatus, StringFormat=Lua Script Status: {0}}"
+            <TextBlock Grid.Row="0" Text="{Binding ScriptStatus, StringFormat=Python Script Status: {0}}"
                        TextWrapping="Wrap" />
-            <TextBlock Grid.Row="1" Text="{Binding SelectedScript, StringFormat=Selected Lua Script: {0}}" />
+            <TextBlock Grid.Row="1" Text="{Binding SelectedScript, StringFormat=Selected Python Script: {0}}" />
             <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6" Margin="0,4">
-              <Button Content="Select Lua Script" Command="{Binding SelectScriptCommand}" />
+              <Button Content="Select Python Script" Command="{Binding SelectScriptCommand}" />
               <Button Content="Edit Selected" Command="{Binding EditScriptCommand}"
                       IsVisible="{Binding ScriptSelected}" />
               <Button Content="Run" Command="{Binding RunScriptCommand}" />
@@ -575,7 +575,7 @@
             <TextBox Grid.Row="3" Text="{Binding ScriptEditorText}" AcceptsReturn="True"
                      AcceptsTab="True" FontFamily="Consolas,Menlo,monospace" FontSize="12"
                      Background="{DynamicResource MpBorderBrush}" Foreground="WhiteSmoke"
-                     Watermark="Lua code (leave empty to run the selected file)" />
+                     Watermark="Python code (leave empty to run the selected file)" />
             <TextBlock Grid.Row="4" Text="Output" Margin="0,6,0,2" />
             <TextBox Grid.Row="5" Text="{Binding ScriptOutput}" AcceptsReturn="True" IsReadOnly="True"
                      TextWrapping="Wrap" FontFamily="Consolas,Menlo,monospace" FontSize="12"

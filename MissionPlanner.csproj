@@ -77,6 +77,7 @@
     <Compile Include="Services/LocalizationService.cs" />
     <Compile Include="Services/MavlinkSerialControlPort.cs" />
     <Compile Include="Services/OsdTuningSlotService.cs" />
+    <Compile Include="Services/PythonScriptHost.cs" />
     <Compile Include="Services/SikRadioFirmwareService.cs" />
     <Compile Include="Services/SikRadioSettingsService.cs" />
     <Compile Include="Services/SystemAwakeService.cs" />
@@ -115,6 +116,8 @@
     <PackageReference Include="Tmds.DBus.Protocol" />
     <PackageReference Include="ScottPlot.Avalonia" />
     <PackageReference Include="MoonSharp" />
+    <PackageReference Include="IronPython" />
+    <PackageReference Include="IronPython.StdLib" />
     <PackageReference Include="LibVLCSharp.Avalonia" />
     <PackageReference Include="BouncyCastle.Cryptography" />
     <PackageReference Include="SSH.NET" />

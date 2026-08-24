@@ -26,7 +26,7 @@ Updated: **2026-08-24**.
   migration evidence, not a copied source tree.
 - A clean Release build of the complete test graph succeeds with zero warnings and zero errors
   after resolving all 156 inherited `ExtLibs` diagnostics without a repository-wide `NoWarn`; the
-  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1215/1215**
+  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1218/1218**
   Avalonia tests pass on Linux. A 12-second Xvfb launch reaches the normal Avalonia event loop with
   no console errors.
 - Informational version is derived from the current native Mission Planner version and formatted as
@@ -51,13 +51,16 @@ Updated: **2026-08-24**.
   filter, including the still-published APM HEX images. Explicit target/port selection replaces the
   unsafe multi-device assumptions in old `BoardDetect`; obsolete Parrot/Solo network installers are
   reported as unsupported rather than routed to the wrong programmer.
+- Flight Data local scripting now preserves the official IronPython 3.4.2 `.py` workflow and its
+  live `MAV`/`cs`/`Ports`/`Script` bindings. Output is streamed into the Avalonia page and Abort uses
+  a cooperative per-line trace hook instead of the original unsupported `Thread.Abort`. The local
+  MoonSharp console remains available as a separate optional Lua tool.
 - CI, CodeQL, Dependabot and tag-release workflows are reconciled with the in-place tree. Legacy
   WinForms/Xamarin workflows remain available manually but no longer run against every port push.
 - The frozen native inventory remains complete in `NATIVE_SURFACE.tsv`, while replaced WinForms
   sources are explicitly mapped to tested Avalonia artifacts and selected source files whose
   behavior is fully superseded have been removed. RESX translations remain preserved. The manifest
-  now exposes **8** `unported-blocker` rows: Python scripting; the embedded HTTP service; Dowding;
-  and old WiX
+  now exposes **7** `unported-blocker` rows: the embedded HTTP service; Dowding; and old WiX
   bootstrap sources. Obsolete directories, standalone projects and other build-system remnants are
   intentionally deferred to `cleanup/project-audit` after these functional blockers are closed.
 - Claude remains temporarily disabled by user instruction.
@@ -66,7 +69,7 @@ Updated: **2026-08-24**.
 
 - NV modem behavior was last compared with `/home/alex/src/AgroSky/GTU` at commit
   `0ae813004079bd46d63d708966b7eff266ad5949` (`feat: use NV5 encryption key words`). The GTU
-  worktree was clean; its local `master` was one commit ahead of `origin/master`.
+  worktree was clean and its local `master` matched `origin/master`.
 - Before each later NV modem change and before a release, recheck both committed and uncommitted
   GTU changes with `git status`, then compare every newer change to `hermes-gui/include/nv5settings.h`,
   `hermes-gui/src/nv5settings.cpp` and `hermes-gui/test/testnv5settings.cpp`. Update this commit and
@@ -74,7 +77,7 @@ Updated: **2026-08-24**.
 
 ## Immediate next step
 
-Close the remaining 8 functional manifest blockers without mixing repository cleanup into this
+Close the remaining 7 functional manifest blockers without mixing repository cleanup into this
 branch. Then require the GitHub run to perform a real default-path MSI install/uninstall, build/sign
 both `.app` archives on macOS, repeat Linux package smoke and complete CodeQL. Once functional and
 packaging gates are green, run the conservative unused-file/directory/build-system audit on the
@@ -82,7 +85,7 @@ separate `cleanup/project-audit` branch.
 
 ## Acceptance baseline
 
-- At least 1215 port tests retained and passing.
+- At least 1218 port tests retained and passing.
 - Clean Release build has zero errors and zero warnings.
 - `linux-x64`, `win-x64`, `osx-x64`, and `osx-arm64` publish gates pass.
 - Linux `.deb` and portable archive build and smoke successfully.
