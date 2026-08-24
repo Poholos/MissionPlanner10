@@ -18,18 +18,18 @@ Antenna/TrackerUI.zh-Hans.resx	resx	retain		Preserve neutral/culture resource un
 Antenna/TrackerUI.zh-Hant.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Antenna/TrackerUI.zh-TW.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Common.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/AuthKeys.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/AuthKeys.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/AuthKeys.Designer.cs	csharp	replace	ViewModels/GCSViews/ConfigurationView/ConfigAdvancedViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/AuthKeys.cs	csharp	replace	ViewModels/GCSViews/ConfigurationView/ConfigAdvancedViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/AuthKeys.ko-KR.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/AuthKeys.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/AuthKeys.uk.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/AuxOptions.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/AuxOptions.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/AuxOptions.Designer.cs	csharp	replace	GCSViews/FlightDataView.axaml;ViewModels/FlightDataViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/AuxOptions.cs	csharp	replace	GCSViews/FlightDataView.axaml;ViewModels/FlightDataViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/AuxOptions.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/ConnectionControl.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/ConnectionControl.Designer.cs	csharp	replace	Views/MainWindow.axaml;ViewModels/ConnectionViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/ConnectionControl.ar.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ConnectionControl.az-Latn-AZ.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/ConnectionControl.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/ConnectionControl.cs	csharp	replace	Views/MainWindow.axaml;ViewModels/ConnectionViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/ConnectionControl.id-ID.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ConnectionControl.ja-JP.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ConnectionControl.ko-KR.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
@@ -39,10 +39,10 @@ Controls/ConnectionControl.ru-KZ.resx	resx	retain		Preserve neutral/culture reso
 Controls/ConnectionControl.tr.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ConnectionControl.uk.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ConnectionControl.zh-Hans.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/ConnectionOptions.Designer.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/ViewModels/ConnectionOptionsViewModel.cs;src/MissionPlannerAvalonia/Views/ConnectionOptionsWindow.axaml.cs	Requires code-level classification before project exclusion or deletion.
+Controls/ConnectionOptions.Designer.cs	csharp	replace	Views/ConnectionOptionsWindow.axaml;ViewModels/ConnectionOptionsViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/ConnectionOptions.ar.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ConnectionOptions.az-Latn-AZ.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/ConnectionOptions.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/ViewModels/ConnectionOptionsViewModel.cs;src/MissionPlannerAvalonia/Views/ConnectionOptionsWindow.axaml.cs	Requires code-level classification before project exclusion or deletion.
+Controls/ConnectionOptions.cs	csharp	replace	Views/ConnectionOptionsWindow.axaml;ViewModels/ConnectionOptionsViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/ConnectionOptions.id-ID.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ConnectionOptions.ko-KR.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ConnectionOptions.pt.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
@@ -51,10 +51,10 @@ Controls/ConnectionOptions.ru-KZ.resx	resx	retain		Preserve neutral/culture reso
 Controls/ConnectionOptions.tr.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ConnectionOptions.uk.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ConnectionOptions.zh-Hans.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/ConnectionStats.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/ConnectionStats.Designer.cs	csharp	replace	Views/LinkStatsWindow.axaml;ViewModels/LinkStatsViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/ConnectionStats.ar.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ConnectionStats.az-Latn-AZ.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/ConnectionStats.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/ConnectionStats.cs	csharp	replace	Views/LinkStatsWindow.axaml;ViewModels/LinkStatsViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/ConnectionStats.id-ID.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ConnectionStats.ja-JP.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ConnectionStats.ko-KR.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
@@ -64,13 +64,13 @@ Controls/ConnectionStats.ru-KZ.resx	resx	retain		Preserve neutral/culture resour
 Controls/ConnectionStats.tr.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ConnectionStats.uk.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ConnectionStats.zh-Hans.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/ControlSensorsStatus.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/ControlSensorsStatus.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/ControlSensorsStatus.Designer.cs	csharp	replace	Controls/HudControl.cs;Views/FlightDataDialogs.cs;ViewModels/FlightDataViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/ControlSensorsStatus.cs	csharp	replace	Controls/HudControl.cs;Views/FlightDataDialogs.cs;ViewModels/FlightDataViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/ControlSensorsStatus.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/DefaultSettings.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/DefaultSettings.Designer.cs	csharp	replace	GCSViews/ConfigurationView/ConfigDefaultSettingsView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigDefaultSettingsViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/DefaultSettings.ar.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/DefaultSettings.az-Latn-AZ.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/DefaultSettings.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/DefaultSettings.cs	csharp	replace	GCSViews/ConfigurationView/ConfigDefaultSettingsView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigDefaultSettingsViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/DefaultSettings.id-ID.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/DefaultSettings.ja-JP.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/DefaultSettings.ko-KR.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
@@ -80,24 +80,24 @@ Controls/DefaultSettings.ru-KZ.resx	resx	retain		Preserve neutral/culture resour
 Controls/DefaultSettings.tr.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/DefaultSettings.uk.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/DefaultSettings.zh-Hans.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/DevopsUI.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/DevopsUI.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/DevopsUI.Designer.cs	csharp	replace	Views/DeviceOperationsView.axaml;ViewModels/DeviceOperationsViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/DevopsUI.cs	csharp	replace	Views/DeviceOperationsView.axaml;ViewModels/DeviceOperationsViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/DevopsUI.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/DigitalSkyUI.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/DigitalSkyUI.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/DigitalSkyUI.Designer.cs	csharp	remove	Porting/Reference/PORT_STATUS.md	DigitalSky is a retired third-party service integration and is intentionally not shipped without a current API/authentication/privacy review.
+Controls/DigitalSkyUI.cs	csharp	remove	Porting/Reference/PORT_STATUS.md	DigitalSky is a retired third-party service integration and is intentionally not shipped without a current API/authentication/privacy review.
 Controls/DigitalSkyUI.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/DistanceBar.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/DistanceBar.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/DistanceBar.Designer.cs	csharp	replace	GCSViews/FlightDataView.axaml;ViewModels/FlightDataViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/DistanceBar.cs	csharp	replace	GCSViews/FlightDataView.axaml;ViewModels/FlightDataViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/DistanceBar.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/DroneCANFileUI.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/DroneCANFileUI.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/DroneCANFileUI.Designer.cs	csharp	remove	Porting/Reference/PORT_STATUS.md	The pinned native DroneCAN file browser is unreachable and half-stubbed; node parameters and firmware upload remain available in the native Avalonia DroneCAN page.
+Controls/DroneCANFileUI.cs	csharp	remove	Porting/Reference/PORT_STATUS.md	The pinned native DroneCAN file browser is unreachable and half-stubbed; node parameters and firmware upload remain available in the native Avalonia DroneCAN page.
 Controls/DroneCANFileUI.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/DroneCANInspector.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/ViewModels/DroneCANInspectorViewModel.cs;src/MissionPlannerAvalonia/Views/DroneCANInspectorView.axaml.cs;src/MissionPlannerAvalonia/Views/DroneCANInspectorWindow.cs	Requires code-level classification before project exclusion or deletion.
 Controls/DroneCANInspector.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/DroneCANParams.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/DroneCANParams.Designer.cs	csharp	replace	GCSViews/ConfigurationView/ConfigDroneCanView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigDroneCanViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/DroneCANParams.ar.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/DroneCANParams.az-Latn-AZ.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/DroneCANParams.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/DroneCANParams.cs	csharp	replace	GCSViews/ConfigurationView/ConfigDroneCanView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigDroneCanViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/DroneCANParams.de-DE.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/DroneCANParams.fr.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/DroneCANParams.id-ID.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
@@ -114,18 +114,18 @@ Controls/DroneCANParams.zh-Hant.resx	resx	retain		Preserve neutral/culture resou
 Controls/DroneCANParams.zh-TW.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/DroneCANSubscriber.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
 Controls/DroneCANSubscriber.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/EKFStatus.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/EKFStatus.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/EKFStatus.Designer.cs	csharp	replace	Views/FlightDataDialogs.cs;Controls/HudControl.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/EKFStatus.cs	csharp	replace	Views/FlightDataDialogs.cs;Controls/HudControl.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/EKFStatus.ko-KR.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/EKFStatus.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/EKFStatus.uk.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/ElevationProfile.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/ElevationProfile.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/ElevationProfile.Designer.cs	csharp	replace	Views/ElevationGraphWindow.cs;ViewModels/FlightPlannerViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/ElevationProfile.cs	csharp	replace	Views/ElevationGraphWindow.cs;ViewModels/FlightPlannerViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/ElevationProfile.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/FollowMe.Designer.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/ViewModels/FollowMeViewModel.cs;src/MissionPlannerAvalonia/Views/FollowMeView.axaml.cs;src/MissionPlannerAvalonia/Views/FollowMeWindow.cs	Requires code-level classification before project exclusion or deletion.
+Controls/FollowMe.Designer.cs	csharp	replace	Views/FollowMeView.axaml;ViewModels/FollowMeViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/FollowMe.ar.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/FollowMe.az-Latn-AZ.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/FollowMe.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/ViewModels/FollowMeViewModel.cs;src/MissionPlannerAvalonia/Views/FollowMeView.axaml.cs;src/MissionPlannerAvalonia/Views/FollowMeWindow.cs	Requires code-level classification before project exclusion or deletion.
+Controls/FollowMe.cs	csharp	replace	Views/FollowMeView.axaml;ViewModels/FollowMeViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/FollowMe.de-DE.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/FollowMe.es-ES.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/FollowMe.fr.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
@@ -141,44 +141,44 @@ Controls/FollowMe.uk.resx	resx	retain		Preserve neutral/culture resource until A
 Controls/FollowMe.zh-Hans.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/FollowMe.zh-Hant.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/FollowMe.zh-TW.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/GMAPCache.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/GMAPCache.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/GMAPCache.Designer.cs	csharp	replace	Views/MapCacheView.axaml;ViewModels/MapCacheViewModel.cs;Services/MapCacheManager.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/GMAPCache.cs	csharp	replace	Views/MapCacheView.axaml;ViewModels/MapCacheViewModel.cs;Services/MapCacheManager.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/GMAPCache.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/GimbalControlSettingsForm.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/GimbalControlSettingsForm.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/GimbalControlSettingsForm.Designer.cs	csharp	replace	Controls/GimbalVideoOverlay.cs;Services/GimbalVideoInteraction.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/GimbalControlSettingsForm.cs	csharp	replace	Controls/GimbalVideoOverlay.cs;Services/GimbalVideoInteraction.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/GimbalControlSettingsForm.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/GimbalVideoControl.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/GimbalVideoControl.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/GimbalVideoControl.Designer.cs	csharp	replace	Controls/VideoControl.cs;Controls/GimbalVideoOverlay.cs;Services/GimbalVideoInteraction.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/GimbalVideoControl.cs	csharp	replace	Controls/VideoControl.cs;Controls/GimbalVideoOverlay.cs;Services/GimbalVideoInteraction.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/GimbalVideoControl.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/Icon/File.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/Icon/Icon.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/Icon/Polygon.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/Icon/Zoom.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/Loading.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/Loading.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/Icon/File.cs	csharp	replace	Theme/MpTheme.axaml;GCSViews/FlightPlannerView.axaml;Controls/FlightPlannerMap.cs	The GDI icon helpers are replaced by Avalonia vector/font icons and native map drawing.
+Controls/Icon/Icon.cs	csharp	replace	Theme/MpTheme.axaml;GCSViews/FlightPlannerView.axaml;Controls/FlightPlannerMap.cs	The GDI icon helpers are replaced by Avalonia vector/font icons and native map drawing.
+Controls/Icon/Polygon.cs	csharp	replace	Theme/MpTheme.axaml;GCSViews/FlightPlannerView.axaml;Controls/FlightPlannerMap.cs	The GDI icon helpers are replaced by Avalonia vector/font icons and native map drawing.
+Controls/Icon/Zoom.cs	csharp	replace	Theme/MpTheme.axaml;GCSViews/FlightPlannerView.axaml;Controls/FlightPlannerMap.cs	The GDI icon helpers are replaced by Avalonia vector/font icons and native map drawing.
+Controls/Loading.Designer.cs	csharp	replace	Services/ProgressDialogs.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/Loading.cs	csharp	replace	Services/ProgressDialogs.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/Loading.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/LogAnalyzer.Designer.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/Services/LogAnalyzer.cs	Requires code-level classification before project exclusion or deletion.
-Controls/LogAnalyzer.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/Services/LogAnalyzer.cs	Requires code-level classification before project exclusion or deletion.
+Controls/LogAnalyzer.Designer.cs	csharp	replace	Services/LogAnalyzer.cs;Views/LogMetadataWindow.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/LogAnalyzer.cs	csharp	replace	Services/LogAnalyzer.cs;Views/LogMetadataWindow.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/LogAnalyzer.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/MAVLinkInspector.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/ViewModels/MAVLinkInspectorViewModel.cs;src/MissionPlannerAvalonia/Views/MAVLinkInspectorView.axaml.cs;src/MissionPlannerAvalonia/Views/MAVLinkInspectorWindow.cs	Requires code-level classification before project exclusion or deletion.
+Controls/MAVLinkInspector.cs	csharp	replace	Views/MAVLinkInspectorView.axaml;ViewModels/MAVLinkInspectorViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/MAVLinkInspector.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/MAVLinkParamChanged.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/MavCommandSelection.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/MavCommandSelection.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/MAVLinkParamChanged.cs	csharp	replace	ViewModels/GCSViews/ConfigurationView/ParamField.cs;ViewModels/GCSViews/ConfigurationView/ParamPageBase.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/MavCommandSelection.Designer.cs	csharp	replace	GCSViews/ConfigurationView/ConfigMavCommandView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigMavCommandViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/MavCommandSelection.cs	csharp	replace	GCSViews/ConfigurationView/ConfigMavCommandView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigMavCommandViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/MavCommandSelection.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/MavCommandSelection.uk.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/MavFTPUI.Designer.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/MavFTPUIViewModel.cs;src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/MavFTPUIView.axaml.cs	Requires code-level classification before project exclusion or deletion.
-Controls/MavFTPUI.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/ViewModels/GCSViews/ConfigurationView/MavFTPUIViewModel.cs;src/MissionPlannerAvalonia/Views/GCSViews/ConfigurationView/MavFTPUIView.axaml.cs	Requires code-level classification before project exclusion or deletion.
+Controls/MavFTPUI.Designer.cs	csharp	replace	GCSViews/ConfigurationView/MavFTPUIView.axaml;ViewModels/GCSViews/ConfigurationView/MavFTPUIViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/MavFTPUI.cs	csharp	replace	GCSViews/ConfigurationView/MavFTPUIView.axaml;ViewModels/GCSViews/ConfigurationView/MavFTPUIViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/MavFTPUI.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/MavlinkCheckBox.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/MavlinkCheckBoxBitMask.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/MavlinkCheckBox.cs	csharp	replace	Controls/FormField.cs;ViewModels/GCSViews/ConfigurationView/ParamField.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/MavlinkCheckBoxBitMask.cs	csharp	replace	Controls/FormField.cs;ViewModels/GCSViews/ConfigurationView/ParamField.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/MavlinkCheckBoxBitMask.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/MavlinkComboBox.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/MavlinkNumericUpDown.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/ModifyandSet.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/MavlinkComboBox.cs	csharp	replace	Controls/FormField.cs;ViewModels/GCSViews/ConfigurationView/ParamField.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/MavlinkNumericUpDown.cs	csharp	replace	Controls/FormField.cs;ViewModels/GCSViews/ConfigurationView/ParamField.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/ModifyandSet.Designer.cs	csharp	replace	Views/ParamCompareWindow.cs;ViewModels/RawParamsViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/ModifyandSet.ar.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ModifyandSet.az-Latn-AZ.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/ModifyandSet.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/ModifyandSet.cs	csharp	replace	Views/ParamCompareWindow.cs;ViewModels/RawParamsViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/ModifyandSet.id-ID.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ModifyandSet.ja-JP.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ModifyandSet.ko-KR.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
@@ -187,10 +187,10 @@ Controls/ModifyandSet.resx	resx	retain		Preserve neutral/culture resource until 
 Controls/ModifyandSet.ru-KZ.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ModifyandSet.tr.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ModifyandSet.uk.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/MovingBase.Designer.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/ViewModels/MovingBaseViewModel.cs;src/MissionPlannerAvalonia/Views/MovingBaseView.axaml.cs;src/MissionPlannerAvalonia/Views/MovingBaseWindow.cs	Requires code-level classification before project exclusion or deletion.
+Controls/MovingBase.Designer.cs	csharp	replace	Views/MovingBaseView.axaml;ViewModels/MovingBaseViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/MovingBase.ar.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/MovingBase.az-Latn-AZ.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/MovingBase.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/ViewModels/MovingBaseViewModel.cs;src/MissionPlannerAvalonia/Views/MovingBaseView.axaml.cs;src/MissionPlannerAvalonia/Views/MovingBaseWindow.cs	Requires code-level classification before project exclusion or deletion.
+Controls/MovingBase.cs	csharp	replace	Views/MovingBaseView.axaml;ViewModels/MovingBaseViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/MovingBase.de-DE.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/MovingBase.es-ES.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/MovingBase.fr.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
@@ -207,36 +207,36 @@ Controls/MovingBase.uk.resx	resx	retain		Preserve neutral/culture resource until
 Controls/MovingBase.zh-Hans.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/MovingBase.zh-Hant.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/MovingBase.zh-TW.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/MyDataGridView.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/OSDVideo.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/OSDVideo.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/MyDataGridView.cs	csharp	replace	Views/RawParamsView.axaml;GCSViews/FlightPlannerView.axaml	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/OSDVideo.Designer.cs	csharp	replace	Views/OsdVideoOverlayWindow.axaml;ViewModels/OsdVideoOverlayViewModel.cs;Services/OsdVideoOverlay.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/OSDVideo.cs	csharp	replace	Views/OsdVideoOverlayWindow.axaml;ViewModels/OsdVideoOverlayViewModel.cs;Services/OsdVideoOverlay.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/OSDVideo.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/OpenGLtest.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/OpenGLtest.cs	csharp	remove	Porting/Reference/PORT_STATUS.md	The obsolete first OpenGL test surface is superseded by the tested native Avalonia Terrain 3D workflow.
 Controls/OpenGLtest.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/OpenGLtest2.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/OpenGLtest2.cs	csharp	replace	Views/Terrain3DView.axaml;ViewModels/Terrain3DViewModel.cs;Services/Terrain3D.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/OpenGLtest2.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/PreFlight/CheckListControl.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/PreFlight/CheckListControl.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/PreFlight/CheckListControl.Designer.cs	csharp	replace	Services/PreflightChecklist.cs;GCSViews/FlightDataView.axaml;ViewModels/FlightDataViewModel.cs	The checklist schema, evaluator, manual checks and native editor are ported and tested; see Porting/Reference/PORT_STATUS.md.
+Controls/PreFlight/CheckListControl.cs	csharp	replace	Services/PreflightChecklist.cs;GCSViews/FlightDataView.axaml;ViewModels/FlightDataViewModel.cs	The checklist schema, evaluator, manual checks and native editor are ported and tested; see Porting/Reference/PORT_STATUS.md.
 Controls/PreFlight/CheckListControl.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/PreFlight/CheckListEditor.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/PreFlight/CheckListEditor.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/PreFlight/CheckListEditor.Designer.cs	csharp	replace	Services/PreflightChecklist.cs;GCSViews/FlightDataView.axaml;ViewModels/FlightDataViewModel.cs	The checklist schema, evaluator, manual checks and native editor are ported and tested; see Porting/Reference/PORT_STATUS.md.
+Controls/PreFlight/CheckListEditor.cs	csharp	replace	Services/PreflightChecklist.cs;GCSViews/FlightDataView.axaml;ViewModels/FlightDataViewModel.cs	The checklist schema, evaluator, manual checks and native editor are ported and tested; see Porting/Reference/PORT_STATUS.md.
 Controls/PreFlight/CheckListEditor.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/PreFlight/CheckListInput.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/PreFlight/CheckListInput.cs	csharp	replace	Services/PreflightChecklist.cs;GCSViews/FlightDataView.axaml;ViewModels/FlightDataViewModel.cs	The checklist schema, evaluator, manual checks and native editor are ported and tested; see Porting/Reference/PORT_STATUS.md.
 Controls/PreFlight/CheckListInput.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/PreFlight/CheckListItem.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/PrearmStatus.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/PrearmStatus.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/PreFlight/CheckListItem.cs	csharp	replace	Services/PreflightChecklist.cs;GCSViews/FlightDataView.axaml;ViewModels/FlightDataViewModel.cs	The checklist schema, evaluator, manual checks and native editor are ported and tested; see Porting/Reference/PORT_STATUS.md.
+Controls/PrearmStatus.Designer.cs	csharp	replace	Views/FlightDataDialogs.cs;Controls/HudControl.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/PrearmStatus.cs	csharp	replace	Views/FlightDataDialogs.cs;Controls/HudControl.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/PrearmStatus.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/PropagationSettings.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/Views/PropagationSettingsWindow.cs	Requires code-level classification before project exclusion or deletion.
+Controls/PropagationSettings.cs	csharp	replace	Views/PropagationSettingsWindow.cs;Services/PropagationService.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/PropagationSettings.ko-KR.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/PropagationSettings.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/PropagationSettings.uk.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/ProximityControl.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/ProximityControl.cs	csharp	replace	Views/ProximityWindow.cs;Controls/ProximityRadarControl.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/ProximityControl.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/RAW_Sensor.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/RAW_Sensor.Designer.cs	csharp	replace	Views/FlightDataDialogs.cs;GCSViews/FlightDataView.axaml	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/RAW_Sensor.ar.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/RAW_Sensor.az-Latn-AZ.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/RAW_Sensor.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/RAW_Sensor.cs	csharp	replace	Views/FlightDataDialogs.cs;GCSViews/FlightDataView.axaml	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/RAW_Sensor.de-DE.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/RAW_Sensor.es-ES.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/RAW_Sensor.fr.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
@@ -253,10 +253,10 @@ Controls/RAW_Sensor.uk.resx	resx	retain		Preserve neutral/culture resource until
 Controls/RAW_Sensor.zh-Hans.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/RAW_Sensor.zh-Hant.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/RAW_Sensor.zh-TW.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/RelayOptions.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/RelayOptions.Designer.cs	csharp	replace	GCSViews/FlightDataView.axaml;ViewModels/FlightDataViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/RelayOptions.ar.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/RelayOptions.az-Latn-AZ.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/RelayOptions.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/RelayOptions.cs	csharp	replace	GCSViews/FlightDataView.axaml;ViewModels/FlightDataViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/RelayOptions.id-ID.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/RelayOptions.ja-JP.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/RelayOptions.ko-KR.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
@@ -267,10 +267,10 @@ Controls/RelayOptions.tr.resx	resx	retain		Preserve neutral/culture resource unt
 Controls/RelayOptions.uk.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/RelayOptions.zh-Hans.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/SB.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/ScriptConsole.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/ScriptConsole.Designer.cs	csharp	replace	GCSViews/ConfigurationView/ConfigScriptReplView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigScriptReplViewModel.cs;Services/LuaScriptHost.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/ScriptConsole.ar.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ScriptConsole.az-Latn-AZ.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/ScriptConsole.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/ScriptConsole.cs	csharp	replace	GCSViews/ConfigurationView/ConfigScriptReplView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigScriptReplViewModel.cs;Services/LuaScriptHost.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/ScriptConsole.id-ID.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ScriptConsole.ja-JP.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ScriptConsole.ko-KR.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
@@ -282,13 +282,13 @@ Controls/ScriptConsole.uk.resx	resx	retain		Preserve neutral/culture resource un
 Controls/ScriptConsole.zh-Hans.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ScriptConsole.zh-Hant.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ScriptConsole.zh-TW.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/SerialOutputCoT.Designer.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/ViewModels/SerialOutputCotViewModel.cs;src/MissionPlannerAvalonia/Views/SerialOutputCotView.axaml.cs;src/MissionPlannerAvalonia/Views/SerialOutputCotWindow.cs	Requires code-level classification before project exclusion or deletion.
-Controls/SerialOutputCoT.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/ViewModels/SerialOutputCotViewModel.cs;src/MissionPlannerAvalonia/Views/SerialOutputCotView.axaml.cs;src/MissionPlannerAvalonia/Views/SerialOutputCotWindow.cs	Requires code-level classification before project exclusion or deletion.
+Controls/SerialOutputCoT.Designer.cs	csharp	replace	Views/SerialOutputCotView.axaml;ViewModels/SerialOutputCotViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/SerialOutputCoT.cs	csharp	replace	Views/SerialOutputCotView.axaml;ViewModels/SerialOutputCotViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/SerialOutputCoT.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/SerialOutputMD.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/SerialOutputMD.Designer.cs	csharp	replace	Views/MicrodroneDownlinkView.axaml;ViewModels/MicrodroneDownlinkViewModel.cs;Services/MicrodroneDownlinkEncoder.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/SerialOutputMD.ar.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/SerialOutputMD.az-Latn-AZ.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/SerialOutputMD.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/SerialOutputMD.cs	csharp	replace	Views/MicrodroneDownlinkView.axaml;ViewModels/MicrodroneDownlinkViewModel.cs;Services/MicrodroneDownlinkEncoder.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/SerialOutputMD.id-ID.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/SerialOutputMD.ja-JP.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/SerialOutputMD.ko-KR.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
@@ -297,10 +297,10 @@ Controls/SerialOutputMD.resx	resx	retain		Preserve neutral/culture resource unti
 Controls/SerialOutputMD.ru-KZ.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/SerialOutputMD.tr.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/SerialOutputMD.uk.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/SerialOutputNMEA.Designer.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/ViewModels/SerialOutputNMEAViewModel.cs;src/MissionPlannerAvalonia/Views/SerialOutputNMEAView.axaml.cs;src/MissionPlannerAvalonia/Views/SerialOutputNMEAWindow.cs	Requires code-level classification before project exclusion or deletion.
+Controls/SerialOutputNMEA.Designer.cs	csharp	replace	Views/SerialOutputNMEAView.axaml;ViewModels/SerialOutputNMEAViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/SerialOutputNMEA.ar.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/SerialOutputNMEA.az-Latn-AZ.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/SerialOutputNMEA.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/ViewModels/SerialOutputNMEAViewModel.cs;src/MissionPlannerAvalonia/Views/SerialOutputNMEAView.axaml.cs;src/MissionPlannerAvalonia/Views/SerialOutputNMEAWindow.cs	Requires code-level classification before project exclusion or deletion.
+Controls/SerialOutputNMEA.cs	csharp	replace	Views/SerialOutputNMEAView.axaml;ViewModels/SerialOutputNMEAViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/SerialOutputNMEA.id-ID.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/SerialOutputNMEA.ja-JP.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/SerialOutputNMEA.ko-KR.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
@@ -309,10 +309,10 @@ Controls/SerialOutputNMEA.resx	resx	retain		Preserve neutral/culture resource un
 Controls/SerialOutputNMEA.ru-KZ.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/SerialOutputNMEA.tr.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/SerialOutputNMEA.uk.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/SerialOutputPass.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/SerialOutputPass.Designer.cs	csharp	replace	Views/SerialPassThroughView.axaml;ViewModels/SerialPassThroughViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/SerialOutputPass.ar.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/SerialOutputPass.az-Latn-AZ.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/SerialOutputPass.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/SerialOutputPass.cs	csharp	replace	Views/SerialPassThroughView.axaml;ViewModels/SerialPassThroughViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/SerialOutputPass.id-ID.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/SerialOutputPass.ja-JP.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/SerialOutputPass.ko-KR.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
@@ -322,13 +322,13 @@ Controls/SerialOutputPass.ru-KZ.resx	resx	retain		Preserve neutral/culture resou
 Controls/SerialOutputPass.tr.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/SerialOutputPass.uk.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/SerialOutputPass.zh-Hans.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/SerialSupportProxy.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/SerialSupportProxy.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/SerialSupportProxy.Designer.cs	csharp	remove	Porting/Reference/PORT_STATUS.md	Support Proxy is intentionally disabled until authentication, explicit consent and a reviewed network design exist.
+Controls/SerialSupportProxy.cs	csharp	remove	Porting/Reference/PORT_STATUS.md	Support Proxy is intentionally disabled until authentication, explicit consent and a reviewed network design exist.
 Controls/SerialSupportProxy.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/ServoOptions.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/ServoOptions.Designer.cs	csharp	replace	GCSViews/FlightDataView.axaml;ViewModels/FlightDataViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/ServoOptions.ar.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ServoOptions.az-Latn-AZ.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/ServoOptions.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/ServoOptions.cs	csharp	replace	GCSViews/FlightDataView.axaml;ViewModels/FlightDataViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/ServoOptions.id-ID.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ServoOptions.ja-JP.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ServoOptions.ko-KR.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
@@ -338,32 +338,32 @@ Controls/ServoOptions.ru-KZ.resx	resx	retain		Preserve neutral/culture resource 
 Controls/ServoOptions.tr.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ServoOptions.uk.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/ServoOptions.zh-Hans.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/SpectrogramUI.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/SpectrogramUI.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/SpectrogramUI.Designer.cs	csharp	replace	Views/SpectrogramWindow.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/SpectrogramUI.cs	csharp	replace	Views/SpectrogramWindow.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/SpectrogramUI.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/Status.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/Status.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/Status.Designer.cs	csharp	replace	GCSViews/FlightDataView.axaml;Views/FlightDataDialogs.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/Status.cs	csharp	replace	GCSViews/FlightDataView.axaml;Views/FlightDataDialogs.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/Status.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/ThemeEditor.Designer.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/Views/ThemeEditorWindow.cs	Requires code-level classification before project exclusion or deletion.
-Controls/ThemeEditor.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/Views/ThemeEditorWindow.cs	Requires code-level classification before project exclusion or deletion.
+Controls/ThemeEditor.Designer.cs	csharp	replace	Views/ThemeEditorWindow.cs;Services/ThemeService.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/ThemeEditor.cs	csharp	replace	Views/ThemeEditorWindow.cs;Services/ThemeService.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/ThemeEditor.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/ToolStripConnectionControl.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/Vibration.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/Vibration.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/ToolStripConnectionControl.cs	csharp	replace	Views/MainWindow.axaml;ViewModels/ConnectionViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/Vibration.Designer.cs	csharp	replace	Views/FlightDataDialogs.cs;Controls/HudControl.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/Vibration.cs	csharp	replace	Views/FlightDataDialogs.cs;Controls/HudControl.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/Vibration.ko-KR.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/Vibration.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Controls/Vibration.uk.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/Video.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/Video.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/Video.Designer.cs	csharp	replace	Controls/VideoControl.cs;Services/VideoSourceResolver.cs;Services/MavlinkVideoStreams.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/Video.cs	csharp	replace	Controls/VideoControl.cs;Services/VideoSourceResolver.cs;Services/MavlinkVideoStreams.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/Video.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/VideoStreamSelector.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/VideoStreamSelector.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/VideoStreamSelector.Designer.cs	csharp	replace	Controls/VideoControl.cs;Services/VideoSourceResolver.cs;Services/MavlinkVideoStreams.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/VideoStreamSelector.cs	csharp	replace	Controls/VideoControl.cs;Services/VideoSourceResolver.cs;Services/MavlinkVideoStreams.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/VideoStreamSelector.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/fftui.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Controls/fftui.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Controls/fftui.Designer.cs	csharp	replace	Views/ConfigFFTWindow.cs;ViewModels/GCSViews/ConfigurationView/ConfigFFTViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/fftui.cs	csharp	replace	Views/ConfigFFTWindow.cs;ViewModels/GCSViews/ConfigurationView/ConfigFFTViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/fftui.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Controls/paramcompare.Designer.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/Views/ParamCompareWindow.cs	Requires code-level classification before project exclusion or deletion.
-Controls/paramcompare.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/Views/ParamCompareWindow.cs	Requires code-level classification before project exclusion or deletion.
+Controls/paramcompare.Designer.cs	csharp	replace	Views/ParamCompareWindow.cs;ViewModels/RawParamsViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Controls/paramcompare.cs	csharp	replace	Views/ParamCompareWindow.cs;ViewModels/RawParamsViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Controls/paramcompare.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 GCSViews/ConfigurationView/ConfigAC_Fence.Designer.cs	csharp	replace	GCSViews/ConfigurationView/ConfigAC_FenceView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigAC_FenceViewModel.cs	Mapped to the listed native Avalonia view/model; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 GCSViews/ConfigurationView/ConfigAC_Fence.ar.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
