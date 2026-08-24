@@ -6,8 +6,9 @@ Updated: **2026-08-24**.
 
 - The complete in-place Avalonia migration and audited cleanup were merged to `master` through
   PR #1 at merge commit `eb6cfe28f`. The later GTU `NV5Settings` synchronization was merged through
-  PR #2, producing functional master checkpoint `b5f2ba3ed`. Native baseline `67a3c4f` remains the
-  immutable rollback reference in Git history.
+  PR #2, and the independent diversity-radio key correction was merged through PR #4 at master
+  checkpoint `274c3a68b`. Native baseline `67a3c4f` remains the immutable rollback reference in Git
+  history.
 - The root `MissionPlanner.csproj` is now the net10 Avalonia application with assembly and product
   identity `MissionPlanner`. It builds one main `MissionPlanner.dll` and has no source, build or
   runtime dependency on an `external/MissionPlanner` tree.
@@ -33,6 +34,10 @@ Updated: **2026-08-24**.
   no console errors.
 - Informational version is derived from the current native Mission Planner version and formatted as
   `1.3.83+YYYYMMDD.<commit>`; dirty developer builds append `.dirty`.
+- CI packages explicitly pin that clean commit identity before compilation. Runner-local files
+  created by restore/build therefore cannot add a misleading `.dirty` suffix to Linux or Windows
+  package names or to the application metadata embedded in any of the four platform builds; CI
+  rejects a package if that suffix reappears.
 - Native-identity packaging is integrated for Linux `.tar.gz`/`.deb`, Windows portable ZIP/MSI and
   macOS x64/arm64 app archives. All four RID publishes pass locally; the Linux packages pass
   `lintian` and extracted-DEB Xvfb smoke, while both macOS outputs contain architecture-correct
@@ -72,6 +77,10 @@ Updated: **2026-08-24**.
   lintian and extracted-payload smoke, Windows ZIP/MSI with real install/file validation/uninstall,
   and both macOS archives. Master CodeQL run `32713804084` also passed; the five open results are
   the same fully triaged findings recorded before merge, with no new NV5Settings finding.
+- NV5 diversity hotfix master CI run `32716876527` and CodeQL run `32716876412` both passed, but the
+  CI package run was superseded for distribution because runner-local state leaked `.dirty` into
+  its Linux and Windows filenames. The clean-CI identity gate above is the corrective action; those
+  superseded files are diagnostic artifacts rather than release candidates.
 - The frozen native inventory remains complete in `NATIVE_SURFACE.tsv`, while replaced WinForms
   sources are explicitly mapped to tested Avalonia artifacts and selected source files whose
   behavior is fully superseded have been removed. RESX translations remain preserved. The manifest
