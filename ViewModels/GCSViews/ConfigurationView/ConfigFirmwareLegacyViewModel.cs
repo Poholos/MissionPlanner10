@@ -11,15 +11,22 @@ using CommunityToolkit.Mvvm.Input;
 using MissionPlanner;
 using MissionPlanner.ArduPilot;
 using MissionPlanner.Comms;
+using MissionPlanner.Services;
 using px4uploader;
 
 namespace MissionPlanner.ViewModels.GCSViews.ConfigurationView;
 
 public partial class ConfigFirmwareLegacyViewModel : ViewModelBase {
+  private const string AllOptions = "All";
   private readonly MAVLinkInterface _comPort = AppState.comPort;
+  private readonly List<APFirmware.FirmwareInfo> _allFirmwares = new();
+  private int _refreshGeneration;
+  private bool _updatingFilters;
 
   public ObservableCollection<string> Vehicles { get; } = new();
   public ObservableCollection<string> ReleaseTypes { get; } = new();
+  public ObservableCollection<string> Platforms { get; } = new();
+  public ObservableCollection<string> Formats { get; } = new();
   public ObservableCollection<FirmwareItem> Firmwares { get; } = new();
 
   [ObservableProperty]
@@ -27,6 +34,12 @@ public partial class ConfigFirmwareLegacyViewModel : ViewModelBase {
 
   [ObservableProperty]
   private string? _selectedReleaseType = "OFFICIAL";
+
+  [ObservableProperty]
+  private string? _selectedPlatform = AllOptions;
+
+  [ObservableProperty]
+  private string? _selectedFormat = AllOptions;
 
   [ObservableProperty]
   [NotifyCanExecuteChangedFor(nameof(UploadCommand))]
@@ -61,6 +74,18 @@ public partial class ConfigFirmwareLegacyViewModel : ViewModelBase {
 
   partial void OnSelectedReleaseTypeChanged(string? value) => _ = RefreshList();
 
+  partial void OnSelectedPlatformChanged(string? value) => ApplyFilters();
+
+  partial void OnSelectedFormatChanged(string? value) => ApplyFilters();
+
+  partial void OnSelectedFirmwareChanged(FirmwareItem? value) {
+    if (value != null &&
+        LegacyFirmwareUploader.InferManifestTarget(value.Info.Format, value.Info.Platform) == null) {
+      Status = $"{value.Info.Format} firmware for {value.Info.Platform} has no safe automatic " +
+          "uploader. Download it manually and use Load custom firmware with an explicit target.";
+    }
+  }
+
   [RelayCommand(CanExecute = nameof(CanRefresh))]
   private async Task Refresh() => await RefreshList(true);
 
@@ -71,6 +96,7 @@ public partial class ConfigFirmwareLegacyViewModel : ViewModelBase {
       return;
     }
 
+    var generation = System.Threading.Interlocked.Increment(ref _refreshGeneration);
     Busy = true;
     Status = "Fetching firmware manifest…";
     try {
@@ -82,27 +108,28 @@ public partial class ConfigFirmwareLegacyViewModel : ViewModelBase {
           return new List<APFirmware.FirmwareInfo>();
         }
 
-        return APFirmware.Manifest.Firmware
-          .Where(a => a.MavType == vehicle)
-          .Where(a => a.MavFirmwareVersionType == reltype)
-          .Where(a => a.Format == "apj")
-          .OrderBy(a => a.Platform)
-          .ToList();
+        return FilterFirmwareOptions(
+            APFirmware.Manifest.Firmware, vehicle, reltype, null, null);
       });
-
-      Firmwares.Clear();
-      foreach (var fw in list) {
-        Firmwares.Add(new FirmwareItem(fw));
+      if (generation != System.Threading.Volatile.Read(ref _refreshGeneration)) {
+        return;
       }
 
-      Status = Firmwares.Count > 0
-        ? $"{Firmwares.Count} firmware images available for {vehicle} ({reltype})."
-        : "No firmware found for the selected vehicle/release type.";
-      SelectedFirmware = Firmwares.FirstOrDefault();
+      _allFirmwares.Clear();
+      _allFirmwares.AddRange(list);
+      SelectedPlatform = ReplaceFilterValues(
+          Platforms, list.Select(item => item.Platform), SelectedPlatform);
+      SelectedFormat = ReplaceFilterValues(
+          Formats, list.Select(item => item.Format), SelectedFormat);
+      ApplyFilters();
     } catch (Exception ex) {
-      Status = "Failed to fetch manifest: " + ex.Message;
+      if (generation == System.Threading.Volatile.Read(ref _refreshGeneration)) {
+        Status = "Failed to fetch manifest: " + ex.Message;
+      }
     } finally {
-      Busy = false;
+      if (generation == System.Threading.Volatile.Read(ref _refreshGeneration)) {
+        Busy = false;
+      }
     }
   }
 
@@ -113,14 +140,38 @@ public partial class ConfigFirmwareLegacyViewModel : ViewModelBase {
       return;
     }
 
+    var target = LegacyFirmwareUploader.InferManifestTarget(item.Info.Format, item.Info.Platform);
+    if (target == null) {
+      Status = $"No safe automatic uploader is available for {item.Info.Platform} " +
+          $"({item.Info.Format}).";
+      return;
+    }
+
+    string? portName = null;
+    if (LegacyFirmwareUploader.RequiresSerialPort(target.Value)) {
+      var ports = SerialPort.GetPortNames()
+          .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+          .ToArray();
+      var selected = await Dialogs.Select(
+          "Select bootloader port",
+          $"Select the physical serial port for {LegacyFirmwareUploader.DescribeTarget(target.Value)}.",
+          ports);
+      if (selected == null) {
+        Status = ports.Length == 0 ? "No physical serial ports were found." : "Firmware upload canceled.";
+        return;
+      }
+      portName = ports[selected.Value];
+    }
+
     Busy = true;
     Progress = 0;
     Log = "";
     string? tempFile = null;
     try {
-      tempFile = await DownloadFirmware(item.Info.Url);
+      tempFile = await DownloadFirmware(item.Info);
       AppendLog($"Saved firmware to {tempFile}");
-      await Task.Run(() => UploadToBoard(tempFile));
+      AppendLog($"Selected target: {LegacyFirmwareUploader.DescribeTarget(target.Value)}");
+      await Task.Run(() => UploadFirmware(tempFile, target.Value, portName));
     } catch (Exception ex) {
       Status = "Upload failed: " + ex.Message;
       AppendLog(ex.ToString());
@@ -135,15 +186,44 @@ public partial class ConfigFirmwareLegacyViewModel : ViewModelBase {
     }
   }
 
-  private bool CanUpload() => !Busy && SelectedFirmware != null;
+  private bool CanUpload() => !Busy && SelectedFirmware != null &&
+      LegacyFirmwareUploader.InferManifestTarget(
+          SelectedFirmware.Info.Format, SelectedFirmware.Info.Platform) != null;
 
-  private async Task<string> DownloadFirmware(Uri url) {
+  private async Task<string> DownloadFirmware(APFirmware.FirmwareInfo info) {
     SetStatus("Downloading firmware…");
-    var dest = Path.Combine(Path.GetTempPath(), "ap_legacy_" + Guid.NewGuid().ToString("N") + ".apj");
+    var extension = Path.GetExtension(info.Url.AbsolutePath);
+    if (string.IsNullOrWhiteSpace(extension) || extension.Length > 12) {
+      extension = "." + info.Format.TrimStart('.').ToLowerInvariant();
+    }
+    var dest = Path.Combine(
+        Path.GetTempPath(), "ap_legacy_" + Guid.NewGuid().ToString("N") + extension);
     using var client = new HttpClient();
-    var bytes = await client.GetByteArrayAsync(url);
+    var bytes = await client.GetByteArrayAsync(info.Url);
     await File.WriteAllBytesAsync(dest, bytes);
     return dest;
+  }
+
+  private void UploadFirmware(
+      string path, LegacyFirmwareTarget target, string? portName) {
+    switch (target) {
+      case LegacyFirmwareTarget.Px4Bootloader:
+        UploadToBoard(path);
+        break;
+      case LegacyFirmwareTarget.Stm32Dfu:
+      case LegacyFirmwareTarget.Stm32DfuBinary:
+        LegacyFirmwareUploader.UploadDfu(path, target, OnLegacyProgress);
+        break;
+      case LegacyFirmwareTarget.Apm1280:
+      case LegacyFirmwareTarget.Apm2560:
+      case LegacyFirmwareTarget.Apm2560V2:
+        LegacyFirmwareUploader.UploadAvr(
+            path, portName ?? throw new InvalidOperationException("No serial port was selected."),
+            target, OnLegacyProgress);
+        break;
+      default:
+        throw new ArgumentOutOfRangeException(nameof(target), target, null);
+    }
   }
 
   private void UploadToBoard(string filename) {
@@ -346,6 +426,78 @@ public partial class ConfigFirmwareLegacyViewModel : ViewModelBase {
 
   private void OnUploaderLog(string message, int level) => AppendLog(message);
 
+  private void OnLegacyProgress(int percent, string status) {
+    if (percent >= 0) {
+      SetProgress(percent);
+    }
+    SetStatus(status);
+    AppendLog(status);
+  }
+
+  private void ApplyFilters() {
+    if (_updatingFilters || SelectedVehicle == null || SelectedReleaseType == null) {
+      return;
+    }
+
+    var list = FilterFirmwareOptions(
+        _allFirmwares,
+        SelectedVehicle,
+        SelectedReleaseType,
+        SelectedPlatform == AllOptions ? null : SelectedPlatform,
+        SelectedFormat == AllOptions ? null : SelectedFormat);
+    Firmwares.Clear();
+    foreach (var firmware in list) {
+      Firmwares.Add(new FirmwareItem(firmware));
+    }
+    SelectedFirmware = Firmwares.FirstOrDefault();
+    Status = Firmwares.Count > 0
+      ? $"{Firmwares.Count} firmware images match the selected vehicle, release, platform and format."
+      : "No firmware matches the selected filters.";
+  }
+
+  private string ReplaceFilterValues(
+      ObservableCollection<string> destination,
+      IEnumerable<string?> values,
+      string? selected) {
+    _updatingFilters = true;
+    try {
+      destination.Clear();
+      destination.Add(AllOptions);
+      foreach (var value in values
+                   .Where(value => !string.IsNullOrWhiteSpace(value))
+                   .Select(value => value!)
+                   .Distinct(StringComparer.OrdinalIgnoreCase)
+                   .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)) {
+        destination.Add(value);
+      }
+      return selected != null && destination.Contains(selected) ? selected : AllOptions;
+    } finally {
+      _updatingFilters = false;
+    }
+  }
+
+  internal static List<APFirmware.FirmwareInfo> FilterFirmwareOptions(
+      IEnumerable<APFirmware.FirmwareInfo> source,
+      string? vehicle,
+      string? releaseType,
+      string? platform,
+      string? format) {
+    ArgumentNullException.ThrowIfNull(source);
+    return source
+        .Where(item => vehicle == null ||
+            string.Equals(item.MavType, vehicle, StringComparison.OrdinalIgnoreCase))
+        .Where(item => releaseType == null ||
+            string.Equals(item.MavFirmwareVersionType, releaseType, StringComparison.OrdinalIgnoreCase))
+        .Where(item => platform == null ||
+            string.Equals(item.Platform, platform, StringComparison.OrdinalIgnoreCase))
+        .Where(item => format == null ||
+            string.Equals(item.Format, format, StringComparison.OrdinalIgnoreCase))
+        .OrderBy(item => item.Platform, StringComparer.OrdinalIgnoreCase)
+        .ThenBy(item => item.Format, StringComparer.OrdinalIgnoreCase)
+        .ThenByDescending(item => item.MavFirmwareVersion)
+        .ToList();
+  }
+
   private void SetStatus(string status) => Dispatcher.UIThread.Post(() => Status = status);
 
   private void SetProgress(double value) => Dispatcher.UIThread.Post(() => Progress = value);
@@ -366,7 +518,8 @@ public class FirmwareItem {
       var ver = string.IsNullOrEmpty(Info.MavFirmwareVersionStr)
         ? Info.MavFirmwareVersion?.ToString()
         : Info.MavFirmwareVersionStr;
-      return $"{Info.Platform}  {ver}  ({Info.MavFirmwareVersionType})";
+      return $"{Info.Platform}  {ver}  {Info.Format}  board {Info.BoardId}  " +
+          $"({Info.MavFirmwareVersionType})  {Info.Url}";
     }
   }
 }

@@ -71,6 +71,20 @@
     <Compile Include="Radio/Uploader.cs" />
     <Compile Include="Radio/IHex.cs" />
     <Compile Include="Grid/GridData.cs" />
+    <Compile Include="Services/CubeServiceBulletin.cs" />
+    <Compile Include="Services/DataFlashLogAnonymizer.cs" />
+    <Compile Include="Services/LegacyFirmwareUploader.cs" />
+    <Compile Include="Services/LocalizationService.cs" />
+    <Compile Include="Services/LocalKmlServer.cs" />
+    <Compile Include="Services/MavlinkSerialControlPort.cs" />
+    <Compile Include="Services/OsdTuningSlotService.cs" />
+    <Compile Include="Services/PythonScriptHost.cs" />
+    <Compile Include="Services/SikRadioFirmwareService.cs" />
+    <Compile Include="Services/SikRadioSettingsService.cs" />
+    <Compile Include="Services/SystemAwakeService.cs" />
+    <Compile Include="Views/DroneCanFieldGraphWindow.cs" />
+    <Compile Include="Views/DroneCanSubscriberWindow.cs" />
+    <Compile Include="Views/OsdTuningSlotsWindow.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -99,6 +113,8 @@
     <PackageReference Include="Tmds.DBus.Protocol" />
     <PackageReference Include="ScottPlot.Avalonia" />
     <PackageReference Include="MoonSharp" />
+    <PackageReference Include="IronPython" />
+    <PackageReference Include="IronPython.StdLib" />
     <PackageReference Include="LibVLCSharp.Avalonia" />
     <PackageReference Include="BouncyCastle.Cryptography" />
     <PackageReference Include="SSH.NET" />
@@ -137,6 +153,7 @@
 
   <ItemGroup>
     <ProjectReference Include="ExtLibs/ArduPilot/MissionPlanner.ArduPilot.csproj" />
+    <ProjectReference Include="ExtLibs/Arduino/Arduino.csproj" />
     <ProjectReference Include="ExtLibs/alglibnet/alglibnet.csproj" />
     <ProjectReference Include="ExtLibs/DroneCAN/DroneCAN.csproj" />
     <ProjectReference Include="Plugin/PortableApi/MissionPlanner.PluginApi.csproj">

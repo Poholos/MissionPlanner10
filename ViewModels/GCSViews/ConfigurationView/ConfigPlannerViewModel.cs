@@ -23,7 +23,7 @@ public partial class ConfigPlannerViewModel : ViewModelBase, System.IDisposable 
       new(MissionPlanner.Services.ThemeService.Names);
   public ObservableCollection<string> LayoutOptions { get; } = new() { "Basic", "Advanced", "Custom" };
   public ObservableCollection<string> LanguageOptions { get; } =
-      new() { "English (United States)", "System" };
+      new(LocalizationService.DisplayNames);
   public ObservableCollection<string> SpeechOptions { get; } = new() { "Warning", "Critical", "All" };
 
   public ObservableCollection<string> SeverityOptions { get; } = new() {
@@ -270,7 +270,8 @@ public partial class ConfigPlannerViewModel : ViewModelBase, System.IDisposable 
     Theme = MissionPlanner.Services.ThemeService.Current;
     Layout = DisplayViewService.Current.displayName.ToString();
     LayoutSelectorVisible = DisplayViewService.Current.displayPlannerLayout;
-    Language = s["language"] ?? Language;
+    Language = LocalizationService.DisplayForSetting(
+        s["language"], System.Globalization.CultureInfo.CurrentUICulture);
     SpeechLevel = s["speechlevel"] ?? SpeechLevel;
 
     int sev = s.GetInt32("severity", 4);
@@ -432,7 +433,8 @@ public partial class ConfigPlannerViewModel : ViewModelBase, System.IDisposable 
 
   partial void OnLanguageChanged(string value) {
     if (_loading) return;
-    Settings.Instance["language"] = value;
+    if (!LocalizationService.TryCultureForDisplay(value, out var culture)) return;
+    Settings.Instance["language"] = culture.Name;
     LanguageNote = "Language change requires a restart to take effect.";
   }
 

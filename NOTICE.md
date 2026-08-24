@@ -43,6 +43,13 @@ This repository integrates a native cross-platform Avalonia user interface direc
   the corresponding unmodified official VideoLAN runtime. Exact binary/source URLs, sizes, hashes
   and upstream GPL/LGPL notices are recorded in `LICENSES/VLC-3.0.23-NOTICE.txt`.
 
+## Python scripting dependencies
+
+- `IronPython` 3.4.2 provides the embedded cross-platform Python runtime under Apache License 2.0;
+  see `LICENSES/Apache-2.0.txt`.
+- `IronPython.StdLib` 3.4.2 packages the Python 3.4 standard library. Its complete PSF, BeOpen,
+  CNRI and CWI license history is retained in `LICENSES/Python-3.4-StdLib.txt`.
+
 ## License of this project
 
 Because this work links Mission Planner's GPLv3 code, the combined work is a **derivative work and is

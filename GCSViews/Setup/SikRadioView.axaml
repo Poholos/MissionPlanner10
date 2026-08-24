@@ -26,10 +26,18 @@
     />
 
     <WrapPanel Grid.Row="2" Margin="0,0,0,8">
+      <CheckBox
+        Content="MAVLink TELEM1"
+        IsChecked="{Binding UseMavlinkSerialControl}"
+        ToolTip.Tip="Tunnel AT commands through the selected disarmed autopilot's SERIAL_CONTROL TELEM1 port."
+        VerticalAlignment="Center"
+        Margin="0,0,12,0"
+      />
       <TextBlock Classes="fieldlbl" Text="Port" VerticalAlignment="Center" Margin="0,0,6,0" />
       <ComboBox
         ItemsSource="{Binding Ports}"
         SelectedItem="{Binding SelectedPort}"
+        IsEnabled="{Binding !UseMavlinkSerialControl}"
         MinWidth="140"
         Margin="0,0,12,0"
       />
@@ -40,7 +48,8 @@
         MinWidth="100"
         Margin="0,0,12,0"
       />
-      <Button Content="Refresh" Command="{Binding RefreshPortsCommand}" Margin="0,0,16,0" />
+      <Button Content="Refresh" Command="{Binding RefreshPortsCommand}"
+              IsEnabled="{Binding !UseMavlinkSerialControl}" Margin="0,0,16,0" />
       <Button Content="Load Settings" Command="{Binding LoadCommand}" Margin="0,0,8,0" />
       <Button Content="Save Settings" Command="{Binding SaveCommand}" Margin="0,0,8,0" />
       <Button Content="Reset to Defaults" Command="{Binding ResetDefaultsCommand}" Margin="0,0,8,0" />
@@ -48,6 +57,13 @@
         Content="Upload Firmware"
         Command="{Binding UploadFirmwareCommand}"
         ToolTip.Tip="{Binding UploadFirmwareTooltip}"
+        Margin="0,0,8,0"
+      />
+      <Button
+        x:Name="UploadCustomFirmwareButton"
+        Content="Upload Firmware File…"
+        IsEnabled="{Binding !IsBusy}"
+        ToolTip.Tip="Select a model-specific .hex/.ihx/.bin/.gbl image; it is validated before bootloader entry."
         Margin="0,0,8,0"
       />
       <CheckBox Content="Beta" IsChecked="{Binding BetaFirmware}" VerticalAlignment="Center"
@@ -62,7 +78,10 @@
       <TextBlock Classes="fieldlbl" Text="{Binding LocalVersion, StringFormat='Local: {0}'}" Margin="0,0,20,0" />
       <TextBlock Classes="fieldlbl" Text="{Binding RemoteVersion, StringFormat='Remote: {0}'}" Margin="0,0,20,0" />
       <TextBlock Classes="fieldlbl" Text="{Binding BoardType, StringFormat='Board (ATI2): {0}'}" Margin="0,0,20,0" />
+      <TextBlock Classes="fieldlbl" Text="{Binding RemoteBoardType, StringFormat='Remote board: {0}'}" Margin="0,0,20,0" />
       <TextBlock Classes="fieldlbl" Text="{Binding FreqBand, StringFormat='Freq (ATI3): {0}'}" Margin="0,0,20,0" />
+      <TextBlock Classes="fieldlbl" Text="{Binding CountryCode, StringFormat='Country lock: {0}'}" Margin="0,0,20,0" />
+      <TextBlock Classes="fieldlbl" Text="{Binding RemoteCountryCode, StringFormat='Remote country: {0}'}" Margin="0,0,20,0" />
       <TextBlock Classes="fieldlbl" Text="{Binding RssiInfo, StringFormat='RSSI (ATI7): {0}'}" />
     </WrapPanel>
 
@@ -132,6 +151,27 @@
               Text="(encryption unsupported by firmware)"
               IsVisible="{Binding !AesEnabled}"
               VerticalAlignment="Center"
+            />
+            <TextBlock Classes="fieldlbl" Text="Remote AES" VerticalAlignment="Center" Margin="8,0,6,0" />
+            <TextBox
+              Text="{Binding RemoteAesKey}"
+              IsEnabled="{Binding RemoteAesEnabled}"
+              MinWidth="240"
+              Watermark="remote hex key (RT&amp;E)"
+              Margin="0,0,12,0"
+            />
+            <Button Content="Save local profile" x:Name="SaveLocalProfileButton" Margin="0,0,6,0" />
+            <Button Content="Load local profile" x:Name="LoadLocalProfileButton" Margin="0,0,6,0" />
+            <Button Content="Save remote profile" x:Name="SaveRemoteProfileButton" Margin="0,0,6,0" />
+            <Button Content="Load remote profile" x:Name="LoadRemoteProfileButton" Margin="0,0,12,0" />
+            <Button
+              Content="Capture local PPM failsafe"
+              Command="{Binding SetLocalPpmFailsafeCommand}"
+              Margin="0,0,6,0"
+            />
+            <Button
+              Content="Capture remote PPM failsafe"
+              Command="{Binding SetRemotePpmFailsafeCommand}"
             />
           </WrapPanel>
 

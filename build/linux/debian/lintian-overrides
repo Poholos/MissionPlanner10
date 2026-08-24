@@ -3,3 +3,8 @@
 missionplanner: embedded-library * [usr/lib/missionplanner/*]
 # libSkiaSharp is a prebuilt NuGet runtime asset; stripping it here is not safe.
 missionplanner: unstripped-binary-or-object [usr/lib/missionplanner/libSkiaSharp.so]
+# IronPython.StdLib installs these upstream files under the application's private module tree.
+# They are imported/read as runtime data and are never installed as system commands.
+missionplanner: interpreter-in-usr-local /usr/local/bin/python [usr/lib/missionplanner/lib/cgi.py]
+missionplanner: unusual-interpreter python [usr/lib/missionplanner/lib/encodings/rot_13.py]
+missionplanner: script-not-executable [usr/lib/missionplanner/lib/ctypes/macholib/fetch_macholib]

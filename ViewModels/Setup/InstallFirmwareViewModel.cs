@@ -12,6 +12,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MissionPlanner;
 using MissionPlanner.ArduPilot;
+using MissionPlanner.Services;
 using px4uploader;
 
 namespace MissionPlanner.ViewModels.Setup;
@@ -167,7 +168,8 @@ public partial class InstallFirmwareViewModel : ViewModelBase {
 
   private bool CanFlash(FirmwareTile? tile) => !Busy;
 
-  public async Task FlashCustomFirmwareAsync(string path) {
+  internal async Task FlashCustomFirmwareAsync(
+      string path, LegacyFirmwareTarget target, string? portName = null) {
     if (Busy) {
       return;
     }
@@ -176,13 +178,37 @@ public partial class InstallFirmwareViewModel : ViewModelBase {
     Progress = 0;
     Log = "";
     try {
+      LegacyFirmwareUploader.ValidateFileTarget(path, target);
       AppendLog($"Custom firmware: {path}");
-      await Task.Run(() => UploadToBoard(path));
+      AppendLog($"Selected target: {LegacyFirmwareUploader.DescribeTarget(target)}");
+      await Task.Run(() => UploadCustomFirmware(path, target, portName));
     } catch (Exception ex) {
       SetStatus("Flash failed: " + ex.Message);
       AppendLog(ex.ToString());
     } finally {
       Busy = false;
+    }
+  }
+
+  private void UploadCustomFirmware(
+      string path, LegacyFirmwareTarget target, string? portName) {
+    switch (target) {
+      case LegacyFirmwareTarget.Px4Bootloader:
+        UploadToBoard(path);
+        break;
+      case LegacyFirmwareTarget.Stm32Dfu:
+      case LegacyFirmwareTarget.Stm32DfuBinary:
+        LegacyFirmwareUploader.UploadDfu(path, target, OnLegacyProgress);
+        break;
+      case LegacyFirmwareTarget.Apm1280:
+      case LegacyFirmwareTarget.Apm2560:
+      case LegacyFirmwareTarget.Apm2560V2:
+        LegacyFirmwareUploader.UploadAvr(
+            path, portName ?? throw new InvalidOperationException("No serial port was selected."),
+            target, OnLegacyProgress);
+        break;
+      default:
+        throw new ArgumentOutOfRangeException(nameof(target), target, null);
     }
   }
 
@@ -260,6 +286,9 @@ public partial class InstallFirmwareViewModel : ViewModelBase {
 
     while (DateTime.Now < deadline) {
       foreach (var port in SerialPort.GetPortNames()) {
+        if (ProbeStillRunning(port)) {
+          continue;
+        }
         Uploader up;
         try {
           up = new Uploader(port, 115200);
@@ -280,6 +309,7 @@ public partial class InstallFirmwareViewModel : ViewModelBase {
           }
         }
       }
+      System.Threading.Thread.Sleep(100);
     }
 
     return null;
@@ -493,6 +523,14 @@ public partial class InstallFirmwareViewModel : ViewModelBase {
   private void OnUploaderProgress(double completed) => SetProgress(completed);
 
   private void OnUploaderLog(string message, int level) => AppendLog(message);
+
+  private void OnLegacyProgress(int percent, string status) {
+    if (percent >= 0) {
+      SetProgress(percent);
+    }
+    SetStatus(status);
+    AppendLog(status);
+  }
 
   private static void OpenUrl(string url) {
     try {

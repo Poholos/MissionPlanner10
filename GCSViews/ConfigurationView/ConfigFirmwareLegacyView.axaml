@@ -11,7 +11,7 @@
   x:DataType="cv:ConfigFirmwareLegacyViewModel"
   Background="{DynamicResource MpControlBg}"
 >
-  <Grid RowDefinitions="Auto,Auto,*,Auto,Auto,Auto" Margin="16">
+  <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto" Margin="16">
     <TextBlock Grid.Row="0" Classes="pagetitle" Text="Install Firmware (Legacy)" />
 
     <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto,*,Auto" Margin="0,8,0,8">
@@ -38,8 +38,26 @@
       />
     </Grid>
 
+    <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto,*" Margin="0,0,0,8">
+      <TextBlock Grid.Column="0" Text="Platform" Classes="fieldlbl" VerticalAlignment="Center" Margin="0,0,8,0" />
+      <ComboBox
+        Grid.Column="1"
+        ItemsSource="{Binding Platforms}"
+        SelectedItem="{Binding SelectedPlatform}"
+        HorizontalAlignment="Stretch"
+        Margin="0,0,16,0"
+      />
+      <TextBlock Grid.Column="2" Text="Format" Classes="fieldlbl" VerticalAlignment="Center" Margin="0,0,8,0" />
+      <ComboBox
+        Grid.Column="3"
+        ItemsSource="{Binding Formats}"
+        SelectedItem="{Binding SelectedFormat}"
+        HorizontalAlignment="Stretch"
+      />
+    </Grid>
+
     <ListBox
-      Grid.Row="2"
+      Grid.Row="3"
       ItemsSource="{Binding Firmwares}"
       SelectedItem="{Binding SelectedFirmware}"
       Background="{DynamicResource MpBg}"
@@ -52,14 +70,14 @@
     </ListBox>
 
     <Button
-      Grid.Row="3"
+      Grid.Row="4"
       Content="Upload Firmware"
       Command="{Binding UploadCommand}"
       HorizontalAlignment="Left"
       Margin="0,12,0,0"
     />
 
-    <Grid Grid.Row="4" ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+    <Grid Grid.Row="5" ColumnDefinitions="*,Auto" Margin="0,8,0,0">
       <ProgressBar
         Grid.Column="0"
         Minimum="0"
@@ -77,7 +95,7 @@
       />
     </Grid>
 
-    <StackPanel Grid.Row="5" Margin="0,8,0,0">
+    <StackPanel Grid.Row="6" Margin="0,8,0,0">
       <TextBlock Text="{Binding Status}" Classes="fieldlbl" TextWrapping="Wrap" Margin="0,0,0,6" />
       <TextBox
         Text="{Binding Log}"

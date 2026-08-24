@@ -45,6 +45,7 @@ public partial class MainWindowViewModel : ViewModelBase, System.IDisposable {
   public double HeaderHeight => HeaderHeightFor(MenuAutoHide, HeaderHovered);
 
   public MainWindowViewModel() {
+    FlightData.SetScriptFlightPlanner(FlightPlanner);
     _flightCommandShortcuts = new Services.FlightCommandShortcutService(
         status => FlightData.Messages += status + System.Environment.NewLine);
     Simulation = new SimulationViewModel(Connection);

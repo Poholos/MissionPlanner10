@@ -9,6 +9,7 @@ namespace MissionPlanner;
 
 public partial class App : Application {
   public override void Initialize() {
+    Services.LocalizationService.ApplySaved();
     AvaloniaXamlLoader.Load(this);
   }
 
@@ -56,10 +57,12 @@ public partial class App : Application {
         Services.SpeechAnnouncer.Stop();
         WarningEngine.Stop();
         Services.Speech.Stop();
+        Services.SystemAwakeService.Stop();
         Services.NativeGdalMapService.Shutdown();
         mainViewModel.Dispose();
         AppState.JoystickControl.Dispose();
         AppState.Traffic.Dispose();
+        AppState.LocalKml.Dispose();
         Services.SitlLauncher.StopAll();
         // ConnectionViewModel has already detached transports and started best-effort cleanup.
         // Never enter an OS driver Close synchronously while the desktop is exiting.
@@ -69,6 +72,7 @@ public partial class App : Application {
         }
       };
 
+      Services.SystemAwakeService.Start();
       _ = Services.Updater.CheckOnStartupAsync();
     }
 

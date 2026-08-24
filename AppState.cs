@@ -21,6 +21,8 @@ public static class AppState {
 
   internal static Services.TrafficService Traffic { get; }
 
+  internal static Services.LocalKmlServer LocalKml { get; }
+
   public static event System.Action? ConnectionChanged;
 
   public static void RaiseConnectionChanged() => ConnectionChanged?.Invoke();
@@ -49,6 +51,7 @@ public static class AppState {
     _parameterLoads = new Services.VehicleParameterLoadCoordinator(primary);
     JoystickControl = new Services.JoystickControlService(() => comPort);
     Traffic = new Services.TrafficService(() => comPort, applySavedSettings: true);
+    LocalKml = new Services.LocalKmlServer();
 
     Connections.ActiveChanged += (_, current) => {
       var replacement = new Services.VehicleParameterLoadCoordinator(current.Link);

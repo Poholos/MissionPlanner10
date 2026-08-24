@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -26,6 +28,13 @@ public partial class DroneCANInspectorViewModel : ViewModelBase, IDisposable {
   private int _selectedBusIndex;
 
   [ObservableProperty]
+  [NotifyCanExecuteChangedFor(nameof(GraphSelectedCommand))]
+  [NotifyCanExecuteChangedFor(nameof(SubscribeSelectedCommand))]
+  private InspectorNode? _selectedNode;
+
+  [ObservableProperty]
+  [NotifyCanExecuteChangedFor(nameof(GraphSelectedCommand))]
+  [NotifyCanExecuteChangedFor(nameof(SubscribeSelectedCommand))]
   private bool _isConnected;
 
   [ObservableProperty]
@@ -77,8 +86,52 @@ public partial class DroneCANInspectorViewModel : ViewModelBase, IDisposable {
   [RelayCommand]
   private void Clear() {
     _pkt.Clear();
+    SelectedNode = null;
     Tree.Clear();
     _rootMap.Clear();
+  }
+
+  private bool CanGraphSelected() =>
+      IsConnected && SelectedNode?.DroneCanGraphSelection != null;
+
+  [RelayCommand(CanExecute = nameof(CanGraphSelected))]
+  private async Task GraphSelected() {
+    if (_bridge.Can == null || SelectedNode?.DroneCanGraphSelection is not { } selection) {
+      return;
+    }
+    string? entered = await Services.Dialogs.InputBox(
+        "DroneCAN Graph", "Points of history (10..100000)", "500");
+    if (entered == null) {
+      return;
+    }
+    if (!int.TryParse(entered, NumberStyles.Integer, CultureInfo.InvariantCulture,
+            out int history) || history is < 10 or > 100000) {
+      await Services.Dialogs.Alert("DroneCAN Graph", "Enter a point count from 10 to 100000.");
+      return;
+    }
+
+    var window = new Views.DroneCanFieldGraphWindow(_bridge.Can, selection, history);
+    if (Services.Dialogs.Owner is { } owner) {
+      window.Show(owner);
+    } else {
+      window.Show();
+    }
+  }
+
+  private bool CanSubscribeSelected() =>
+      IsConnected && SelectedNode?.DroneCanMessageSelection != null;
+
+  [RelayCommand(CanExecute = nameof(CanSubscribeSelected))]
+  private void SubscribeSelected() {
+    if (_bridge.Can == null || SelectedNode?.DroneCanMessageSelection is not { } selection) {
+      return;
+    }
+    var window = new Views.DroneCanSubscriberWindow(_bridge.Can, selection);
+    if (Services.Dialogs.Owner is { } owner) {
+      window.Show(owner);
+    } else {
+      window.Show();
+    }
   }
 
   private void Rebuild() {
@@ -98,6 +151,9 @@ public partial class DroneCANInspectorViewModel : ViewModelBase, IDisposable {
       var msgKey = dcMsg.frame.MsgTypeID.ToString();
       var msgNode = GetOrAdd(nodeNode.Map, nodeNode.Children, msgKey,
           () => new InspectorNode { Key = msgKey, Header = msgKey });
+      var messageSelection = new DroneCanMessageSelection(
+          dcMsg.frame.SourceNode, dcMsg.frame.MsgTypeID, dcMsg.message.GetType().Name);
+      msgNode.DroneCanMessageSelection = messageSelection;
 
       var header = dcMsg.message.GetType().Name + " (" +
                    _pkt.SeenRate(dcMsg.frame.SourceNode, 0, dcMsg.frame.MsgTypeID).ToString("0.0 Hz") +
@@ -108,14 +164,26 @@ public partial class DroneCANInspectorViewModel : ViewModelBase, IDisposable {
       }
 
       var fields = dcMsg.message.GetType().GetFields().Where(f => !f.IsLiteral).ToArray();
-      PopulateMsg(fields, msgNode, dcMsg.message);
+      PopulateMsg(fields, msgNode, dcMsg.message, messageSelection, []);
     }
   }
 
-  private static void PopulateMsg(FieldInfo[] fields, InspectorNode node, object message) {
+  private static void PopulateMsg(
+      FieldInfo[] fields,
+      InspectorNode node,
+      object message,
+      DroneCanMessageSelection messageSelection,
+      IReadOnlyList<string> parentPath) {
     foreach (var field in fields) {
       var fieldNode = GetOrAdd(node.Map, node.Children, field.Name,
           () => new InspectorNode { Key = field.Name });
+      fieldNode.DroneCanMessageSelection = messageSelection;
+      string[] fieldPath = [.. parentPath, field.Name];
+      if (Views.DroneCanGraphSampleExtractor.IsSupportedType(field.FieldType)) {
+        fieldNode.DroneCanGraphSelection = new DroneCanGraphSelection(
+            messageSelection.NodeId, messageSelection.MessageId,
+            messageSelection.MessageName, fieldPath);
+      }
 
       object? value = field.GetValue(message);
 
@@ -141,8 +209,10 @@ public partial class DroneCANInspectorViewModel : ViewModelBase, IDisposable {
               var name = field.Name + "[" + a + "]";
               var elementNode = GetOrAdd(fieldNode.Map, fieldNode.Children, name,
                   () => new InspectorNode { Key = name, Header = name });
+              elementNode.DroneCanMessageSelection = messageSelection;
               if (element != null) {
-                PopulateMsg(elementFields, elementNode, element);
+                PopulateMsg(elementFields, elementNode, element, messageSelection,
+                    [.. parentPath, name]);
               }
 
               a++;
@@ -160,7 +230,8 @@ public partial class DroneCANInspectorViewModel : ViewModelBase, IDisposable {
       if (!field.FieldType.IsArray && field.FieldType.IsClass && field.FieldType != typeof(string)) {
         fieldNode.Header = field.Name;
         if (value != null) {
-          PopulateMsg(field.FieldType.GetFields().Where(f => !f.IsLiteral).ToArray(), fieldNode, value);
+          PopulateMsg(field.FieldType.GetFields().Where(f => !f.IsLiteral).ToArray(),
+              fieldNode, value, messageSelection, fieldPath);
         }
 
         continue;
@@ -202,4 +273,12 @@ public partial class DroneCANInspectorViewModel : ViewModelBase, IDisposable {
   }
 
   public void Dispose() => Stop();
+}
+
+public readonly record struct DroneCanMessageSelection(
+    byte NodeId, uint MessageId, string MessageName);
+
+public readonly record struct DroneCanGraphSelection(
+    byte NodeId, uint MessageId, string MessageName, IReadOnlyList<string> FieldPath) {
+  public string FieldName => string.Join(".", FieldPath);
 }

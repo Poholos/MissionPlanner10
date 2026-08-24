@@ -26,7 +26,7 @@ Updated: **2026-08-24**.
   migration evidence, not a copied source tree.
 - A clean Release build of the complete test graph succeeds with zero warnings and zero errors
   after resolving all 156 inherited `ExtLibs` diagnostics without a repository-wide `NoWarn`; the
-  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1149/1149**
+  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1223/1223**
   Avalonia tests pass on Linux. A 12-second Xvfb launch reaches the normal Avalonia event loop with
   no console errors.
 - Informational version is derived from the current native Mission Planner version and formatted as
@@ -45,19 +45,41 @@ Updated: **2026-08-24**.
   `NV_ENCRYPTION_KEYS_ACK` transaction rather than four independent parameter writes per radio.
   NV4 retains its eight signed words followed by singular `REFRESH_SETTING`,
   whose write type is verified as `UINT32`.
+- The firmware pages now retain the official modern and legacy safe upload paths: APJ/PX4/VRX
+  bootloader upload with board-id matching, STM32 DFU/HEX/BIN, and APM1/APM2 STK500/STKv2 with
+  readback verification. The Legacy manifest selector exposes platform and a functional format
+  filter, including the still-published APM HEX images. Explicit target/port selection replaces the
+  unsafe multi-device assumptions in old `BoardDetect`; obsolete Parrot/Solo network installers are
+  reported as unsupported rather than routed to the wrong programmer.
+- Flight Data local scripting now preserves the official IronPython 3.4.2 `.py` workflow and its
+  live `MAV`/`cs`/`Ports`/`Script` bindings. Output is streamed into the Avalonia page and Abort uses
+  a cooperative per-line trace hook instead of the original unsupported `Thread.Abort`. The local
+  MoonSharp console remains available as a separate optional Lua tool.
+- Flight Planner's visible live KML workflow is restored by an on-demand, loopback-only read server
+  with bounded headers, responses and concurrency. It serves live vehicle/mission KML and the
+  aircraft model on port 56781 while deliberately excluding the old public bind, guided-mode HTTP
+  writes, raw MAVLink WebSocket, Mavelous host and WinForms/GDI MJPEG capture surface.
 - CI, CodeQL, Dependabot and tag-release workflows are reconciled with the in-place tree. Legacy
   Xamarin mobile workflows remain available manually; the obsolete WinForms workflow and
   Azure/AppVeyor configurations have been removed on the separate cleanup branch.
-- No native WinForms source, RESX translation, project or plugin has been deleted. The native
-  manifest still exposes 454 `unported-blocker` rows that require code-level classification before
-  final cut-over is declared complete.
+- The frozen native inventory remains complete in `NATIVE_SURFACE.tsv`, while replaced WinForms
+  sources are explicitly mapped to tested Avalonia artifacts and selected source files whose
+  behavior is fully superseded have been removed. RESX translations remain preserved. The manifest
+  now exposes **0** `unported-blocker` rows. The old WiX generator is explicitly mapped to the
+  current WiX 5 packaging/version/CI implementation; its private upload commands and
+  certificate/DPInst custom actions are intentionally retired. The experimental Dowding project
+  was never selected by the upstream solution build; its general tracker, CoT and multi-vehicle map
+  workflows are ported while the dormant proprietary integration is classified in
+  `Reference/DOWDING_AUDIT.md` and queued for cleanup.
+  Obsolete directories, standalone projects and other build-system remnants are intentionally
+  audited only on `cleanup/project-audit` now that functional classification is complete.
 - Claude remains temporarily disabled by user instruction.
 
 ## GTU synchronization checkpoint
 
 - NV modem behavior was last compared with `/home/alex/src/AgroSky/GTU` at commit
   `0ae813004079bd46d63d708966b7eff266ad5949` (`feat: use NV5 encryption key words`). The GTU
-  worktree was clean; its local `master` was one commit ahead of `origin/master`.
+  worktree was clean and its local `master` matched `origin/master`.
 - Before each later NV modem change and before a release, recheck both committed and uncommitted
   GTU changes with `git status`, then compare every newer change to `hermes-gui/include/nv5settings.h`,
   `hermes-gui/src/nv5settings.cpp` and `hermes-gui/test/testnv5settings.cpp`. Update this commit and
@@ -65,9 +87,9 @@ Updated: **2026-08-24**.
 
 ## Cleanup audit
 
-- Parent commit `4592f6b9b` passed packaging run `32674763049`: real default-path MSI
+- Completed functional commit `eaf456665` passed packaging run `32685680444`: real default-path MSI
   install/file checks/uninstall, Linux DEB/TAR with lintian and extracted-payload smoke, and both
-  macOS architectures all succeeded. CodeQL run `32674763054` succeeded with zero open alerts.
+  macOS architectures all succeeded. CodeQL run `32685680428` succeeded with zero open alerts.
 - `cleanup/project-audit` is the isolated follow-up branch. It removes only proven-obsolete
   launch/deploy/CI artifacts, fixes the vulnerable transitive package discovered by the audit and
   records retained legacy areas in `PROJECT_CLEANUP_AUDIT.md`.
@@ -77,13 +99,13 @@ Updated: **2026-08-24**.
 
 ## Immediate next step
 
-Complete local package verification for the cleanup branch, push it, and require the Windows/macOS
-runner gates plus CodeQL before proposing it for merge. Continue closing the 454 native manifest
-blockers independently; do not mix broad source deletion with functional porting commits.
+Complete the expanded unused-file/directory/build-system audit on this branch, run the full local
+build/test/package gates, push it, and require the Windows/macOS runners plus CodeQL before proposing
+the cleanup for merge.
 
 ## Acceptance baseline
 
-- At least 1149 port tests retained and passing.
+- At least 1223 port tests retained and passing.
 - Clean Release build has zero errors and zero warnings.
 - `linux-x64`, `win-x64`, `osx-x64`, and `osx-arm64` publish gates pass.
 - Linux `.deb` and portable archive build and smoke successfully.

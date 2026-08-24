@@ -23,7 +23,8 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
   private MAVLinkInterface _comPort => AppState.comPort;
   private readonly DispatcherTimer _timer;
   private readonly TlogPlayer _tlog = new();
-  private readonly LuaScriptHost _lua = new();
+  private readonly PythonScriptHost _python;
+  private FlightPlannerViewModel? _scriptFlightPlanner;
   private readonly Dictionary<string, Action<string>> _customActions = new(StringComparer.Ordinal);
 
   public event Action? RequestFlightPlanner;
@@ -140,6 +141,11 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
   private bool _anemometerVisible = true;
 
   public FlightDataViewModel() {
+    _python = new PythonScriptHost(
+        () => AppState.comPort,
+        () => AppState.Connections.Snapshot().Select(connection => connection.Link).ToArray(),
+        () => this,
+        () => _scriptFlightPlanner);
     for (int i = 1; i <= 8; i++) {
       Servos.Add(new ServoOut(i));
     }
@@ -173,11 +179,14 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
 
     _tlog.Packet += OnTlogPacket;
     _tlog.Progress += OnTlogProgress;
-    _lua.Output += OnLuaOutput;
+    _python.Output += OnPythonOutput;
     MissionPlanner.Warnings.WarningEngine.QuickPanelColoring += OnQuickPanelColoring;
     Services.DisplayViewService.Changed += OnDisplayViewChanged;
     RefreshDisplayView();
   }
+
+  internal void SetScriptFlightPlanner(FlightPlannerViewModel flightPlanner) =>
+      _scriptFlightPlanner = flightPlanner;
 
   private void OnDisplayViewChanged(object? sender, EventArgs e) =>
       Dispatcher.UIThread.Post(RefreshDisplayView);
@@ -200,6 +209,7 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
     MissionPlanner.Warnings.WarningEngine.QuickPanelColoring -= OnQuickPanelColoring;
     Services.DisplayViewService.Changed -= OnDisplayViewChanged;
     _timer.Stop();
+    _python.Dispose();
     _tlog.Close();
     OpenDroneId.Dispose();
     CloseVideoWindow();
@@ -963,9 +973,6 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
   private string _selectedScript = "None";
 
   [ObservableProperty]
-  private bool _redirectOutput = true;
-
-  [ObservableProperty]
   private bool _scriptSelected;
 
   [ObservableProperty]
@@ -976,14 +983,8 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
 
   private string? _selectedScriptPath;
 
-  private void OnLuaOutput(string text) {
-    Dispatcher.UIThread.Post(() => {
-      ScriptOutput += text + "\n";
-      if (!_lua.IsRunning) {
-        ScriptStatus = "No Script Running";
-      }
-    });
-  }
+  private void OnPythonOutput(string text) =>
+      Dispatcher.UIThread.Post(() => ScriptOutput += text);
 
   [RelayCommand]
   private async Task SelectScript() {
@@ -994,10 +995,10 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
     }
     var files = await top.StorageProvider.OpenFilePickerAsync(
         new Avalonia.Platform.Storage.FilePickerOpenOptions {
-          Title = "Select Lua script",
+          Title = "Select Python script",
           AllowMultiple = false,
           FileTypeFilter = new[] {
-            new Avalonia.Platform.Storage.FilePickerFileType("Lua script") { Patterns = new[] { "*.lua" } },
+            new Avalonia.Platform.Storage.FilePickerFileType("Python script") { Patterns = new[] { "*.py" } },
           },
         });
     if (files.Count > 0) {
@@ -1010,7 +1011,7 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
 
   [RelayCommand]
   private async Task RunScript() {
-    if (_lua.IsRunning) {
+    if (_python.IsRunning) {
       ScriptStatus = "Script already running";
       return;
     }
@@ -1018,17 +1019,19 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
     ScriptStatus = "Running";
     var code = ScriptEditorText;
     if (!string.IsNullOrWhiteSpace(code)) {
-      await _lua.RunAsync(code);
+      await _python.RunAsync(code);
     } else if (_selectedScriptPath != null) {
-      await _lua.RunFileAsync(_selectedScriptPath);
+      await _python.RunFileAsync(_selectedScriptPath);
     } else {
       ScriptStatus = "No script selected";
+      return;
     }
+    ScriptStatus = _python.IsRunning ? "Running" : "Finished (or aborted)";
   }
 
   [RelayCommand]
   private void AbortScript() {
-    _lua.Abort();
+    _python.Abort();
     ScriptStatus = "Aborting…";
   }
 

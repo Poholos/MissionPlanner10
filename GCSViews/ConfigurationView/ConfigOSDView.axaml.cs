@@ -2,6 +2,7 @@ using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.VisualTree;
 using MissionPlanner.ViewModels.GCSViews.ConfigurationView;
@@ -58,5 +59,12 @@ public partial class ConfigOSDView : UserControl {
     int col = (int)Math.Floor(p.X / vm.CellWidth);
     int row = (int)Math.Floor(p.Y / vm.CellHeight);
     _drag.SetCell(col, row);
+  }
+
+  private async void OpenTuningSlots(object? sender, RoutedEventArgs e) {
+    if (TopLevel.GetTopLevel(this) is not Window owner) {
+      return;
+    }
+    await MissionPlanner.Views.OsdTuningSlotsWindow.ShowAsync(owner, AppState.comPort);
   }
 }
