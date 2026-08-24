@@ -13,6 +13,10 @@ Updated: **2026-08-24**.
   graph and resolves the remaining CodeQL findings, while PR #9 adds verified macOS DMG packaging;
   the resulting release checkpoint is `9ed911535`. Native baseline `67a3c4f` remains the immutable
   rollback reference in Git history.
+- Upstream safety/reliability PR #13 is merged at `b24238dbc`; its complete Linux, Windows and
+  macOS package matrix and CodeQL run passed, and release `v1.3.83-20260824.b24238db` contains all
+  19 expected DEB/TAR/MSI/ZIP/DMG, signed update-manifest and checksum assets. The next upstream
+  issue audit is isolated on `fix/upstream-issues-round-2` until its own CI and review complete.
 - The root `MissionPlanner.csproj` is now the net10 Avalonia application with assembly and product
   identity `MissionPlanner`. It builds one main `MissionPlanner.dll` and has no source, build or
   runtime dependency on an `external/MissionPlanner` tree.
@@ -33,7 +37,7 @@ Updated: **2026-08-24**.
   migration evidence, not a copied source tree.
 - A clean Release build of the complete test graph succeeds with zero warnings and zero errors
   after resolving all 156 inherited `ExtLibs` diagnostics without a repository-wide `NoWarn`; the
-  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1344/1344**
+  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1379/1379**
   Avalonia tests pass on Linux. A 12-second Xvfb launch reaches the normal Avalonia event loop with
   no console errors.
 - Informational version is derived from the current native Mission Planner version and formatted as
@@ -150,9 +154,45 @@ Updated: **2026-08-24**.
   2004-era source project had no solution, source or runtime consumer; GeoRef/Survey use the pinned
   maintained `MetadataExtractor` package. The complete obsolete tree is now removed and the project
   and key audits record that decision.
-- Current local verification: Release solution build **0 warnings / 0 errors**, **1344/1344** tests,
+- First-round checkpoint verification: Release solution build **0 warnings / 0 errors**,
+  **1344/1344** tests,
   all six porting/inventory checks pass, the native manifest has **0 blockers**, and every active
   project reports no known vulnerable direct or transitive NuGet package.
+
+## Upstream issue audit round 2
+
+- Branch `fix/upstream-issues-round-2` contains eleven atomic changes on top of clean master
+  `b24238dbc`. Confirmed open reports are fixed in the native Avalonia paths: #3761 decodes the
+  complete numbered `MAVn_DEVID` range; #3600 keeps `DO_LAND_START` as a marker but removes it from
+  flown routes, distances and prefetch corridors; #3492 deduplicates MAVFTP `@SYS`; #3419 preserves
+  DroneCAN string parameters safely; and #3447 removes the obsolete off-spec
+  `VIDEO_STREAM_INFORMATION99` interval choice.
+- Upstream PR #3455 was not copied literally: its display-unit-dependent storage would still make
+  travelled distance and `mAh/km` change when users switch units. The adapted implementation keeps
+  metres internally and converts only at the property boundary. Likewise, PR #3723's WinForms
+  float-format workaround is unnecessary because Avalonia composes bitmasks as `long`/`double`; a
+  regression test proves bit 24 remains exact. From the stale mixed PR #2648, only commit
+  `bb97e9004d66ec83d2b0894fca9f041e7f71bcc5` was semantically adapted, with first-delimiter
+  parsing, exact string preservation and rejection of invalid numeric writes.
+- #3305 now hides and never writes the Plane-style global loiter radius for Copter; a zero-radius
+  Copter `LOITER_TURNS` remains a panorama and draws no false circle. #3589 renders the enabled
+  legacy Copter horizontal fence (`FENCE_ENABLE`, `FENCE_TYPE` bit 1 and `FENCE_RADIUS`) around a
+  valid home. #954 adds the exact `LOITER_TURNS` orbit length to mission distance while deliberately
+  avoiding an unsupported estimate for `LOITER_TO_ALT`. #3717 removes obsolete Rover
+  `WP_OVERSHOOT`/`NAVL1_*` fields and exposes current deceleration, steering-angle and horizontal
+  position/velocity controller parameters with metadata tooltips.
+- Linked changes were rejected when their assumptions no longer held. Closed PR #3706 subscribed
+  to compass failure STATUSTEXT that ArduPilot ultimately never emitted; this port already has the
+  final `MAG_CAL_STATUS` values 8-10, human-readable diagnostics and tests. #3595, #3335, #3394,
+  #3675, #2641, #2965, #2301 and #3241 are already fixed by the current lifecycle/read-only/raw
+  forwarding/bounded-value paths. #3658, #3736, #3601, #3516, #3472 and #3391 target retired
+  Mono/WinForms/ZedGraph/GStreamer surfaces. #3746 belongs in authoritative ArduPilot metadata;
+  #3747 is vehicle telemetry scheduling; and reports without a reproducible protocol-safe change
+  such as #3408 were not patched speculatively.
+- Local verification for this round: Release solution build **0 warnings / 0 errors**,
+  **1379/1379** tests, all six migration/inventory checks pass with **0 blockers**, and all 28 active
+  projects report no known vulnerable direct or transitive NuGet packages. Cross-platform package
+  and CodeQL gates remain required on the draft PR before merge.
 
 ## GTU synchronization checkpoint
 
@@ -209,15 +249,16 @@ Updated: **2026-08-24**.
 
 ## Immediate next step
 
-Push `fix/upstream-safety-reliability`, run its full CI/package and CodeQL gates, review the draft
-PR, then merge only after those checks pass. After merge, the remaining acceptance work requires
+Build clean local Linux DEB/TAR artifacts, push `fix/upstream-issues-round-2`, and run its complete
+CI/package and CodeQL gates in a draft PR. Merge only after those checks pass, then tag the merge
+commit and verify the full 19-asset release. The remaining acceptance work still requires
 representative physical NV4/NV5 hardware: repeat UDP/TCP/UART switching, disconnect and
 key-programming checks, and recheck GTU `NV5Settings` changes newer than clean checkpoint
 `6c2a4b04` before declaring hardware acceptance complete.
 
 ## Acceptance baseline
 
-- At least 1344 port tests retained and passing.
+- At least 1379 port tests retained and passing.
 - Clean Release build has zero errors and zero warnings.
 - `linux-x64`, `win-x64`, `osx-x64`, and `osx-arm64` publish gates pass.
 - Linux `.deb`/portable archive, Windows ZIP/MSI and both macOS ZIP/DMG pairs build and pass their
