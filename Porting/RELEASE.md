@@ -99,16 +99,20 @@ corresponding Authenticode/Developer ID identities are configured and verified.
 On 2026-08-24, before publishing the packaging commit:
 
 - solution Release build: `0 warnings / 0 errors`;
-- tests: `1143 passed / 0 failed / 0 skipped`;
+- tests: `1266 passed / 0 failed / 0 skipped`;
 - `linux-x64`: `.tar.gz` and `.deb` produced; `lintian` clean; extracted DEB reached the normal
   Avalonia event loop under Xvfb; Windows SimpleBLE/libusb binaries absent;
 - `win-x64`: portable ZIP passed CRC/extraction checks and contained x64 PE launcher/SimpleBLE
   binaries plus the complete license set;
 - `osx-x64` and `osx-arm64`: both self-contained publishes passed; apphost, SimpleBLE and VLC
-  binaries matched their requested Mach-O architecture; complete `.app` layouts were generated;
+  binaries matched their requested Mach-O architecture; complete `.app` ZIPs and compressed DMGs
+  were generated, mounted read-only, inspected and detached on native macOS runners;
 - GitHub workflow YAML passed PyYAML parsing and `actionlint` 1.7.12; packaging shell passed
   `bash -n`, ShellCheck and `git diff --check`.
 
-The actual MSI creation/signature behavior and native macOS ad-hoc/Developer-ID signing remain
-runner-side gates; record their exact GitHub Actions run IDs in `STATUS.md` after every release
-workflow change.
+PR #9 CI run `32730683963` passed native Linux package smoke, real Windows MSI
+install/validation/uninstall, and both macOS DMG mount checks; CodeQL run `32730683985` passed.
+Release workflow dry-run `32730719818` independently produced all four platform artifact bundles.
+The repository currently has the updater signing secret, but not the optional Windows
+Authenticode or macOS Developer ID/notarization secrets, so Windows packages are unsigned and the
+macOS app/DMG are ad-hoc signed until those identities are configured.

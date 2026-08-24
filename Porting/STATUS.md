@@ -9,7 +9,9 @@ Updated: **2026-08-24**.
   PR #2, the independent diversity-radio key correction through PR #4, and the clean CI identity
   correction through PR #5 at master checkpoint `d273ca8aa`. PR #6 carries the final GTU
   `NV5Settings` refinement (`639a19acc`), focused CodeQL/AES follow-up (`c3265e3e8`) and explicit
-  secure dependency declarations (`2e26a52a3`). Native baseline `67a3c4f` remains the immutable
+  secure dependency declarations (`2e26a52a3`). PR #8 removes the obsolete MetadataExtractor build
+  graph and resolves the remaining CodeQL findings, while PR #9 adds verified macOS DMG packaging;
+  the resulting release checkpoint is `9ed911535`. Native baseline `67a3c4f` remains the immutable
   rollback reference in Git history.
 - The root `MissionPlanner.csproj` is now the net10 Avalonia application with assembly and product
   identity `MissionPlanner`. It builds one main `MissionPlanner.dll` and has no source, build or
@@ -31,7 +33,7 @@ Updated: **2026-08-24**.
   migration evidence, not a copied source tree.
 - A clean Release build of the complete test graph succeeds with zero warnings and zero errors
   after resolving all 156 inherited `ExtLibs` diagnostics without a repository-wide `NoWarn`; the
-  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1264/1264**
+  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1266/1266**
   Avalonia tests pass on Linux. A 12-second Xvfb launch reaches the normal Avalonia event loop with
   no console errors.
 - Informational version is derived from the current native Mission Planner version and formatted as
@@ -41,9 +43,11 @@ Updated: **2026-08-24**.
   package names or to the application metadata embedded in any of the four platform builds; CI
   rejects a package if that suffix reappears.
 - Native-identity packaging is integrated for Linux `.tar.gz`/`.deb`, Windows portable ZIP/MSI and
-  macOS x64/arm64 app archives. All four RID publishes pass locally; the Linux packages pass
-  `lintian` and extracted-DEB Xvfb smoke, while both macOS outputs contain architecture-correct
-  pinned VLC/SimpleBLE runtimes. Details and signing boundaries are in `RELEASE.md`.
+  macOS x64/arm64 ZIP/DMG. All four RID publishes pass their native GitHub runners; the Linux
+  packages pass `lintian` and extracted-DEB Xvfb smoke, Windows CI performs a real MSI
+  install/validation/uninstall, and each macOS job verifies, mounts and inspects its DMG. Both macOS
+  outputs contain architecture-correct pinned VLC/SimpleBLE runtimes. Details and signing
+  boundaries are in `RELEASE.md`.
 - Stable and beta auto-updates now select signed manifests directly from this fork's GitHub
   Releases. The matching Ed25519 private key is present only as the repository secret
   `UPDATE_SIGNING_KEY`; the committed public key is verified again during release.
@@ -89,6 +93,12 @@ Updated: **2026-08-24**.
 - PR #6 code checkpoint CI run `32721719954` passed Linux build/tests/DEB/TAR, real Windows
   MSI install/uninstall plus ZIP, and both macOS packages. CodeQL run `32721719966` passed and the
   branch-specific code-scanning API reports zero open alerts.
+- PR #8 CI and CodeQL passed before merge. Master CodeQL run `32730238333` passed and the repository
+  code-scanning API reports **zero open alerts**: the obsolete EXIF source is no longer compiled and
+  the WinZip AES transform retains its required counter-mode output without an ECB construction.
+- PR #9 CI run `32730683963` passed the complete Linux, Windows and two-architecture macOS matrix;
+  CodeQL run `32730683985` passed. Cross-platform release dry-run `32730719818` independently
+  produced Linux DEB/TAR, Windows ZIP/MSI and macOS x64/arm64 ZIP/DMG artifacts successfully.
 - The frozen native inventory remains complete in `NATIVE_SURFACE.tsv`, while replaced WinForms
   sources are explicitly mapped to tested Avalonia artifacts and selected source files whose
   behavior is fully superseded have been removed. RESX translations remain preserved. The manifest
@@ -145,13 +155,12 @@ Updated: **2026-08-24**.
   expected self-contained `win-x64` application. CI run `32688021866` also passes Windows ZIP/MSI
   build, default-path install/file checks/uninstall, both macOS architectures and all Linux gates;
   all five named artifact bundles are present.
-- The five formerly open, fully reviewed CodeQL findings now carry narrow source-level rationale at
-  the exact sinks: one unreachable vendored netDxf writer, three explicit operator-selected local
-  exports protected by reject-by-default warnings, and the required AES block primitive in
-  SharpZipLib's WinZip AES-CTR construction. The AES code also fixes a real independent AES-256
-  IV-size defect and has round-trip coverage for both supported key sizes. No alert was broadly or
-  repository-wide suppressed; exact decisions remain in `PROJECT_CLEANUP_AUDIT.md`. PR #6 CodeQL
-  run `32721719966` confirms zero open alerts on the branch.
+- The formerly open CodeQL findings were resolved without repository-wide suppression. The old
+  unreferenced MetadataExtractor source graph containing the reported export flows was removed in
+  favor of the already-used maintained NuGet dependency. SharpZipLib's WinZip AES transform now
+  implements its state-cancellation primitive without constructing ECB while preserving fixed
+  WinZip AES-128/AES-256 vectors and round trips. Master CodeQL run `32730238333` confirms zero open
+  alerts.
 - The two remaining Secret Scanning warnings were inherited Mapbox values in removed official
   Mission Planner/Xamarin/Cesium history. At the user's explicit request they are resolved as
   `wont_fix`, not falsely marked revoked; the audit comments preserve the origin and the decision
@@ -167,16 +176,18 @@ Updated: **2026-08-24**.
 
 ## Immediate next step
 
-Continue functional parity work from the merged Avalonia `master` in focused feature branches.
-Before a release, repeat physical UDP/TCP/UART acceptance with representative NV4/NV5 hardware
-and recheck GTU `NV5Settings` changes newer than clean checkpoint `6c2a4b04`.
+The software build, automated test, security-scan and package gates are complete. The remaining
+acceptance work requires representative physical NV4/NV5 hardware: repeat UDP/TCP/UART switching,
+disconnect and key-programming checks, and recheck GTU `NV5Settings` changes newer than clean
+checkpoint `6c2a4b04` before declaring hardware acceptance complete.
 
 ## Acceptance baseline
 
-- At least 1264 port tests retained and passing.
+- At least 1266 port tests retained and passing.
 - Clean Release build has zero errors and zero warnings.
 - `linux-x64`, `win-x64`, `osx-x64`, and `osx-arm64` publish gates pass.
-- Linux `.deb` and portable archive build and smoke successfully.
+- Linux `.deb`/portable archive, Windows ZIP/MSI and both macOS ZIP/DMG pairs build and pass their
+  native package validation.
 - CodeQL has no untriaged alerts.
 - No live source/build/runtime reference to `external/MissionPlanner` remains.
 - Parameter/session safety, NV modem behavior, speech serialization, airport alpha, movable Flight
