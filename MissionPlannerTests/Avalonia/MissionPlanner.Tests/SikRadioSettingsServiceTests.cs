@@ -15,6 +15,8 @@ public class SikRadioSettingsServiceTests {
     Assert.Equal(new[] { "4", "64", "125", "250", "500", "1000" },
         parsed["AIR_SPEED"].AllowedValues);
     Assert.Contains("80", parsed["MAX_WINDOW"].AllowedValues);
+    Assert.Equal(20, parsed["MAX_WINDOW"].Minimum);
+    Assert.Equal(400, parsed["MAX_WINDOW"].Maximum);
     Assert.DoesNotContain("RESERVED", parsed.Keys);
   }
 

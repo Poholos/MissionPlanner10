@@ -47,4 +47,18 @@ public class SikRadioFirmwareServiceTests {
     Assert.False(SikRadioFirmwareService.ValidateImage(
         Uploader.Board.DEVICE_ID_RFD900UX2, "/tmp/RFDSiK-rfd900x2.gbl", false, out _));
   }
+
+  [Fact]
+  public void DinioModemRejectsOrdinaryImageBeforeProgramming() {
+    string path = Path.Combine(Path.GetTempPath(), "RFDSiK-rfd900x.bin");
+    try {
+      File.WriteAllText(path, "RFD900x HastaLaVistaBaby");
+      Assert.False(SikRadioFirmwareService.ValidateImage(
+          Uploader.Board.DEVICE_ID_RFD900X, path, false, out string error,
+          dinioRequired: true));
+      Assert.Contains("DINIO", error);
+    } finally {
+      File.Delete(path);
+    }
+  }
 }

@@ -26,7 +26,7 @@ Updated: **2026-08-24**.
   migration evidence, not a copied source tree.
 - A clean Release build of the complete test graph succeeds with zero warnings and zero errors
   after resolving all 156 inherited `ExtLibs` diagnostics without a repository-wide `NoWarn`; the
-  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1148/1148**
+  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1198/1198**
   Avalonia tests pass on Linux. A 12-second Xvfb launch reaches the normal Avalonia event loop with
   no console errors.
 - Informational version is derived from the current native Mission Planner version and formatted as
@@ -47,9 +47,13 @@ Updated: **2026-08-24**.
   whose write type is verified as `UINT32`.
 - CI, CodeQL, Dependabot and tag-release workflows are reconciled with the in-place tree. Legacy
   WinForms/Xamarin workflows remain available manually but no longer run against every port push.
-- No native WinForms source, RESX translation, project or plugin has been deleted. The native
-  manifest still exposes 454 `unported-blocker` rows that require code-level classification before
-  final cut-over is declared complete.
+- The frozen native inventory remains complete in `NATIVE_SURFACE.tsv`, while replaced WinForms
+  sources are explicitly mapped to tested Avalonia artifacts and selected source files whose
+  behavior is fully superseded have been removed. RESX translations remain preserved. The manifest
+  now exposes **13** `unported-blocker` rows: Python scripting; legacy firmware/board detection and
+  firmware selection; the embedded HTTP service; Dowding; the audited `temp` form; and old WiX
+  bootstrap sources. Obsolete directories, standalone projects and other build-system remnants are
+  intentionally deferred to `cleanup/project-audit` after these functional blockers are closed.
 - Claude remains temporarily disabled by user instruction.
 
 ## GTU synchronization checkpoint
@@ -64,13 +68,15 @@ Updated: **2026-08-24**.
 
 ## Immediate next step
 
-Require the current GitHub run to perform a real default-path MSI install/uninstall, build/sign both
-`.app` archives on macOS, repeat Linux package smoke and complete CodeQL. Once that run is green,
-start the conservative unused-file/directory/build-system audit on a separate cleanup branch.
+Close the remaining 13 functional manifest blockers without mixing repository cleanup into this
+branch. Then require the GitHub run to perform a real default-path MSI install/uninstall, build/sign
+both `.app` archives on macOS, repeat Linux package smoke and complete CodeQL. Once functional and
+packaging gates are green, run the conservative unused-file/directory/build-system audit on the
+separate `cleanup/project-audit` branch.
 
 ## Acceptance baseline
 
-- At least 1148 port tests retained and passing.
+- At least 1198 port tests retained and passing.
 - Clean Release build has zero errors and zero warnings.
 - `linux-x64`, `win-x64`, `osx-x64`, and `osx-arm64` publish gates pass.
 - Linux `.deb` and portable archive build and smoke successfully.

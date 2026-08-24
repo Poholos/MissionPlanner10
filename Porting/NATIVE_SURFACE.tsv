@@ -1425,13 +1425,13 @@ Program.cs	csharp	replace	Program.cs	Replace WinForms startup with the tested Av
 Properties/AssemblyInfo.cs	csharp	merge	MissionPlanner.csproj;Services/AppVersion.cs	Keep official version and add build date plus canonical commit hash.
 Properties/Resources.Designer.cs	csharp	remove	Porting/Reference/PORT_STATUS.md	The generated WinForms resource accessor is not compiled by the Avalonia application; the neutral and localized RESX files remain preserved for the translation workflow.
 Properties/Resources.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Radio/ComPort.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Radio/ComPort.cs	csharp	replace	Services/MavlinkSerialControlPort.cs;ViewModels/Setup/SetupActionPages.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Radio/IHex.cs	csharp	retain	Radio/IHex.cs	The tested port compiled this exact native source through a temporary compatibility copy; compile it directly in-place.
-Radio/Models.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Radio/Sikradio.Designer.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/Views/Setup/SikRadioView.axaml.cs	Requires code-level classification before project exclusion or deletion.
+Radio/Models.cs	csharp	replace	Services/SikRadioSettingsService.cs;ViewModels/Setup/SetupActionPages.cs;GCSViews/Setup/SikRadioView.axaml	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Radio/Sikradio.Designer.cs	csharp	replace	Services/SikRadioSettingsService.cs;Services/SikRadioFirmwareService.cs;Services/MavlinkSerialControlPort.cs;ViewModels/Setup/SetupActionPages.cs;GCSViews/Setup/SikRadioView.axaml	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Radio/Sikradio.ar.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Radio/Sikradio.az-Latn-AZ.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Radio/Sikradio.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/Views/Setup/SikRadioView.axaml.cs	Requires code-level classification before project exclusion or deletion.
+Radio/Sikradio.cs	csharp	replace	Services/SikRadioSettingsService.cs;Services/SikRadioFirmwareService.cs;Services/MavlinkSerialControlPort.cs;ViewModels/Setup/SetupActionPages.cs;GCSViews/Setup/SikRadioView.axaml	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Radio/Sikradio.de-DE.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Radio/Sikradio.fr.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Radio/Sikradio.it-IT.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
@@ -1449,45 +1449,45 @@ ResEdit.Designer.cs	csharp	replace	Views/TranslationEditorWindow.axaml;Views/Tra
 ResEdit.cs	csharp	replace	Views/TranslationEditorWindow.axaml;Views/TranslationEditorView.axaml;ViewModels/TranslationEditorViewModel.cs;Services/ResxTranslationService.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 ResEdit.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Script.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-SikRadio/ComPort.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-SikRadio/Common.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-SikRadio/Config.Designer.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/ViewModels/ConfigViewModel.cs;src/MissionPlannerAvalonia/Views/ConfigView.axaml.cs	Requires code-level classification before project exclusion or deletion.
-SikRadio/Config.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/ViewModels/ConfigViewModel.cs;src/MissionPlannerAvalonia/Views/ConfigView.axaml.cs	Requires code-level classification before project exclusion or deletion.
+SikRadio/ComPort.cs	csharp	replace	Services/MavlinkSerialControlPort.cs;ViewModels/Setup/SetupActionPages.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+SikRadio/Common.cs	csharp	replace	ViewModels/Setup/SetupActionPages.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+SikRadio/Config.Designer.cs	csharp	replace	GCSViews/Setup/SikRadioView.axaml;ViewModels/Setup/SetupActionPages.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+SikRadio/Config.cs	csharp	replace	GCSViews/Setup/SikRadioView.axaml;ViewModels/Setup/SetupActionPages.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 SikRadio/Config.ko-KR.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 SikRadio/Config.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 SikRadio/Config.zh-Hans.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 SikRadio/Config.zh-Hant.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 SikRadio/Config.zh-TW.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-SikRadio/ISikRadioForm.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-SikRadio/MAVLinkSerialPort.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-SikRadio/MainV2.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-SikRadio/Program.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/Program.cs	Requires code-level classification before project exclusion or deletion.
-SikRadio/Properties/AssemblyInfo.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-SikRadio/Properties/Resources.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+SikRadio/ISikRadioForm.cs	csharp	replace	GCSViews/Setup/SikRadioView.axaml;ViewModels/Setup/SetupActionPages.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+SikRadio/MAVLinkSerialPort.cs	csharp	replace	Services/MavlinkSerialControlPort.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+SikRadio/MainV2.cs	csharp	replace	AppState.cs;ViewModels/Setup/SetupActionPages.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+SikRadio/Program.cs	csharp	replace	Program.cs;GCSViews/Setup/SikRadioView.axaml	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+SikRadio/Properties/AssemblyInfo.cs	csharp	replace	MissionPlanner.csproj;Services/AppVersion.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+SikRadio/Properties/Resources.Designer.cs	csharp	replace	GCSViews/Setup/SikRadioView.axaml	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 SikRadio/Properties/Resources.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-SikRadio/RFD900.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-SikRadio/RFDLib/Array.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-SikRadio/RFDLib/Collections.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-SikRadio/RFDLib/GUI/Settings.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-SikRadio/RFDLib/IO/ATCommand.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-SikRadio/RFDLib/IO/SerialPort/SerialPort.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-SikRadio/RFDLib/RFDLib.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-SikRadio/RFDLib/Text.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-SikRadio/Rssi.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-SikRadio/Rssi.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+SikRadio/RFD900.cs	csharp	replace	Services/SikRadioSettingsService.cs;Services/SikRadioFirmwareService.cs;ViewModels/Setup/SetupActionPages.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+SikRadio/RFDLib/Array.cs	csharp	replace	Services/SikRadioSettingsService.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+SikRadio/RFDLib/Collections.cs	csharp	replace	Services/SikRadioSettingsService.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+SikRadio/RFDLib/GUI/Settings.cs	csharp	replace	GCSViews/Setup/SikRadioView.axaml;ViewModels/Setup/SetupActionPages.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+SikRadio/RFDLib/IO/ATCommand.cs	csharp	replace	ViewModels/Setup/SetupActionPages.cs;Services/MavlinkSerialControlPort.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+SikRadio/RFDLib/IO/SerialPort/SerialPort.cs	csharp	replace	Services/MavlinkSerialControlPort.cs;ViewModels/Setup/SetupActionPages.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+SikRadio/RFDLib/RFDLib.cs	csharp	replace	Services/SikRadioSettingsService.cs;Services/SikRadioFirmwareService.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+SikRadio/RFDLib/Text.cs	csharp	replace	Services/SikRadioSettingsService.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+SikRadio/Rssi.Designer.cs	csharp	replace	GCSViews/Setup/SikRadioView.axaml;GCSViews/Setup/SikRadioView.axaml.cs;ViewModels/Setup/SetupActionPages.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+SikRadio/Rssi.cs	csharp	replace	GCSViews/Setup/SikRadioView.axaml;GCSViews/Setup/SikRadioView.axaml.cs;ViewModels/Setup/SetupActionPages.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 SikRadio/Rssi.ko-KR.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 SikRadio/Rssi.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 SikRadio/Rssi.zh-Hans.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 SikRadio/Rssi.zh-Hant.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 SikRadio/Rssi.zh-TW.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-SikRadio/Terminal.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-SikRadio/Terminal.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+SikRadio/Terminal.Designer.cs	csharp	replace	GCSViews/Setup/SikRadioView.axaml;ViewModels/Setup/SetupActionPages.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+SikRadio/Terminal.cs	csharp	replace	GCSViews/Setup/SikRadioView.axaml;ViewModels/Setup/SetupActionPages.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 SikRadio/Terminal.ko-KR.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 SikRadio/Terminal.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 SikRadio/Terminal.zh-Hans.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 SikRadio/Terminal.zh-Hant.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 SikRadio/Terminal.zh-TW.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-SikRadio/ThemeManager.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+SikRadio/ThemeManager.cs	csharp	replace	Theme/MpTheme.axaml;Services/ThemeService.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Splash.Designer.cs	csharp	replace	Views/MainWindow.axaml;Views/HelpView.axaml;Services/AppVersion.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Splash.cs	csharp	replace	Views/MainWindow.axaml;Views/HelpView.axaml;Services/AppVersion.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Splash.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.

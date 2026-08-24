@@ -80,9 +80,13 @@ public static class SikRadioFirmwareService {
   }
 
   public static bool ValidateImage(Uploader.Board board, string path, bool countryLocked,
-      out string error) {
+      out string error, bool dinioRequired = false) {
     string extension = Path.GetExtension(path).ToLowerInvariant();
     string fileName = Path.GetFileName(path);
+    if (dinioRequired && !fileName.Contains("DINIO", StringComparison.OrdinalIgnoreCase)) {
+      error = "The connected modem runs DINIO firmware and requires a DINIO-labelled image.";
+      return false;
+    }
     string[] tokens;
     switch (board) {
       case Uploader.Board.DEVICE_ID_HM_TRP:

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.IO.Ports;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -12,7 +11,9 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MissionPlanner.Comms;
 using MissionPlanner.Services;
+using RawSerialPort = MissionPlanner.Comms.SerialPort;
 
 namespace MissionPlanner.ViewModels.Setup;
 
@@ -55,6 +56,8 @@ public partial class SikRadioViewModel : ViewModelBase {
     public string OrigLocal { get; set; } = "";
     public string OrigRemote { get; set; } = "";
     public bool HasRemote { get; set; }
+    public int? Minimum { get; set; }
+    public int? Maximum { get; set; }
 
     public ObservableCollection<string> Options { get; } = new();
     public bool HasOptions => Options.Count > 0;
@@ -83,8 +86,8 @@ public partial class SikRadioViewModel : ViewModelBase {
   public string Title { get; } = "SiK Radio";
 
   public string Instructions { get; } =
-      "Configure a SiK telemetry radio over its raw serial port using AT commands. "
-      + "Disconnect the MAVLink link first, pick the radio's port/baud, then Load Settings.";
+      "Configure a SiK/RFD telemetry radio over a raw serial port or through the selected "
+      + "disarmed autopilot's MAVLink SERIAL_CONTROL TELEM1 tunnel, then Load Settings.";
 
   public ObservableCollection<SikRegister> Registers { get; } = new();
   public ObservableCollection<string> Ports { get; } = new();
@@ -97,6 +100,9 @@ public partial class SikRadioViewModel : ViewModelBase {
 
   [ObservableProperty]
   private int _selectedBaud = 57600;
+
+  [ObservableProperty]
+  private bool _useMavlinkSerialControl;
 
   [ObservableProperty]
   private string _localVersion = "";
@@ -117,10 +123,16 @@ public partial class SikRadioViewModel : ViewModelBase {
   private string _boardType = "";
 
   [ObservableProperty]
+  private string _remoteBoardType = "";
+
+  [ObservableProperty]
   private string _freqBand = "";
 
   [ObservableProperty]
   private string _countryCode = "";
+
+  [ObservableProperty]
+  private string _remoteCountryCode = "";
 
   [ObservableProperty]
   private string _rssiInfo = "";
@@ -179,12 +191,13 @@ public partial class SikRadioViewModel : ViewModelBase {
     if (baud > 0 && Bauds.Contains(baud)) {
       SelectedBaud = baud;
     }
+    UseMavlinkSerialControl = LinkOpen;
   }
 
   private string _origAesKey = "";
   private string _origRemoteAesKey = "";
 
-  private SerialPort? _session;
+  private ICommsSerial? _session;
   private System.Threading.CancellationTokenSource? _rssiCts;
 
   private bool LinkOpen => AppState.comPort.BaseStream?.IsOpen == true;
@@ -209,7 +222,7 @@ public partial class SikRadioViewModel : ViewModelBase {
   private void RefreshPorts() {
     var current = SelectedPort;
     Ports.Clear();
-    foreach (var p in SerialPort.GetPortNames().OrderBy(p => p)) {
+    foreach (var p in RawSerialPort.GetPortNames().OrderBy(p => p)) {
       Ports.Add(p);
     }
 
@@ -224,10 +237,18 @@ public partial class SikRadioViewModel : ViewModelBase {
   }
 
   private bool GuardLink() {
+    if (UseMavlinkSerialControl) {
+      if (!LinkOpen) {
+        AppendLog("MAVLink SERIAL_CONTROL was selected, but there is no live autopilot link.");
+        Status = "Connect a disarmed autopilot first";
+        return false;
+      }
+      return true;
+    }
     if (LinkOpen) {
-      AppendLog("MAVLink link is OPEN on " + AppState.comPort.BaseStream?.PortName
-          + ". A radio cannot be in AT mode while MAVLink streams — disconnect the vehicle first.");
-      Status = "Disconnect MAVLink first";
+      AppendLog("MAVLink link is open. Enable 'MAVLink TELEM1' to reach a radio attached to the "
+          + "selected autopilot, or disconnect before opening a raw physical serial port.");
+      Status = "Choose MAVLink TELEM1 or disconnect";
       return false;
     }
     if (string.IsNullOrEmpty(SelectedPort)) {
@@ -250,7 +271,7 @@ public partial class SikRadioViewModel : ViewModelBase {
     AppendLog("=== Load Settings ===");
 
     await Task.Run(() => {
-      SerialPort? sp = null;
+      ICommsSerial? sp = null;
       try {
         sp = Connect(port, baud, out var used);
         if (sp == null) {
@@ -299,6 +320,14 @@ public partial class SikRadioViewModel : ViewModelBase {
         var rti = DoCommand(sp, "RTI").Trim();
         if (_sikBanner.IsMatch(rti)) {
           Ui(() => RemoteVersion = rti);
+          string remoteBoard = StripMultipointPrefix(DoCommand(sp, "RTI2").Trim());
+          Ui(() => RemoteBoardType = remoteBoard);
+          if (SikRadioFirmwareService.TryParseBoard(ati2, out loadedBoard)
+              && SikRadioFirmwareService.CountryRegister(loadedBoard) is int remoteCountryRegister) {
+            string remoteCountry = StripMultipointPrefix(
+                DoCommand(sp, "RT+C" + remoteCountryRegister + "?").Trim());
+            Ui(() => RemoteCountryCode = remoteCountry);
+          }
           ResetOrig(remote: true);
           ParseInto(DoCommand(sp, "RTI5", true), remote: true);
           ApplySettingMetadata(QuerySettingMetadata(sp, remote: true), remote: true);
@@ -315,6 +344,8 @@ public partial class SikRadioViewModel : ViewModelBase {
           _origRemoteAesKey = "";
           Ui(() => {
             RemoteVersion = "(no remote)";
+            RemoteBoardType = "";
+            RemoteCountryCode = "";
             RemoteAesKey = "";
             RemoteAesEnabled = false;
           });
@@ -340,6 +371,13 @@ public partial class SikRadioViewModel : ViewModelBase {
       return;
     }
 
+    string? validationError = ValidatePendingSettings();
+    if (validationError != null) {
+      Status = "Invalid settings — nothing sent";
+      AppendLog(validationError);
+      return;
+    }
+
     var port = SelectedPort!;
     var baud = SelectedBaud;
     var snapshot = Registers.Select(r => (r.Num, r.Name, r.LocalValue, r.OrigLocal,
@@ -355,7 +393,7 @@ public partial class SikRadioViewModel : ViewModelBase {
     AppendLog("=== Save Settings ===");
 
     await Task.Run(() => {
-      SerialPort? sp = null;
+      ICommsSerial? sp = null;
       try {
         sp = Connect(port, baud, out var used);
         if (sp == null) {
@@ -457,7 +495,7 @@ public partial class SikRadioViewModel : ViewModelBase {
     AppendLog("=== Reset to Defaults ===");
 
     await Task.Run(() => {
-      SerialPort? sp = null;
+      ICommsSerial? sp = null;
       try {
         sp = Connect(port, baud, out var used);
         if (sp == null) {
@@ -513,8 +551,8 @@ public partial class SikRadioViewModel : ViewModelBase {
         ? (BetaFirmware ? "beta" : "stable") : "selected file") + ") ===");
 
     await Task.Run(() => {
-      SerialPort? atsp = null;
-      MissionPlanner.Comms.SerialPort? boot = null;
+      ICommsSerial? atsp = null;
+      ICommsSerial? boot = null;
       string? temporaryFirmware = null;
       try {
         atsp = Connect(port, baud, out var used);
@@ -524,6 +562,8 @@ public partial class SikRadioViewModel : ViewModelBase {
           return;
         }
         AppendLog("In AT mode @ " + used + " baud. Identifying modem before bootloader entry…");
+        string firmwareBanner = DoCommand(atsp, "ATI").Trim();
+        bool dinioRequired = firmwareBanner.Contains("DINIO", StringComparison.OrdinalIgnoreCase);
         string boardReply = DoCommand(atsp, "ATI2").Trim();
         if (!SikRadioFirmwareService.TryParseBoard(boardReply, out var board)) {
           SetStatus("Unable to identify radio board");
@@ -565,7 +605,7 @@ public partial class SikRadioViewModel : ViewModelBase {
         }
 
         if (!SikRadioFirmwareService.ValidateImage(
-                board, firmwarePath, countryLocked, out string validationError)) {
+                board, firmwarePath, countryLocked, out string validationError, dinioRequired)) {
           SetStatus("Firmware image rejected");
           AppendLog(validationError + " Aborted before bootloader entry.");
           return;
@@ -581,12 +621,9 @@ public partial class SikRadioViewModel : ViewModelBase {
         atsp = null;
 
         bool xModem = SikRadioFirmwareService.UsesXModem(board);
-        boot = new MissionPlanner.Comms.SerialPort {
-          PortName = port,
-          BaudRate = xModem ? 57600 : 115200,
-          ReadTimeout = 3000,
-        };
-        boot.Open();
+        int bootBaud = xModem ? 57600 : 115200;
+        boot = OpenTransport(port, bootBaud);
+        boot.ReadTimeout = 3000;
         Thread.Sleep(300);
 
         if (xModem) {
@@ -773,7 +810,7 @@ public partial class SikRadioViewModel : ViewModelBase {
     IsBusy = true;
     Status = "Capturing PPM failsafe…";
     await Task.Run(() => {
-      SerialPort? sp = null;
+      ICommsSerial? sp = null;
       try {
         sp = Connect(port, baud, out _);
         if (sp == null) {
@@ -978,12 +1015,13 @@ public partial class SikRadioViewModel : ViewModelBase {
     AppendLog("Session closed.");
   }
 
-  private SerialPort? Connect(string port, int preferredBaud, out int usedBaud) {
+  private ICommsSerial? Connect(string port, int preferredBaud, out int usedBaud) {
     foreach (var baud in new[] { preferredBaud }.Concat(_candidateBauds).Distinct()) {
-      SerialPort? sp = null;
+      ICommsSerial? sp = null;
       try {
-        sp = OpenPort(port, baud);
-        AppendLog("Probing " + port + " @ " + baud + "…");
+        sp = OpenTransport(port, baud);
+        AppendLog("Probing " + (UseMavlinkSerialControl ? "MAVLink TELEM1" : port)
+            + " @ " + baud + "…");
         if (EnterCommandMode(sp)) {
           usedBaud = baud;
           return sp;
@@ -997,19 +1035,27 @@ public partial class SikRadioViewModel : ViewModelBase {
     return null;
   }
 
-  private static SerialPort OpenPort(string port, int baud) {
-    var sp = new SerialPort(port, baud) {
-      ReadTimeout = 1500,
-      WriteTimeout = 1500,
-      NewLine = "\r\n",
-      DtrEnable = false,
-      RtsEnable = false,
-    };
+  private ICommsSerial OpenTransport(string port, int baud) {
+    ICommsSerial sp;
+    if (UseMavlinkSerialControl) {
+      if (!MavlinkSerialControlPort.TryCreate(
+              MAVLink.SERIAL_CONTROL_DEV.TELEM1, baud, out var mavlinkPort, out string error)
+          || mavlinkPort == null) {
+        throw new InvalidOperationException(error);
+      }
+      sp = mavlinkPort;
+    } else {
+      sp = new RawSerialPort(port, baud);
+    }
+    sp.ReadTimeout = 1500;
+    sp.WriteTimeout = 1500;
+    sp.DtrEnable = false;
+    sp.RtsEnable = false;
     sp.Open();
     return sp;
   }
 
-  private static void ClosePort(SerialPort? sp) {
+  private static void ClosePort(ICommsSerial? sp) {
     try {
       if (sp != null) {
         if (sp.IsOpen) {
@@ -1022,7 +1068,7 @@ public partial class SikRadioViewModel : ViewModelBase {
     }
   }
 
-  private bool EnterCommandMode(SerialPort sp) {
+  private bool EnterCommandMode(ICommsSerial sp) {
     if (ProbeAt(sp)) {
       return true;
     }
@@ -1045,12 +1091,12 @@ public partial class SikRadioViewModel : ViewModelBase {
     return false;
   }
 
-  private bool ProbeAt(SerialPort sp) {
+  private bool ProbeAt(ICommsSerial sp) {
     var v = DoCommand(sp, "ATI").Trim();
     return _sikBanner.IsMatch(v) || v.Contains(" on ");
   }
 
-  private string DoCommand(SerialPort sp, string cmd, bool multiLine = false) {
+  private string DoCommand(ICommsSerial sp, string cmd, bool multiLine = false) {
     if (!sp.IsOpen) {
       return "";
     }
@@ -1099,7 +1145,7 @@ public partial class SikRadioViewModel : ViewModelBase {
     }
   }
 
-  private string QuerySettingMetadata(SerialPort sp, bool remote) {
+  private string QuerySettingMetadata(ICommsSerial sp, bool remote) {
     var result = new StringBuilder();
     string prefix = remote ? "RTI10:" : "ATI10:";
     for (int index = 0; index < 256; index++) {
@@ -1135,6 +1181,8 @@ public partial class SikRadioViewModel : ViewModelBase {
         if (metadata.AllowedValues.Count > 0) {
           setting.SetOptions(metadata.AllowedValues);
         }
+        setting.Minimum = metadata.Minimum;
+        setting.Maximum = metadata.Maximum;
         setting.EnsureOption(metadata.Value);
         if (remote) {
           setting.RemoteValue = metadata.Value;
@@ -1156,7 +1204,44 @@ public partial class SikRadioViewModel : ViewModelBase {
     return value;
   }
 
-  private static string ReadLine(SerialPort sp) {
+  private string? ValidatePendingSettings() {
+    foreach (SikRegister setting in Registers.Where(item => item.Num != 0)) {
+      foreach ((string side, string value, string original, bool present) in new[] {
+          ("Local", setting.LocalValue, setting.OrigLocal, true),
+          ("Remote", setting.RemoteValue, setting.OrigRemote, setting.HasRemote),
+      }) {
+        if (!present || value == original) {
+          continue;
+        }
+        if (!int.TryParse(value, out int numeric)) {
+          return $"{side} {setting.Name} must be an integer; '{value}' is invalid.";
+        }
+        if (setting.Minimum is int minimum && numeric < minimum) {
+          return $"{side} {setting.Name}={numeric} is below the firmware minimum {minimum}.";
+        }
+        if (setting.Maximum is int maximum && numeric > maximum) {
+          return $"{side} {setting.Name}={numeric} is above the firmware maximum {maximum}.";
+        }
+      }
+    }
+
+    foreach ((string side, bool remote) in new[] { ("Local", false), ("Remote", true) }) {
+      SikRegister? minSetting = Registers.FirstOrDefault(item => item.Name == "MIN_FREQ");
+      SikRegister? maxSetting = Registers.FirstOrDefault(item => item.Name == "MAX_FREQ");
+      if (minSetting == null || maxSetting == null || (remote && !minSetting.HasRemote)) {
+        continue;
+      }
+      string minText = remote ? minSetting.RemoteValue : minSetting.LocalValue;
+      string maxText = remote ? maxSetting.RemoteValue : maxSetting.LocalValue;
+      if (int.TryParse(minText, out int minimum) && int.TryParse(maxText, out int maximum)
+          && minimum > maximum) {
+        return $"{side} MIN_FREQ ({minimum}) cannot be greater than MAX_FREQ ({maximum}).";
+      }
+    }
+    return null;
+  }
+
+  private static string ReadLine(ICommsSerial sp) {
     try {
       return sp.ReadLine();
     } catch {

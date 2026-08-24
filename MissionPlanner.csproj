@@ -74,6 +74,7 @@
     <Compile Include="Services/CubeServiceBulletin.cs" />
     <Compile Include="Services/DataFlashLogAnonymizer.cs" />
     <Compile Include="Services/LocalizationService.cs" />
+    <Compile Include="Services/MavlinkSerialControlPort.cs" />
     <Compile Include="Services/OsdTuningSlotService.cs" />
     <Compile Include="Services/SikRadioFirmwareService.cs" />
     <Compile Include="Services/SikRadioSettingsService.cs" />

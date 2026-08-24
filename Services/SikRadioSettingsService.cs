@@ -11,6 +11,8 @@ public sealed record SikRadioSettingMetadata(
     string Designator,
     string Name,
     string Value,
+    int? Minimum,
+    int? Maximum,
     IReadOnlyList<string> AllowedValues);
 
 public sealed record SikRadioProfile(
@@ -47,10 +49,14 @@ public static class SikRadioSettingsService {
       }
 
       string value = match.Groups["value"].Value;
+      int? minimum = int.TryParse(match.Groups["min"].Value, NumberStyles.Integer,
+          CultureInfo.InvariantCulture, out int parsedMinimum) ? parsedMinimum : null;
+      int? maximum = int.TryParse(match.Groups["max"].Value, NumberStyles.Integer,
+          CultureInfo.InvariantCulture, out int parsedMaximum) ? parsedMaximum : null;
       var allowed = BuildAllowedValues(name, value, match.Groups["min"].Value,
           match.Groups["max"].Value, match.Groups["options"].Value);
       result[name] = new SikRadioSettingMetadata(
-          match.Groups["designator"].Value, name, value, allowed);
+          match.Groups["designator"].Value, name, value, minimum, maximum, allowed);
     }
     return result;
   }
