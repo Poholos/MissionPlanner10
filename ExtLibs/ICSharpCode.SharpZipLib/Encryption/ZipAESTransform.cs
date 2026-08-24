@@ -78,12 +78,17 @@ namespace ICSharpCode.SharpZipLib.Encryption
 
 			// Performs the equivalent of derive_key in Dr Brian Gladman's pwd2key.c
 			var pdb = new Rfc2898DeriveBytes(key, saltBytes, KEY_ROUNDS);
-            var rm = Aes.Create();
+			var rm = Aes.Create();
+			// WinZip AES is CTR: this transform uses the AES primitive for a nonce block and then
+			// XORs the result with the payload. ECB is never applied directly to payload blocks.
+			// codeql[cs/ecb-encryption]
 			rm.Mode = CipherMode.ECB;           // No feedback from cipher for CTR mode
 			_counterNonce = new byte[_blockSize];
 			byte[] byteKey1 = pdb.GetBytes(_blockSize);
 			byte[] byteKey2 = pdb.GetBytes(_blockSize);
-			_encryptor = rm.CreateEncryptor(byteKey1, byteKey2);
+			// AES always has a 16-byte block/IV, including when byteKey1 is a 256-bit key. The old
+			// byteKey2 argument was 32 bytes for AES-256 and made those archives fail at startup.
+			_encryptor = rm.CreateEncryptor(byteKey1, new byte[ENCRYPT_BLOCK]);
 			_pwdVerifier = pdb.GetBytes(PWD_VER_LENGTH);
 			//
 			_hmacsha1 = IncrementalHash.CreateHMAC(HashAlgorithmName.SHA1, byteKey2);
