@@ -442,12 +442,8 @@ public class FlightPlannerMap : MapControl {
           : 1);
 
   internal static double LoiterTurnsRadius(
-      double commandRadius, double configuredRadius, Firmwares firmware) {
-    if (commandRadius != 0) {
-      return Math.Abs(commandRadius);
-    }
-    return firmware == Firmwares.ArduCopter2 ? 0 : Math.Abs(configuredRadius);
-  }
+      double commandRadius, double configuredRadius, Firmwares firmware) =>
+      MissionRoute.LoiterTurnsRadius(commandRadius, configuredRadius, firmware);
 
   private (double Radius, Color Color, Color? Fill) RingFor(ushort cmd, double p1, double p2,
       double p3) {

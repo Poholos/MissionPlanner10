@@ -3026,6 +3026,11 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
                      : new PointLatLngAlt(HomeLat, HomeLng, HomeAlt);
       PointLatLngAlt? last = home;
       double total = 0, prev = 0;
+      double distanceMultiplier = double.IsFinite(CurrentState.multiplierdist)
+                                  && CurrentState.multiplierdist > 0
+          ? CurrentState.multiplierdist
+          : 1;
+      double configuredLoiterRadius = LoiterRadius / distanceMultiplier;
       bool first = true;
       foreach (var w in Waypoints) {
         if ((MissionType == "Mission" && !Services.MissionRoute.IsFlightPath(w.Command))
@@ -3054,6 +3059,9 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
           }
           prev = leg;
         }
+
+        total += Services.MissionRoute.AdditionalLoiterDistance(
+            w.Command, w.P1, w.P3, configuredLoiterRadius, VehicleFirmware);
 
         last = cur;
         first = false;

@@ -1,3 +1,6 @@
+using System;
+using MissionPlanner.ArduPilot;
+
 namespace MissionPlanner.Services;
 
 internal static class MissionRoute {
@@ -15,4 +18,25 @@ internal static class MissionRoute {
   // marker remains visible, while excluding it from routes, distances and corridor prefetches.
   internal static bool IsFlightPath(ushort command) =>
       IsNavigation(command) && command != (ushort)MAVLink.MAV_CMD.DO_LAND_START;
+
+  internal static double LoiterTurnsRadius(
+      double commandRadius, double configuredRadius, Firmwares firmware) {
+    if (!double.IsFinite(commandRadius) || !double.IsFinite(configuredRadius)) {
+      return 0;
+    }
+    if (commandRadius != 0) {
+      return Math.Abs(commandRadius);
+    }
+    return firmware == Firmwares.ArduCopter2 ? 0 : Math.Abs(configuredRadius);
+  }
+
+  internal static double AdditionalLoiterDistance(
+      ushort command, double turns, double commandRadius, double configuredRadius,
+      Firmwares firmware) {
+    if (command != (ushort)MAVLink.MAV_CMD.LOITER_TURNS
+        || !double.IsFinite(turns) || turns <= 0) {
+      return 0;
+    }
+    return 2 * Math.PI * LoiterTurnsRadius(commandRadius, configuredRadius, firmware) * turns;
+  }
 }

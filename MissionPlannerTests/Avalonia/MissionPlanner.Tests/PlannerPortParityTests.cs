@@ -607,6 +607,24 @@ public class PlannerPortParityTests {
     Assert.True(FlightPlannerViewModel.SupportsGlobalLoiterRadius(Firmwares.ArduPlane));
   }
 
+  [Theory]
+  [InlineData(Firmwares.ArduPlane, 2, 25, 100, 314.1592653589793)]
+  [InlineData(Firmwares.ArduPlane, 2, 0, 100, 1256.6370614359173)]
+  [InlineData(Firmwares.ArduCopter2, 2, 0, 100, 0)]
+  [InlineData(Firmwares.ArduCopter2, 0, 25, 100, 0)]
+  public void Loiter_turns_add_the_flyable_orbit_length_to_mission_distance(
+      Firmwares firmware, double turns, double commandRadius, double configuredRadius,
+      double expected) {
+    double actual = MissionRoute.AdditionalLoiterDistance(
+        (ushort)MAVLink.MAV_CMD.LOITER_TURNS,
+        turns, commandRadius, configuredRadius, firmware);
+
+    Assert.Equal(expected, actual, 9);
+    Assert.Equal(0, MissionRoute.AdditionalLoiterDistance(
+        (ushort)MAVLink.MAV_CMD.LOITER_TIME,
+        turns, commandRadius, configuredRadius, firmware));
+  }
+
   [Fact]
   public void Auto_wp_text_uses_a_cross_platform_vector_path() {
     IReadOnlyList<(double X, double Y)> points = PlannerTextGeometry.Create("MP", 5, 25);
