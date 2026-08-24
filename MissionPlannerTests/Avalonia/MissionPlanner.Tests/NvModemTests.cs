@@ -146,8 +146,18 @@ public class NvModemTests {
     Assert.True(NvModemCatalog.IsNv4Signature("REFRESH_SETTING"));
     Assert.False(NvModemCatalog.IsNv4Signature("REFRESH_SETTINGS"));
     Assert.True(NvModemCatalog.IsReadOnly("REFRESH_SETTING"));
+    Assert.True(NvModemCatalog.IsReadOnly("DIVERSITY"));
+    Assert.False(NvModemCatalog.RequiresManualReboot(NvModemGeneration.Nv5, "RTSP_PORT"));
+    Assert.True(NvModemCatalog.RequiresManualReboot(NvModemGeneration.Nv5, "APP_ROUTE"));
+    Assert.False(NvModemCatalog.RequiresManualReboot(NvModemGeneration.Nv4, "APP_ROUTE"));
     Assert.Contains("writes it automatically",
         NvModemCatalog.Description("REFRESH_SETTING"), StringComparison.OrdinalIgnoreCase);
+    Assert.Contains("FLRC video stream 0", NvModemCatalog.Description("UDP_RX_BASE"));
+    Assert.Contains("Read-only derived topology", NvModemCatalog.Description("DIVERSITY"));
+    Assert.DoesNotContain("reboots", NvModemCatalog.Description("APP_ROUTE"),
+        StringComparison.OrdinalIgnoreCase);
+    Assert.DoesNotContain("Boolean setting", NvModemCatalog.Description("SWAP_TLM_STREAM"),
+        StringComparison.OrdinalIgnoreCase);
     Assert.Contains("868000 = 868 MHz", NvModemCatalog.Description("CH1_FREQ_KHZ"));
     Assert.Contains("0=receiver", NvModemCatalog.Description("CH2_ROLE"));
     Assert.Equal(0, NvModemCatalog.Nv5KeyWordIndex("CH1_KEY_W0"));

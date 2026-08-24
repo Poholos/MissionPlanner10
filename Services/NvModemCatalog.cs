@@ -72,6 +72,7 @@ internal static class NvModemCatalog {
 
   internal static bool IsReadOnly(string name) =>
       name is "MODEM_PROFILE" or "HW_VERSION" or "REFRESH_SETTING" or "RADIO_COUNT"
+      or "DIVERSITY"
       || name.EndsWith("_HASH", StringComparison.Ordinal)
       || name.EndsWith("_CHIP", StringComparison.Ordinal);
 
@@ -80,8 +81,7 @@ internal static class NvModemCatalog {
 
   internal static bool RequiresManualReboot(NvModemGeneration generation, string name) =>
       generation == NvModemGeneration.Nv5
-      && !name.StartsWith("RTSP_", StringComparison.Ordinal)
-      && name != "APP_ROUTE";
+      && !name.StartsWith("RTSP_", StringComparison.Ordinal);
 
   internal static string Group(string name) {
     if (Nv4KeyWordIndex(name) >= 0 || name == "ENC_KEY_BITS") {
@@ -169,20 +169,22 @@ internal static class NvModemCatalog {
       "RTSP_OUTPUT" => "RTSP depacketizer output: 0=Annex-B elementary stream, 1=raw RTP.",
       "RTSP_PORT" => "RTSP TCP control port, 1..65535.",
       "RTSP_RTP_PORT" => "Even local RTP UDP port, 1024..65534.",
-      "APP_ROUTE" => "Application payload route: 0=UDP, 1=UART; applying reboots the modem.",
       "AUX_UART_MODE" => "Auxiliary UART: 0=disabled, 1=MAVLink, 2=SBUS receive, 3=SBUS transmit.",
       "PWM_SRC_PORT" => "SERVO_OUTPUT_RAW source: 0=UART, 1=UDP, 255=any local management port.",
       "MAV_SYS_ID" => "MAVLink system id, 1..255; used to address this modem.",
       "MAV_SAVE_MS" => "Debounce before saving PARAM changes to flash, 100..65535 ms.",
       "UART_BAUD" => "Primary application/management UART baud rate.",
-      "UDP_RX_BASE" => "First local application UDP receive port; each radio uses its assigned block.",
-      "UDP_TX_BASE" => "First remote application UDP destination port; each radio uses its assigned block.",
+      "UDP_RX_BASE" => "Local UDP receive port for FLRC video stream 0. "
+          + "This parameter is absent when no LR2021 FLRC channel is active.",
+      "UDP_TX_BASE" => "Remote UDP destination port for FLRC video stream 0. "
+          + "This parameter is absent when no LR2021 FLRC channel is active.",
       "MAV_LPORT" => "Local UDP port on which the modem receives MAVLink management traffic.",
       "MAV_RPORT" => "Remote UDP destination port for MAVLink status and replies.",
       "ETH_ENABLE" => "Ethernet interface: 0=disabled, 1=enabled.",
-      "DIVERSITY" => "Enable both independent receive radios: 0=disabled, 1=enabled. "
-          + "Frequency, PHY, FEC and encryption keys may differ by channel.",
-      "MAV_ENABLE" or "SWAP_TLM_STREAM" or "SBUS_EXT_INV" =>
+      "DIVERSITY" => "Read-only derived topology flag: two active radios with equal RX or TX roles "
+          + "always use diversity. Frequencies, FHSS and encryption keys remain independent; "
+          + "packet boundaries must match.",
+      "MAV_ENABLE" or "SBUS_EXT_INV" =>
           "Boolean setting: 0=disabled, 1=enabled.",
       _ => "",
     };
