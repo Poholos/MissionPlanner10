@@ -1541,25 +1541,25 @@ Updater/Program.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/Program.cs
 Updater/Properties/AssemblyInfo.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
 Updater/Properties/Resources.Designer.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
 Updater/Properties/Resources.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
-Utilities/AirMarket.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Utilities/AirMarket.cs	csharp	remove	Porting/Reference/PORT_STATUS.md	AirMarket is an unreachable legacy third-party upload integration that stores a password-derived credential and automatically sends flight logs; it is intentionally retired pending a current API, authentication, consent and privacy review.
 Utilities/AirMarket.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Utilities/BoardDetect.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Utilities/CircleSurveyMission.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Utilities/ExtensionsMP.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Utilities/CircleSurveyMission.cs	csharp	remove	Porting/Reference/PORT_STATUS.md	The unreferenced beta circle helper is superseded by the native Avalonia planner mission builders and was never reachable from the pinned official UI.
+Utilities/ExtensionsMP.cs	csharp	remove	Porting/Reference/PORT_STATUS.md	These are WinForms/Xamarin host, binding and DataGridView glue extensions; native Avalonia windows, bindings and lifecycle handling replace them directly.
 Utilities/Firmware.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Utilities/GStreamerUI.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Utilities/ImageMatch.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Utilities/LangUtility.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Utilities/LogAnalyzer.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/Services/LogAnalyzer.cs	Requires code-level classification before project exclusion or deletion.
-Utilities/NativeLibrary.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Utilities/GStreamerUI.cs	csharp	replace	Controls/VideoControl.cs;Services/VideoSourceResolver.cs;Services/MavlinkVideoStreams.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Utilities/ImageMatch.cs	csharp	remove	Porting/Reference/PORT_STATUS.md	This unreferenced Accord imaging experiment uses hard-coded developer Windows paths and is not a shipped Mission Planner workflow.
+Utilities/LangUtility.cs	csharp	replace	Services/ResxTranslationService.cs;Views/TranslationEditorView.axaml;ViewModels/TranslationEditorViewModel.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Utilities/LogAnalyzer.cs	csharp	replace	Services/LogAnalyzer.cs;Views/LogBrowseView.axaml;ViewModels/FlightDataViewModel.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Utilities/NativeLibrary.cs	csharp	remove	Porting/Reference/PORT_STATUS.md	The unused hand-written kernel32/libdl loader is superseded by System.Runtime.InteropServices.NativeLibrary in the portable native-library bootstrap services.
 Utilities/OsdTuningSlotProvider.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Utilities/POI.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Utilities/SSHTerminal.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Utilities/Speech.cs	csharp	unported-blocker	src/MissionPlannerAvalonia/Services/Speech.cs	Requires code-level classification before project exclusion or deletion.
-Utilities/ThemeManager.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Utilities/Update.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Utilities/Win32DeviceMgnt.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
-Utilities/XMLColor.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
+Utilities/POI.cs	csharp	replace	Services/PoiStore.cs;Controls/MapView.cs;ViewModels/FlightPlannerViewModel.cs;ViewModels/FlightDataViewModel.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Utilities/SSHTerminal.cs	csharp	replace	Services/SshTerminalSession.cs;GCSViews/ConfigurationView/ConfigTerminalView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigTerminalViewModel.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Utilities/Speech.cs	csharp	replace	Services/Speech.cs;Services/SpeechAnnouncer.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Utilities/ThemeManager.cs	csharp	replace	Services/ThemeService.cs;Views/ThemeEditorWindow.cs;Theme/MpTheme.axaml	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Utilities/Update.cs	csharp	replace	Services/Updater.cs;Services/AppVersion.cs;Views/HelpView.axaml	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Utilities/Win32DeviceMgnt.cs	csharp	replace	ViewModels/Setup/InstallFirmwareViewModel.cs;ViewModels/GCSViews/ConfigurationView/ConfigFirmwareLegacyViewModel.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
+Utilities/XMLColor.cs	csharp	replace	Services/ThemeService.cs;Views/ThemeEditorWindow.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.
 Utilities/httpserver.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
 Warnings/WarningControl.cs	csharp	unported-blocker		Requires code-level classification before project exclusion or deletion.
 Warnings/WarningControl.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.

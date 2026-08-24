@@ -196,6 +196,16 @@ declare -A native_replacement_by_logical_path=(
   ["Controls/VideoStreamSelector"]="Controls/VideoControl.cs;Services/VideoSourceResolver.cs;Services/MavlinkVideoStreams.cs"
   ["Controls/fftui"]="Views/ConfigFFTWindow.cs;ViewModels/GCSViews/ConfigurationView/ConfigFFTViewModel.cs"
   ["Controls/paramcompare"]="Views/ParamCompareWindow.cs;ViewModels/RawParamsViewModel.cs"
+  ["Utilities/GStreamerUI"]="Controls/VideoControl.cs;Services/VideoSourceResolver.cs;Services/MavlinkVideoStreams.cs"
+  ["Utilities/LangUtility"]="Services/ResxTranslationService.cs;Views/TranslationEditorView.axaml;ViewModels/TranslationEditorViewModel.cs"
+  ["Utilities/LogAnalyzer"]="Services/LogAnalyzer.cs;Views/LogBrowseView.axaml;ViewModels/FlightDataViewModel.cs"
+  ["Utilities/POI"]="Services/PoiStore.cs;Controls/MapView.cs;ViewModels/FlightPlannerViewModel.cs;ViewModels/FlightDataViewModel.cs"
+  ["Utilities/SSHTerminal"]="Services/SshTerminalSession.cs;GCSViews/ConfigurationView/ConfigTerminalView.axaml;ViewModels/GCSViews/ConfigurationView/ConfigTerminalViewModel.cs"
+  ["Utilities/Speech"]="Services/Speech.cs;Services/SpeechAnnouncer.cs"
+  ["Utilities/ThemeManager"]="Services/ThemeService.cs;Views/ThemeEditorWindow.cs;Theme/MpTheme.axaml"
+  ["Utilities/Update"]="Services/Updater.cs;Services/AppVersion.cs;Views/HelpView.axaml"
+  ["Utilities/Win32DeviceMgnt"]="ViewModels/Setup/InstallFirmwareViewModel.cs;ViewModels/GCSViews/ConfigurationView/ConfigFirmwareLegacyViewModel.cs"
+  ["Utilities/XMLColor"]="Services/ThemeService.cs;Views/ThemeEditorWindow.cs"
 )
 
 declare -A native_removal_by_logical_path=(
@@ -206,6 +216,11 @@ declare -A native_removal_by_logical_path=(
   ["Controls/DroneCANFileUI"]="The pinned native DroneCAN file browser is unreachable and half-stubbed; node parameters and firmware upload remain available in the native Avalonia DroneCAN page."
   ["Controls/OpenGLtest"]="The obsolete first OpenGL test surface is superseded by the tested native Avalonia Terrain 3D workflow."
   ["Controls/SerialSupportProxy"]="Support Proxy is intentionally disabled until authentication, explicit consent and a reviewed network design exist."
+  ["Utilities/AirMarket"]="AirMarket is an unreachable legacy third-party upload integration that stores a password-derived credential and automatically sends flight logs; it is intentionally retired pending a current API, authentication, consent and privacy review."
+  ["Utilities/CircleSurveyMission"]="The unreferenced beta circle helper is superseded by the native Avalonia planner mission builders and was never reachable from the pinned official UI."
+  ["Utilities/ExtensionsMP"]="These are WinForms/Xamarin host, binding and DataGridView glue extensions; native Avalonia windows, bindings and lifecycle handling replace them directly."
+  ["Utilities/ImageMatch"]="This unreferenced Accord imaging experiment uses hard-coded developer Windows paths and is not a shipped Mission Planner workflow."
+  ["Utilities/NativeLibrary"]="The unused hand-written kernel32/libdl loader is superseded by System.Runtime.InteropServices.NativeLibrary in the portable native-library bootstrap services."
 )
 
 find_candidates() {
