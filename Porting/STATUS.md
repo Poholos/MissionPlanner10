@@ -1,6 +1,34 @@
 # Avalonia in-place migration status
 
-Updated: **2026-08-24**.
+Updated: **2026-08-25**.
+
+## Post-release code-quality audit round 4
+
+- Branch `audit/code-quality-round-4` starts from clean released `master`
+  `0b1456049351420ee925d0176c76d01722febf4d` and remains deliberately unmerged. The reviewed code
+  checkpoint is `1d9b50305`; the only later change in this branch is this status handoff.
+- `b3796ba50` removes a completion/start race shared by the Python and Lua hosts. An exclusive
+  operation lease now owns exactly one cancellation source, so an old script cannot dispose the
+  source of a newer script; disposal cancels the active run, rejects restart and prevents the local
+  Lua REPL from surviving its page.
+- `e7f799629` makes ESP8266 setup activation-scoped and target-stable. It waits for a complete
+  parameter response with cancellation and a bounded timeout, reports missing fields instead of
+  throwing from an unobserved constructor task, validates IPv4 input, captures one system ID for
+  the whole write and requires every `setParam` to succeed before EEPROM persistence/reboot.
+- `4ec1d5f3e` removes unsolicited compass-motor calibration ACK packets when an idle page closes,
+  serializes Start/Finish transitions, stops a calibration that completed while its page was being
+  disposed and always releases its MAVLink subscription independently of transport failures.
+- `1d9b50305` makes closing any progress window request cancellation before disposing its source.
+  The cached token remains readable during late cleanup, avoiding invisible connection/update work
+  and the corresponding disposed-source race.
+- Local verification at `1d9b50305` plus this documentation change: Release solution build
+  **0 warnings / 0 errors**, **1410/1410** tests, all six migration/inventory checks pass (1623
+  native rows with **0 blockers**, 708/708 pinned source paths, no WinForms, and clean project,
+  binary and key audits), all 28 active projects report no known vulnerable direct or transitive
+  NuGet package, and a 12-second Xvfb launch reaches the normal event loop with no console error.
+- Claude remains disabled. The next step is to publish this branch as a draft PR and require its
+  Linux/Windows/macOS package matrix and CodeQL checks to pass. Do not merge it or create a release
+  until the user reviews and explicitly requests that action.
 
 ## Current state
 
