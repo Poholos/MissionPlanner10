@@ -5,8 +5,8 @@ Updated: **2026-08-24**.
 ## Current state
 
 - Functional migration is published on `port/avalonia-in-place` at `eaf456665`; the isolated
-  `cleanup/project-audit` branch contains merge `a644cc4f7` plus the current cleanup work. Rollback
-  remains the untouched native baseline `67a3c4f`; `master` is not modified.
+  `cleanup/project-audit` branch contains merge `a644cc4f7` and cleanup commit `08bc7e95e`.
+  Rollback remains the untouched native baseline `67a3c4f`; `master` is not modified.
 - The root `MissionPlanner.csproj` is now the net10 Avalonia application with assembly and product
   identity `MissionPlanner`. It builds one main `MissionPlanner.dll` and has no source, build or
   runtime dependency on an `external/MissionPlanner` tree.
@@ -100,14 +100,19 @@ Updated: **2026-08-24**.
   warnings/errors, analyzer verification has zero diagnostics (the .NET 10 workspace-loader notices
   are documented separately), NuGet reports no vulnerable packages, the native manifest has zero
   blockers and all 1224 tests pass after cleanup.
+- Clean-commit Linux TAR/DEB and Windows ZIP packaging succeeds after cleanup. The DEB passes
+  `lintian`, payload assertions and a 12-second Xvfb launch; the Windows archive contains the
+  expected self-contained `win-x64` application. Native Windows MSI and macOS packages remain CI
+  gates because they require their host operating systems.
 - `Scripts/`, localization RESX, NoFly data, the X-Plane/HIL bridge, `ExtLibs/mono` and independently
   meaningful remaining library/generator projects are deliberately retained; non-inclusion in the
   active solution alone is not deletion evidence.
 
 ## Immediate next step
 
-Rebuild and smoke-test Linux DEB/TAR, recheck Windows ZIP locally, then commit/push this cleanup and
-require the Windows MSI/macOS runners plus CodeQL before proposing it for merge.
+Push `cleanup/project-audit`, then require the Windows MSI/macOS runners plus CodeQL before
+proposing the cleanup for merge. Do not merge this destructive cleanup into `master` without an
+explicit review decision.
 
 ## Acceptance baseline
 
