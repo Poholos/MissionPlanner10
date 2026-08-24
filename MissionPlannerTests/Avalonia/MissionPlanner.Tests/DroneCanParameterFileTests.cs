@@ -57,4 +57,23 @@ public sealed class DroneCanParameterFileTests {
     Assert.False(ConfigDroneCanViewModel.TryConvertParameterValue(
         numericParameter, "not-a-number", out _));
   }
+
+  [Theory]
+  [InlineData("-1", false)]
+  [InlineData("0", true)]
+  [InlineData("5.5", true)]
+  [InlineData("10", true)]
+  [InlineData("11", false)]
+  public void DroneCan_numeric_values_respect_reported_node_limits(
+      string text, bool expected) {
+    var parameter = new DroneCanParam {
+      Name = "RATE",
+      IsString = false,
+      Min = "0",
+      Max = "10",
+    };
+
+    Assert.Equal(expected,
+        ConfigDroneCanViewModel.TryConvertParameterValue(parameter, text, out _));
+  }
 }

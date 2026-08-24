@@ -992,6 +992,16 @@ public partial class ConfigDroneCanViewModel : ViewModelBase, IDisposable {
     }
     if (double.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture,
             out double number)) {
+      if (double.TryParse(parameter.Min, NumberStyles.Any, CultureInfo.InvariantCulture,
+              out double minimum) && number < minimum) {
+        value = 0d;
+        return false;
+      }
+      if (double.TryParse(parameter.Max, NumberStyles.Any, CultureInfo.InvariantCulture,
+              out double maximum) && number > maximum) {
+        value = 0d;
+        return false;
+      }
       value = number;
       return true;
     }
