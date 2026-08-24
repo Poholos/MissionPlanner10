@@ -6,14 +6,14 @@
     <StartupObject>MissionPlanner.Program</StartupObject>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AppConfig>Porting/net10.app.config</AppConfig>
-    <ApplicationIcon>Assets/appicon.ico</ApplicationIcon>
+    <ApplicationIcon Condition="$([MSBuild]::IsOSPlatform('Windows')) Or
+                                '$(RuntimeIdentifier)' == 'win-x64'">Assets/appicon.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <AssemblyName>MissionPlanner</AssemblyName>
     <RootNamespace>MissionPlanner</RootNamespace>
 
-    <!-- The old native WinForms files remain in Git until their manifest rows close. During the
-         transition compile only the source-blob-verified Avalonia import and explicit native
-         backend files; Porting/NATIVE_SURFACE.tsv keeps every exclusion visible. -->
+    <!-- The main application uses an explicit, audited compile graph. Ported WinForms sources are
+         removed only after their NATIVE_SURFACE.tsv rows identify the Avalonia replacement. -->
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
 

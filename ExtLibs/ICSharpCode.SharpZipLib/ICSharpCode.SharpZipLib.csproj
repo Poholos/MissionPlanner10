@@ -4,7 +4,9 @@
     <TargetFrameworks>netstandard2.0</TargetFrameworks>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>ICSharpCode.SharpZipLib.snk</AssemblyOriginatorKeyFile>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <!-- Mission Planner consumes this as an internal project reference; release automation does
+         not publish a separate SharpZipLib package. -->
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
   </PropertyGroup>
   
   <!-- Nuget specific tags -->

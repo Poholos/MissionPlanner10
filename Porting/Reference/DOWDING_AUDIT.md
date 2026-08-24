@@ -4,9 +4,11 @@ Updated: **2026-08-24**.
 
 ## Classification
 
-`plugins/Dowding` is preserved upstream source for an experimental, deployment-specific WinForms
-plugin. It is not part of the official Mission Planner application or release build and is not a
-functional-parity requirement for the Avalonia application.
+`plugins/Dowding` was an experimental, deployment-specific WinForms plugin. It was not part of the
+official Mission Planner application or release build and is not a functional-parity requirement
+for the Avalonia application. After this audit closed its manifest rows, the cleanup branch removed
+the dormant plugin, generated REST clients, Node test server and plugin-only ONVIF dependency; Git
+history and this decision record preserve the upstream implementation for reference.
 
 This conclusion is based on the frozen native baseline `67a3c4f22bd1b38ac499f9756902e04fa4ed8444`:
 
@@ -19,10 +21,9 @@ This conclusion is based on the frozen native baseline `67a3c4f22bd1b38ac499f975
   endpoint: operation requires an independently supplied server, account or bearer token.
 
 The three C# rows remain in the frozen inventory for traceability, but are classified as a deliberate
-retirement rather than being represented as an unported official feature. Physical deletion is
-deferred to the separate `cleanup/project-audit` branch together with the associated WinForms RESX,
-test Node server and now-unreferenced generated client/ONVIF dependency, after a final reference and
-package-content check.
+retirement rather than being represented as an unported official feature. The separate
+`cleanup/project-audit` branch completed the physical deletion after the final reference and package
+graph checks proved that none of these components belonged to the active Avalonia product.
 
 ## Function review
 

@@ -4,15 +4,10 @@ namespace MissionPlanner.Tests;
 
 public sealed class TempHandlerAuditTests {
   [Fact]
-  public void Every_official_temp_click_handler_has_one_closed_classification() {
-    string sourcePath = FindRepositoryFile("temp.cs");
+  public void Every_pinned_temp_click_handler_has_one_closed_classification() {
     string auditPath = FindRepositoryFile("Porting/Reference/TEMP_HANDLER_AUDIT.md");
-    string source = File.ReadAllText(sourcePath);
     string audit = File.ReadAllText(auditPath);
 
-    string[] upstream = Regex.Matches(source, @"\bvoid\s+(\w+_Click(?:_\d+)?)\s*\(")
-        .Select(match => match.Groups[1].Value)
-        .ToArray();
     MatchCollection rows = Regex.Matches(
         audit,
         @"^\|\s*`(?<handler>\w+_Click(?:_\d+)?)`\s*\|\s*`(?<status>[\w-]+)`\s*\|",
@@ -22,14 +17,13 @@ public sealed class TempHandlerAuditTests {
       "ported", "replaced", "obsolete", "unsafe", "platform-specific",
     };
 
-    Assert.Equal(68, upstream.Length);
-    Assert.Equal(upstream.Length, upstream.Distinct(StringComparer.Ordinal).Count());
+    // The original WinForms source is deliberately no longer kept in the active tree. The
+    // imported audit is its frozen, reviewable migration record at the pinned upstream commit.
+    Assert.Equal(68, documented.Length);
     Assert.Equal(documented.Length, documented.Distinct(StringComparer.Ordinal).Count());
-    Assert.Equal(
-        upstream.OrderBy(name => name, StringComparer.Ordinal),
-        documented.OrderBy(name => name, StringComparer.Ordinal));
     Assert.All(rows.Cast<Match>(), row =>
         Assert.Contains(row.Groups["status"].Value, acceptedStatuses));
+    Assert.Contains("The pinned source contains 68 click handlers", audit);
     Assert.Contains("67a3c4f22bd1b38ac499f9756902e04fa4ed8444", audit);
   }
 

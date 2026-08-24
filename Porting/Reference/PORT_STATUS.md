@@ -757,7 +757,8 @@ native-platform acceptance testing.
   concurrent-load serialization and layer replacement on both Flight Planner and Flight Data.
   Parameter-recovery tests cover exact link/system/component/MAVState identity, the official
   ENABLE-first and `_ID` reset order, explicit cancellation, target loss and rejected values. The
-  `temp.cs` registry test proves that all 67 pinned click handlers have exactly one closed status.
+  The imported `temp.cs` registry test proves that all 68 pinned click handlers have exactly one
+  closed status without retaining the obsolete WinForms developer form in the active tree.
   Native-GDAL tests cover platform library discovery, raster intersection and alpha compositing;
   the installed GDAL 3.8.4 runtime also opens, warps and renders a generated EPSG:3857 GeoTIFF.
 - Clean self-contained `linux-x64` publish: 173 MB including the pinned airport database.

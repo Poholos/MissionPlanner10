@@ -4,8 +4,9 @@ Updated: **2026-08-24**.
 
 ## Current state
 
-- Migration is active on `port/avalonia-in-place`; rollback remains the untouched native baseline
-  `67a3c4f` and the control-plane commit is published as `ba034cb5`.
+- Functional migration is published on `port/avalonia-in-place` at `eaf456665`; the isolated
+  `cleanup/project-audit` branch contains merge `a644cc4f7` plus the current cleanup work. Rollback
+  remains the untouched native baseline `67a3c4f`; `master` is not modified.
 - The root `MissionPlanner.csproj` is now the net10 Avalonia application with assembly and product
   identity `MissionPlanner`. It builds one main `MissionPlanner.dll` and has no source, build or
   runtime dependency on an `external/MissionPlanner` tree.
@@ -26,7 +27,7 @@ Updated: **2026-08-24**.
   migration evidence, not a copied source tree.
 - A clean Release build of the complete test graph succeeds with zero warnings and zero errors
   after resolving all 156 inherited `ExtLibs` diagnostics without a repository-wide `NoWarn`; the
-  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1223/1223**
+  decisions and reproduction commands are recorded in `WARNING_AUDIT.md`. All **1224/1224**
   Avalonia tests pass on Linux. A 12-second Xvfb launch reaches the normal Avalonia event loop with
   no console errors.
 - Informational version is derived from the current native Mission Planner version and formatted as
@@ -59,9 +60,10 @@ Updated: **2026-08-24**.
   with bounded headers, responses and concurrency. It serves live vehicle/mission KML and the
   aircraft model on port 56781 while deliberately excluding the old public bind, guided-mode HTTP
   writes, raw MAVLink WebSocket, Mavelous host and WinForms/GDI MJPEG capture surface.
-- CI, CodeQL, Dependabot and tag-release workflows are reconciled with the in-place tree. Legacy
-  Xamarin mobile workflows remain available manually; the obsolete WinForms workflow and
-  Azure/AppVeyor configurations have been removed on the separate cleanup branch.
+- CI, CodeQL, Dependabot and tag-release workflows are reconciled with the in-place tree. The EOL
+  Xamarin/Uno/Blazor/Windows Store application experiments and their manual mobile workflows are
+  removed on the cleanup branch; supported packaging remains Avalonia desktop for Linux, Windows
+  and both macOS architectures.
 - The frozen native inventory remains complete in `NATIVE_SURFACE.tsv`, while replaced WinForms
   sources are explicitly mapped to tested Avalonia artifacts and selected source files whose
   behavior is fully superseded have been removed. RESX translations remain preserved. The manifest
@@ -70,9 +72,9 @@ Updated: **2026-08-24**.
   certificate/DPInst custom actions are intentionally retired. The experimental Dowding project
   was never selected by the upstream solution build; its general tracker, CoT and multi-vehicle map
   workflows are ported while the dormant proprietary integration is classified in
-  `Reference/DOWDING_AUDIT.md` and queued for cleanup.
-  Obsolete directories, standalone projects and other build-system remnants are intentionally
-  audited only on `cleanup/project-audit` now that functional classification is complete.
+  `Reference/DOWDING_AUDIT.md` and removed with its generated clients/ONVIF dependency on the
+  cleanup branch. Replaced standalone projects and alternate application/build-system remnants are
+  classified in `PROJECT_CLEANUP_AUDIT.md` before deletion.
 - Claude remains temporarily disabled by user instruction.
 
 ## GTU synchronization checkpoint
@@ -90,22 +92,26 @@ Updated: **2026-08-24**.
 - Completed functional commit `eaf456665` passed packaging run `32685680444`: real default-path MSI
   install/file checks/uninstall, Linux DEB/TAR with lintian and extracted-payload smoke, and both
   macOS architectures all succeeded. CodeQL run `32685680428` succeeded with zero open alerts.
-- `cleanup/project-audit` is the isolated follow-up branch. It removes only proven-obsolete
-  launch/deploy/CI artifacts, fixes the vulnerable transitive package discovered by the audit and
-  records retained legacy areas in `PROJECT_CLEANUP_AUDIT.md`.
-- `Scripts/`, legacy/native projects and foreign build metadata below `ExtLibs` remain until their
-  runtime, generator or parity role is explicitly closed; non-inclusion in `MissionPlanner.slnx`
-  alone is not deletion evidence.
+- `cleanup/project-audit` is the isolated follow-up branch. It removes closed WinForms sources,
+  replaced standalone projects, EOL alternate application stacks, generated proprietary API
+  clients and obsolete launch/deploy/CI/binary artifacts; exact decisions and retained areas are in
+  `PROJECT_CLEANUP_AUDIT.md`.
+- `MissionPlanner.slnx` now names the complete active transitive graph. Its Release build has zero
+  warnings/errors, analyzer verification has zero diagnostics (the .NET 10 workspace-loader notices
+  are documented separately), NuGet reports no vulnerable packages, the native manifest has zero
+  blockers and all 1224 tests pass after cleanup.
+- `Scripts/`, localization RESX, NoFly data, the X-Plane/HIL bridge, `ExtLibs/mono` and independently
+  meaningful remaining library/generator projects are deliberately retained; non-inclusion in the
+  active solution alone is not deletion evidence.
 
 ## Immediate next step
 
-Complete the expanded unused-file/directory/build-system audit on this branch, run the full local
-build/test/package gates, push it, and require the Windows/macOS runners plus CodeQL before proposing
-the cleanup for merge.
+Rebuild and smoke-test Linux DEB/TAR, recheck Windows ZIP locally, then commit/push this cleanup and
+require the Windows MSI/macOS runners plus CodeQL before proposing it for merge.
 
 ## Acceptance baseline
 
-- At least 1223 port tests retained and passing.
+- At least 1224 port tests retained and passing.
 - Clean Release build has zero errors and zero warnings.
 - `linux-x64`, `win-x64`, `osx-x64`, and `osx-arm64` publish gates pass.
 - Linux `.deb` and portable archive build and smoke successfully.
