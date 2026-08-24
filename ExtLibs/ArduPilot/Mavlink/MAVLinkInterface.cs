@@ -4427,6 +4427,24 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
 
             try
             {
+                mavlink_command_int_t reposition = BuildGuidedRepositionCommand(
+                    sysid, compid, gotohere, setguidedmode);
+                if (doCommandInt(
+                        sysid, compid, (MAV_CMD)reposition.command,
+                        reposition.param1, reposition.param2, reposition.param3, reposition.param4,
+                        reposition.x, reposition.y, reposition.z,
+                        true, null, (MAV_FRAME)reposition.frame))
+                    return;
+            }
+            catch (Exception ex)
+            {
+                // Older autopilots may not implement DO_REPOSITION. Keep the historical
+                // guided-position protocol as a compatibility fallback.
+                log.Error(ex);
+            }
+
+            try
+            {
                 gotohere.id = (ushort) MAV_CMD.WAYPOINT;
 
                 if (setguidedmode)
@@ -4461,16 +4479,66 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
             }
         }
 
+        internal static mavlink_command_int_t BuildGuidedRepositionCommand(
+            byte sysid, byte compid, Locationwp target, bool setGuidedMode)
+        {
+            return new mavlink_command_int_t
+            {
+                target_system = sysid,
+                target_component = compid,
+                command = (ushort)MAV_CMD.DO_REPOSITION,
+                frame = target.frame,
+                param1 = -1,
+                param2 = setGuidedMode ? (float)MAV_DO_REPOSITION_FLAGS.CHANGE_MODE : 0,
+                param3 = 0,
+                // Preserve the current vehicle yaw mode, matching the old position-target path.
+                param4 = float.NaN,
+                x = (int)(target.lat * 1e7),
+                y = (int)(target.lng * 1e7),
+                z = target.alt
+            };
+        }
+
         [Obsolete]
         public void setNewWPAlt(Locationwp gotohere)
         {
-            setNewWPAlt((byte) sysidcurrent, (byte) compidcurrent, gotohere);
+            setNewAlt((byte)sysidcurrent, (byte)compidcurrent, gotohere.alt);
         }
 
+        [Obsolete]
         public void setNewWPAlt(byte sysid, byte compid, Locationwp gotohere)
+        {
+            setNewAlt(sysid, compid, gotohere.alt);
+        }
+
+        [Obsolete]
+        public void setNewAlt(float newRelativeHomeAltitudeMetres)
+        {
+            setNewAlt((byte)sysidcurrent, (byte)compidcurrent, newRelativeHomeAltitudeMetres);
+        }
+
+        public void setNewAlt(byte sysid, byte compid, float newRelativeHomeAltitudeMetres)
         {
             try
             {
+                mavlink_command_long_t altitude = BuildAltitudeChangeCommand(
+                    sysid, compid, newRelativeHomeAltitudeMetres);
+                if (doCommand(
+                        sysid, compid, (MAV_CMD)altitude.command,
+                        altitude.param1, altitude.param2, altitude.param3, altitude.param4,
+                        altitude.param5, altitude.param6, altitude.param7))
+                    return;
+            }
+            catch (Exception ex)
+            {
+                // Fall back to the special MISSION_ITEM current value understood by
+                // older ArduPilot firmware.
+                log.Error(ex);
+            }
+
+            try
+            {
+                Locationwp gotohere = new Locationwp {alt = newRelativeHomeAltitudeMetres};
                 gotohere.id = (ushort) MAV_CMD.WAYPOINT;
 
                 log.InfoFormat("setNewWPAlt {0}:{1} lat {2} lng {3} alt {4}", sysid, compid, gotohere.lat, gotohere.lng,
@@ -4495,6 +4563,19 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
                 log.Error(ex);
                 throw;
             }
+        }
+
+        internal static mavlink_command_long_t BuildAltitudeChangeCommand(
+            byte sysid, byte compid, float newRelativeHomeAltitudeMetres)
+        {
+            return new mavlink_command_long_t
+            {
+                target_system = sysid,
+                target_component = compid,
+                command = (ushort)MAV_CMD.DO_CHANGE_ALTITUDE,
+                param1 = newRelativeHomeAltitudeMetres,
+                param2 = (float)MAV_FRAME.GLOBAL_RELATIVE_ALT
+            };
         }
 
         public void setPositionTargetGlobalInt(byte sysid, byte compid, bool pos, bool vel, bool acc, bool yaw,

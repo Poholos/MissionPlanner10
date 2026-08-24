@@ -1856,9 +1856,9 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
     int newalt = (int)ChangeAltValue;
     try {
       await Task.Run(() =>
-          _comPort.setNewWPAlt(new MissionPlanner.Utilities.Locationwp {
-            alt = newalt / MissionPlanner.CurrentState.multiplieralt,
-          }));
+          _comPort.setNewAlt(Sysid, Compid,
+              (float)DisplayToVehicleAltitude(
+                  newalt, MissionPlanner.CurrentState.multiplieralt)));
       Log($"Change alt {newalt}");
     } catch (Exception ex) {
       await Services.Dialogs.Alert("Change Altitude", "Command failed: " + ex.Message);
