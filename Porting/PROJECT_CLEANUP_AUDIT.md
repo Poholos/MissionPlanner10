@@ -93,6 +93,10 @@ and its current package workflows; this cleanup does not claim Android/iOS produ
   blocking workers. A fully parallel CI run exposed that a blocked or slowly scheduled native BLE
   call could delay cancellation and peripheral cleanup; the cancellation regression now passes the
   complete suite and repeated stress runs without relaxing its timeout.
+- Aligned Avalonia Desktop, Fluent theme, Inter fonts and the headless xUnit adapter with the
+  application's existing Avalonia 11.3.18 core. The previous 11.3.13/11.3.18 mix could rarely make
+  the headless adapter enter an unsupported dispatcher frame on a clean CI runner; the complete
+  1253-test suite now passes repeatedly. DataGrid remains at its latest compatible 11.3.x release.
 - Kept transitive NuGet auditing enabled and promoted `NU1901` through `NU1904` to errors. The
   active graph reports no known vulnerable packages.
 - The `temp.cs` regression now validates the frozen 68-handler audit directly, so preserving the
