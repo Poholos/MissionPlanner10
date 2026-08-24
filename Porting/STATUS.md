@@ -152,6 +152,10 @@ Updated: **2026-08-24**.
   IV-size defect and has round-trip coverage for both supported key sizes. No alert was broadly or
   repository-wide suppressed; exact decisions remain in `PROJECT_CLEANUP_AUDIT.md`. PR #6 CodeQL
   run `32721719966` confirms zero open alerts on the branch.
+- The two remaining Secret Scanning warnings were inherited Mapbox values in removed official
+  Mission Planner/Xamarin/Cesium history. At the user's explicit request they are resolved as
+  `wont_fix`, not falsely marked revoked; the audit comments preserve the origin and the decision
+  not to rewrite published upstream-derived history.
 - `Scripts/`, localization RESX, NoFly data, the X-Plane/HIL bridge and independently meaningful
   remaining library/generator projects are deliberately retained; non-inclusion in the active
   solution alone is not deletion evidence. The former `ExtLibs/mono` submodule was removed only

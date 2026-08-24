@@ -140,9 +140,10 @@ dashboard-only dismissal. The older source-port alert numbering and decisions re
 GitHub dependency vulnerability alerts are enabled. Secure `log4net` 3.3.2 and `SharpCompress`
 0.48.0 versions are declared directly in every checked-in package manifest as well as enforced by
 the root build; the local full transitive NuGet audit reports no vulnerable package. Two historical
-Mapbox secret-scanning alerts refer only to removed paths and remain open pending actual token
-revocation in Mapbox. No token value is reproduced here, and published history has not been
-rewritten.
+Mapbox secret-scanning alerts refer only to removed upstream paths. At the user's explicit request
+they were resolved as `wont_fix`, with an audit comment recording that token ownership/revocation
+cannot be verified and published upstream-derived history will not be rewritten. They were not
+misclassified as revoked or false positives, and no token value is reproduced here.
 
 PR #6 code checkpoint CI `32721719954` passes the complete Linux, Windows and macOS matrix;
 CodeQL `32721719966` passes and its branch-specific API result contains zero open alerts.
