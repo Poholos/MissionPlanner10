@@ -187,13 +187,12 @@ jobs:
           fi
 
       - name: Build signed GitHub-release update manifest
-        if: startsWith(github.ref, 'refs/tags/')
         shell: bash
         env:
           UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
         run: |
           test -n "$UPDATE_SIGNING_KEY" || {
-            echo "::error::UPDATE_SIGNING_KEY is required for a tagged release"; exit 1; }
+            echo "::error::UPDATE_SIGNING_KEY is required for release validation"; exit 1; }
           RID=${{ matrix.rid }}
           case "$RID" in
             linux-x64) PUB="out/MissionPlanner-$MP_RELEASE_ARTIFACT-linux-x64" ;;
@@ -208,20 +207,30 @@ jobs:
           fi
           BUNDLE_NAME=$(basename "$BUNDLE")
           BUNDLE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/$BUNDLE_NAME"
-          BUNDLE_SHA=$(shasum -a 256 "$BUNDLE" | awk '{print $1}')
+          BUNDLE_SHA=$(python3 -c \
+            'import hashlib,sys; print(hashlib.file_digest(open(sys.argv[1], "rb"), "sha256").hexdigest())' \
+            "$BUNDLE")
           BUNDLE_SIZE=$(python3 -c 'import os,sys; print(os.path.getsize(sys.argv[1]))' "$BUNDLE")
           NOTES="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${GITHUB_REF_NAME}"
           python3 build/gen-manifest.py "$PUB" "$MP_RELEASE_VERSION" "$NOTES" \
             "upload/$RID-manifest.json" --bundle-url "$BUNDLE_URL" \
             --bundle-sha256 "$BUNDLE_SHA" --bundle-size "$BUNDLE_SIZE"
 
+          OPENSSL_BIN=openssl
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            OPENSSL_BIN="$(brew --prefix openssl@3)/bin/openssl"
+          fi
+          test -x "$(command -v "$OPENSSL_BIN")" || {
+            echo "::error::OpenSSL 3 is required to sign Ed25519 update manifests"; exit 1; }
+          "$OPENSSL_BIN" version
+
           printf '%s' "$UPDATE_SIGNING_KEY" > "$RUNNER_TEMP/update-key.pem"
-          ACTUAL_PUBLIC=$(openssl pkey -in "$RUNNER_TEMP/update-key.pem" -pubout -outform DER \
+          ACTUAL_PUBLIC=$("$OPENSSL_BIN" pkey -in "$RUNNER_TEMP/update-key.pem" -pubout -outform DER \
             2>/dev/null | tail -c 32 | base64 | tr -d '\r\n')
           EXPECTED_PUBLIC=$(tr -d '\r\n' < build/update-public-key.txt)
           test "$ACTUAL_PUBLIC" = "$EXPECTED_PUBLIC" || {
             echo "::error::UPDATE_SIGNING_KEY does not match build/update-public-key.txt"; exit 1; }
-          openssl pkeyutl -sign -rawin -inkey "$RUNNER_TEMP/update-key.pem" \
+          "$OPENSSL_BIN" pkeyutl -sign -rawin -inkey "$RUNNER_TEMP/update-key.pem" \
             -in "upload/$RID-manifest.json" -out "$RUNNER_TEMP/update.sig"
           base64 < "$RUNNER_TEMP/update.sig" | tr -d '\r\n' > "upload/$RID-manifest.sig"
           rm -f "$RUNNER_TEMP/update-key.pem" "$RUNNER_TEMP/update.sig"
