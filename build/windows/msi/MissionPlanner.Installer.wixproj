@@ -1,7 +1,7 @@
 <Project Sdk="WixToolset.Sdk/5.0.2">
   <PropertyGroup>
     <OutputType>Package</OutputType>
-    <OutputName>MissionPlanner</OutputName>
+    <OutputName>MissionPlanner10</OutputName>
     <InstallerPlatform>x64</InstallerPlatform>
     <!-- e_sqlite3.dll is intentionally recorded with neutral LANGID 0. Its PE version
          resource has no language, so WiX 1101 is expected while ICE60 is satisfied. -->
@@ -18,8 +18,8 @@
   </ItemGroup>
 
   <Target Name="ValidateInstallerInputs" BeforeTargets="BeforeBuild">
-    <Error Condition="'$(PublishDir)' == '' Or !Exists('$(PublishDir)/MissionPlanner.exe')"
-           Text="PublishDir must contain the win-x64 MissionPlanner.exe publish output." />
+    <Error Condition="'$(PublishDir)' == '' Or !Exists('$(PublishDir)/MissionPlanner10.exe')"
+           Text="PublishDir must contain the win-x64 MissionPlanner10.exe publish output." />
     <Error Condition="'$(InstallerVersion)' == ''"
            Text="InstallerVersion is required." />
     <Error Condition="'$(FullVersion)' == ''"

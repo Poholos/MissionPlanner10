@@ -10,7 +10,7 @@
   d:DesignHeight="820"
   x:Class="MissionPlanner.Views.TranslationEditorWindow"
   x:DataType="vm:TranslationEditorViewModel"
-  Title="Mission Planner Translation / RESX Editor"
+  Title="Mission Planner 10 Translation / RESX Editor"
   Width="1400"
   Height="820"
   MinWidth="940"
@@ -19,7 +19,7 @@
   Background="{DynamicResource MpControlBg}">
   <Grid Margin="14" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto" RowSpacing="9">
     <StackPanel Grid.Row="0" Spacing="3">
-      <TextBlock Classes="pagetitle" Text="Mission Planner Translation / RESX Editor" />
+      <TextBlock Classes="pagetitle" Text="Mission Planner 10 Translation / RESX Editor" />
       <TextBlock
         Text="Native port of the official ResEdit developer tool. It reads neutral .resx strings and an existing target culture, then exports only translated values as MissionPlanner-compatible culture resources. Generated translation, bin, obj and repository metadata directories are excluded from source scans."
         TextWrapping="Wrap"

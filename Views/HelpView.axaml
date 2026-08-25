@@ -15,7 +15,7 @@
     <StackPanel Margin="40" Spacing="8" MaxWidth="900" HorizontalAlignment="Left">
       <TextBlock TextWrapping="Wrap">
         <Run FontWeight="Bold">
-          Welcome to the Mission Planner
+          Welcome to Mission Planner 10
         </Run>, mission planning for Unmanned Aerial Vehicles (UAV).
       </TextBlock>
       <TextBlock Text="{Binding AppVersionDisplay}" Foreground="{DynamicResource MpAccentBrush}" FontWeight="SemiBold" />

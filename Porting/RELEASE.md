@@ -8,8 +8,8 @@ Updated: **2026-08-24**.
 | --- | --- | --- | --- |
 | `linux-x64` | self-contained `.tar.gz`, amd64 `.deb` | root-relative ZIP | Ubuntu |
 | `win-x64` | self-contained portable ZIP, x64 MSI | root-relative ZIP | Windows |
-| `osx-x64` | complete `Mission Planner.app` ZIP, compressed DMG | the complete app ZIP | macOS |
-| `osx-arm64` | complete `Mission Planner.app` ZIP, compressed DMG | the complete app ZIP | macOS |
+| `osx-x64` | complete `Mission Planner 10.app` ZIP, compressed DMG | the complete app ZIP | macOS |
+| `osx-arm64` | complete `Mission Planner 10.app` ZIP, compressed DMG | the complete app ZIP | macOS |
 
 Linux and Windows package entry points are `build/linux/package.sh` and
 `build/windows/package.sh`; the root `Makefile` exposes their common targets. The macOS release
@@ -69,9 +69,9 @@ assets plus `SHA256SUMS` and, for each RID, these updater assets:
 ```text
 <rid>-manifest.json
 <rid>-manifest.sig
-MissionPlanner-<artifact>-<rid>-update.zip  # Linux and Windows
-MissionPlanner-<artifact>-<rid>.zip         # complete macOS app
-MissionPlanner-<artifact>-<rid>.dmg         # human-installable macOS image
+MissionPlanner10-<artifact>-<rid>-update.zip  # Linux and Windows
+MissionPlanner10-<artifact>-<rid>.zip         # complete macOS app
+MissionPlanner10-<artifact>-<rid>.dmg         # human-installable macOS image
 ```
 
 A manual workflow dispatch performs the same package and updater-signature work without publishing
@@ -82,6 +82,12 @@ The application queries `Rouniy/MissionPlanner` GitHub Releases directly. Stable
 non-prerelease; Beta Updates select a prerelease. Both require an Ed25519-signed manifest and a
 SHA-256-pinned full bundle. Debian installs contain `.package-managed` and deliberately defer
 updates to APT instead of overwriting package-owned files.
+
+The first Linux/Windows update bundle after the Mission Planner 10 rename also carries a
+release-only legacy apphost alias. This lets a pre-rename portable installation apply the update;
+normal TAR/DEB/ZIP/MSI packages expose only `MissionPlanner10`. Renaming a macOS `.app` bundle
+changes the bundle path itself, so an existing `Mission Planner.app` requires one manual upgrade
+to `Mission Planner 10.app`.
 
 The required repository secret is `UPDATE_SIGNING_KEY`, containing an unencrypted PKCS#8 Ed25519
 private key. Only its public half is committed in `build/update-public-key.txt` and embedded in the

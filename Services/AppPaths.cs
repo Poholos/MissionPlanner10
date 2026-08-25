@@ -11,10 +11,12 @@ internal sealed record AppPathLayout(
     string ConfigRoot,
     string DataRoot,
     string CacheRoot,
-    string StateRoot);
+    string StateRoot,
+    string MapTileCacheRoot);
 
 public static class AppPaths {
-  public const string AppDirectoryName = "MissionPlanner";
+  public const string AppDirectoryName = "MissionPlanner10";
+  public const string LegacyAppDirectoryName = "MissionPlanner";
   public const string PackageManagedMarkerName = ".package-managed";
 
   private static readonly object _gate = new();
@@ -31,7 +33,9 @@ public static class AppPaths {
   public static string PoiFilePath => Path.Combine(DataRoot, "poi.txt");
   public static string SitlCacheRoot => Path.Combine(CacheRoot, "sitl");
   public static string SrtmCacheRoot => Path.Combine(CacheRoot, "srtm");
-  public static string MapTileCacheRoot => Path.Combine(CacheRoot, "map-tiles");
+  // Map tiles intentionally retain the official Mission Planner location. The filesystem cache
+  // format is shared, so Mission Planner 10, official Mission Planner and GTU can reuse downloads.
+  public static string MapTileCacheRoot => _layout.MapTileCacheRoot;
   public static string UpdateCacheRoot => Path.Combine(CacheRoot, "update");
   public static string PluginRoot => Path.Combine(DataRoot, "plugins");
   public static string PluginDataRoot => Path.Combine(DataRoot, "plugin-data");
@@ -93,7 +97,8 @@ public static class AppPaths {
             Path.Combine(configBase, AppDirectoryName),
             Path.Combine(dataBase, AppDirectoryName),
             cacheBase,
-            stateBase);
+            stateBase,
+            Path.Combine(dataBase, LegacyAppDirectoryName, "cache", "map-tiles"));
 
       case AppPlatform.MacOS:
         configBase = Path.Combine(profile, "Library", "Application Support");
@@ -103,7 +108,8 @@ public static class AppPaths {
             Path.Combine(configBase, AppDirectoryName),
             Path.Combine(configBase, AppDirectoryName),
             Path.Combine(cacheBase, AppDirectoryName),
-            Path.Combine(stateBase, AppDirectoryName));
+            Path.Combine(stateBase, AppDirectoryName),
+            Path.Combine(cacheBase, LegacyAppDirectoryName, "map-tiles"));
 
       default:
         configBase = Xdg(getEnvironment, "XDG_CONFIG_HOME", Path.Combine(profile, ".config"));
@@ -114,7 +120,8 @@ public static class AppPaths {
             Path.Combine(configBase, AppDirectoryName),
             Path.Combine(dataBase, AppDirectoryName),
             Path.Combine(cacheBase, AppDirectoryName),
-            Path.Combine(stateBase, AppDirectoryName));
+            Path.Combine(stateBase, AppDirectoryName),
+            Path.Combine(cacheBase, LegacyAppDirectoryName, "map-tiles"));
     }
   }
 
@@ -184,9 +191,13 @@ public static class AppPaths {
     string roaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
     string documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
     AddUnder(local, "Mission Planner");
+    AddUnder(local, LegacyAppDirectoryName);
     AddUnder(local, AppDirectoryName);
+    AddUnder(local, "MissionPlannerAvalonia");
     AddUnder(roaming, "Mission Planner");
+    AddUnder(roaming, LegacyAppDirectoryName);
     AddUnder(roaming, AppDirectoryName);
+    AddUnder(roaming, "MissionPlannerAvalonia");
     AddUnder(documents, "Mission Planner");
     return roots;
   }

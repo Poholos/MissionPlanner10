@@ -1,10 +1,11 @@
-# Mission Planner — native Avalonia port
+# Mission Planner 10 — native Avalonia port
 
 [![CI](https://github.com/Rouniy/MissionPlanner/actions/workflows/ci.yml/badge.svg)](https://github.com/Rouniy/MissionPlanner/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/Rouniy/MissionPlanner/actions/workflows/codeql.yml/badge.svg)](https://github.com/Rouniy/MissionPlanner/actions/workflows/codeql.yml)
 
 A native, cross-platform (macOS / Linux / Windows) port of the **ArduPilot Mission Planner** UI,
-built with **Avalonia (.NET 10)**. The Avalonia application, reusable Mission Planner backends,
+built with **Avalonia (.NET 10)** and distributed as **Mission Planner 10**. The Avalonia
+application, reusable Mission Planner backends,
 plugins and migration history live together in this fork; there is no external source repository or
 submodule for the application.
 
@@ -62,6 +63,7 @@ RID=linux-x64
 dotnet publish MissionPlanner.csproj \
   -c Release -r "$RID" --self-contained true -m:1 -p:DebugType=none \
   -o "out/$RID"
+./build/rename-apphost.sh "out/$RID" "$RID"
 ```
 
 Both macOS artifacts bundle an architecture-matched VLC 3.0.23 runtime from the corresponding
@@ -134,7 +136,9 @@ dotnet run --project MissionPlanner.csproj -m:1
 
 ## Self-contained artifact details
 
-For the `linux-x64` publish example above, launch `./out/linux-x64/MissionPlanner`.
+For the `linux-x64` publish example above, launch `./out/linux-x64/MissionPlanner10`.
+The managed assembly remains `MissionPlanner.dll` so existing non-visual plugins keep their native
+Mission Planner binary identity; only the user-facing apphost and product are renamed.
 
 The launcher and native libraries are ELF files. The `.dll` files beside them are normal managed
 .NET assemblies (portable ECMA-335 bytecode), not Windows native libraries. Windows-only native
@@ -166,7 +170,7 @@ make windows-msi
 
 WiX itself must run on Windows, so `windows-zip` can be cross-built on Linux while
 `windows-packages`/`windows-msi` are verified on the `windows-latest` CI runner. The MSI installs
-the port under `Program Files/MissionPlannerAvalonia` and uses a separate upgrade identity and
+the port under `Program Files/MissionPlanner10` and uses a separate upgrade identity and
 shortcuts, so it does not overwrite an installed official WinForms Mission Planner. It does not
 install the official serial-driver certificate or vendor drivers. The complete artifact matrix,
 release-tag format, updater assets and optional signing secrets are documented in
@@ -190,12 +194,13 @@ package; `speech-dispatcher-espeak-ng` and `bluez` are recommended for spoken wa
 BLE connections respectively, while `gdal-bin` is suggested for local GDAL raster maps.
 
 ```bash
-sudo apt install ./out/packages/missionplanner_*.deb
-missionplanner
+sudo apt install ./out/packages/missionplanner10_*.deb
+missionplanner10
 ```
 
-The Debian package installs the application under `/usr/lib/missionplanner`, adds a desktop
-entry and exposes `/usr/bin/missionplanner`. Package-managed installs do not overwrite
+The Debian package installs the application under `/usr/lib/missionplanner10`, adds a desktop
+entry and exposes `/usr/bin/missionplanner10`. It replaces the previous `missionplanner` package
+without reusing its installation directory. Package-managed installs do not overwrite
 themselves with the in-app updater; update them through APT. The portable `tar.gz` includes
 `install.sh` for a per-user desktop entry. Portable Linux, Windows and macOS builds can use the
 in-app updater after the fork owner configures the Ed25519 release-signing secret; downloaded full
@@ -208,17 +213,21 @@ native convention on every supported platform:
 
 | Purpose | Linux | Windows | macOS |
 | --- | --- | --- | --- |
-| Configuration | `$XDG_CONFIG_HOME/MissionPlanner` (default `~/.config`) | `%APPDATA%\MissionPlanner` | `~/Library/Application Support/MissionPlanner` |
-| Logs and user data | `$XDG_DATA_HOME/MissionPlanner` (default `~/.local/share`) | `%LOCALAPPDATA%\MissionPlanner` | `~/Library/Application Support/MissionPlanner` |
-| Download/cache data | `$XDG_CACHE_HOME/MissionPlanner` (default `~/.cache`) | `%LOCALAPPDATA%\MissionPlanner\cache` | `~/Library/Caches/MissionPlanner` |
-| Crash/state files | `$XDG_STATE_HOME/MissionPlanner` (default `~/.local/state`) | `%LOCALAPPDATA%\MissionPlanner\state` | `~/Library/Logs/MissionPlanner` |
+| Configuration | `$XDG_CONFIG_HOME/MissionPlanner10` (default `~/.config`) | `%APPDATA%\MissionPlanner10` | `~/Library/Application Support/MissionPlanner10` |
+| Logs and user data | `$XDG_DATA_HOME/MissionPlanner10` (default `~/.local/share`) | `%LOCALAPPDATA%\MissionPlanner10` | `~/Library/Application Support/MissionPlanner10` |
+| Download/cache data | `$XDG_CACHE_HOME/MissionPlanner10` (default `~/.cache`) | `%LOCALAPPDATA%\MissionPlanner10\cache` | `~/Library/Caches/MissionPlanner10` |
+| Crash/state files | `$XDG_STATE_HOME/MissionPlanner10` (default `~/.local/state`) | `%LOCALAPPDATA%\MissionPlanner10\state` | `~/Library/Logs/MissionPlanner10` |
 
 SRTM terrain, SITL binaries, parameter definitions, log metadata and updater downloads are caches.
 Existing files from legacy `Mission Planner` folders are copied on first use without deleting the
 old copy.
 
-Map tiles use the filesystem below the cache root at `map-tiles/<provider>/<z>/<x>/<y>.tile`; no
-SQLite tile database is used. GTU/Hermes uses these same platform paths and provider identifiers
+Map tiles are the deliberate exception to the renamed application paths: they remain in the
+official Mission Planner cache (`$XDG_CACHE_HOME/MissionPlanner/map-tiles` on Linux,
+`%LOCALAPPDATA%\MissionPlanner\cache\map-tiles` on Windows and
+`~/Library/Caches/MissionPlanner/map-tiles` on macOS). They use
+`<provider>/<z>/<x>/<y>.tile`; no SQLite tile database is used. GTU/Hermes uses these same platform
+paths and provider identifiers
 for compatible Google Satellite, Google Hybrid, Bing Satellite and OpenStreetMap tiles, allowing
 both applications to reuse downloaded tiles without changing either application's other data.
 

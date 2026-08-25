@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
   <key>CFBundleName</key>
-  <string>Mission Planner</string>
+  <string>Mission Planner 10</string>
   <key>CFBundleDisplayName</key>
-  <string>Mission Planner</string>
+  <string>Mission Planner 10</string>
   <key>CFBundleIdentifier</key>
-  <string>io.github.rouniy.missionplanner</string>
+  <string>io.github.rouniy.missionplanner10</string>
   <key>CFBundleVersion</key>
   <string>__VERSION__</string>
   <key>CFBundleShortVersionString</key>
@@ -15,7 +15,7 @@
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleExecutable</key>
-  <string>MissionPlanner</string>
+  <string>MissionPlanner10</string>
   <key>CFBundleIconFile</key>
   <string>AppIcon</string>
   <key>LSMinimumSystemVersion</key>
@@ -23,9 +23,9 @@
   <key>NSHighResolutionCapable</key>
   <true/>
   <key>NSBluetoothAlwaysUsageDescription</key>
-  <string>Mission Planner uses Bluetooth to connect to operator-selected telemetry radios.</string>
+  <string>Mission Planner 10 uses Bluetooth to connect to operator-selected telemetry radios.</string>
   <key>NSBluetoothPeripheralUsageDescription</key>
-  <string>Mission Planner uses Bluetooth to connect to operator-selected telemetry radios.</string>
+  <string>Mission Planner 10 uses Bluetooth to connect to operator-selected telemetry radios.</string>
   <key>ITSAppUsesNonExemptEncryption</key>
   <false/>
   <key>NSPrincipalClass</key>

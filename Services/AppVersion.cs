@@ -5,6 +5,8 @@ using System.Reflection;
 namespace MissionPlanner.Services;
 
 public static class AppVersion {
+  public const string DisplayName = "Mission Planner 10";
+  public const string ExecutableName = "MissionPlanner10";
 
   public static string Number => Parse(Info()).Number;
 
@@ -14,7 +16,7 @@ public static class AppVersion {
 
   public static string Informational => Info();
 
-  public static string Title => "Mission Planner " + Full;
+  public static string Title => DisplayName + " " + Full;
 
   public static string Full => Parse(Info()).Display;
 

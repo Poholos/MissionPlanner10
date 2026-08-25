@@ -1,15 +1,19 @@
-Package: missionplanner
+Package: missionplanner10
 Version: @VERSION@
 Section: science
 Priority: optional
 Architecture: @ARCH@
 Installed-Size: @INSTALLED_SIZE@
 Maintainer: Rouniy <Rouniy@users.noreply.github.com>
+Conflicts: missionplanner
+Replaces: missionplanner
+Provides: missionplanner
 Depends: libc6 (>= 2.35), libgcc-s1, libstdc++6, zlib1g, libicu76 | libicu75 | libicu74 | libicu72 | libicu71 | libicu70, libssl3t64 | libssl3, libfontconfig1, libfreetype6, libx11-6, libx11-xcb1, libxcb1, libxrandr2, libxi6, libgl1, libdbus-1-3, libxkbcommon0, libice6, libsm6, libvlc5, vlc-plugin-base
 Recommends: speech-dispatcher-espeak-ng, bluez
 Suggests: gdal-bin
 Homepage: https://github.com/Rouniy/MissionPlanner
-Description: cross-platform Mission Planner ground control station port
- Self-contained Avalonia port of ArduPilot Mission Planner for flight planning,
- telemetry, parameter management, log analysis, simulation and vehicle setup.
+Description: Mission Planner 10 cross-platform ground control station
+ Self-contained Avalonia .NET 10 port of ArduPilot Mission Planner.
+ It supports flight planning, telemetry, parameter management, log analysis,
+ simulation and vehicle setup.
  This is an independent community project and is not affiliated with ArduPilot.

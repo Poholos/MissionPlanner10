@@ -28,10 +28,11 @@
     <IsAvaloniaPortProject>true</IsAvaloniaPortProject>
     <IsMissionPlannerApplication>true</IsMissionPlannerApplication>
 
-    <Product>Mission Planner</Product>
+    <!-- Keep AssemblyName=MissionPlanner for legacy plugin ABI compatibility. -->
+    <Product>Mission Planner 10</Product>
     <Company>Mission Planner contributors</Company>
     <Authors>Michael Oborne; Mission Planner contributors</Authors>
-    <Description>Cross-platform Mission Planner ground control station for ArduPilot.</Description>
+    <Description>Mission Planner 10 cross-platform ground control station for ArduPilot.</Description>
     <Copyright>Copyright © Mission Planner contributors. GPLv3.</Copyright>
     <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/Rouniy/MissionPlanner</RepositoryUrl>

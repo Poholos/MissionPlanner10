@@ -1,10 +1,10 @@
 [Desktop Entry]
 Type=Application
-Name=Mission Planner
+Name=Mission Planner 10
 Comment=Ground control station for ArduPilot vehicles
-Exec=@INSTALL_DIR@/MissionPlanner
+Exec=@INSTALL_DIR@/MissionPlanner10
 Icon=@INSTALL_DIR@/missionplanner.png
 Terminal=false
 Categories=Science;
 Keywords=ArduPilot;Drone;UAV;MAVLink;GCS;Pixhawk;Telemetry;
-StartupWMClass=MissionPlanner
+StartupWMClass=MissionPlanner10

@@ -12,7 +12,7 @@ public class PackagingAuthoringTests {
     XElement mainFeature = Assert.Single(package.Descendants(wix + "Feature"),
         element => (string?)element.Attribute("Id") == "Main");
 
-    AssertPayload(mainFeature, wix, "MissionPlannerExecutable", "MissionPlanner.exe");
+    AssertPayload(mainFeature, wix, "MissionPlanner10Executable", "MissionPlanner10.exe");
     AssertPayload(mainFeature, wix, "SqliteNativeFile", "e_sqlite3.dll");
   }
 

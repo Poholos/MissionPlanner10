@@ -161,9 +161,9 @@ jobs:
             rm -f "$RUNNER_TEMP/cert.p12"
           fi
 
-          ./build/macos/make-app.sh out/macos "$MP_RELEASE_BASE" "dist/Mission Planner.app"
-          ZIP="upload/MissionPlanner-$MP_RELEASE_ARTIFACT-$RID.zip"
-          (cd dist && ditto -c -k --sequesterRsrc --keepParent "Mission Planner.app" "../$ZIP")
+          ./build/macos/make-app.sh out/macos "$MP_RELEASE_BASE" "dist/Mission Planner 10.app"
+          ZIP="upload/MissionPlanner10-$MP_RELEASE_ARTIFACT-$RID.zip"
+          (cd dist && ditto -c -k --sequesterRsrc --keepParent "Mission Planner 10.app" "../$ZIP")
 
           NOTARY_KEY_PATH=""
           if [[ -n "$MACOS_NOTARY_KEY" && -n "$MACOS_NOTARY_KEY_ID" && -n "$MACOS_NOTARY_ISSUER" ]]; then
@@ -171,13 +171,13 @@ jobs:
             printf '%s' "$MACOS_NOTARY_KEY" | base64 -D > "$NOTARY_KEY_PATH"
             xcrun notarytool submit "$ZIP" --key "$NOTARY_KEY_PATH" \
               --key-id "$MACOS_NOTARY_KEY_ID" --issuer "$MACOS_NOTARY_ISSUER" --wait
-            xcrun stapler staple "dist/Mission Planner.app"
+            xcrun stapler staple "dist/Mission Planner 10.app"
             rm -f "$ZIP"
-            (cd dist && ditto -c -k --sequesterRsrc --keepParent "Mission Planner.app" "../$ZIP")
+            (cd dist && ditto -c -k --sequesterRsrc --keepParent "Mission Planner 10.app" "../$ZIP")
           fi
 
-          DMG="upload/MissionPlanner-$MP_RELEASE_ARTIFACT-$RID.dmg"
-          ./build/macos/make-dmg.sh "dist/Mission Planner.app" "$DMG"
+          DMG="upload/MissionPlanner10-$MP_RELEASE_ARTIFACT-$RID.dmg"
+          ./build/macos/make-dmg.sh "dist/Mission Planner 10.app" "$DMG"
           if [[ -n "$NOTARY_KEY_PATH" ]]; then
             xcrun notarytool submit "$DMG" --key "$NOTARY_KEY_PATH" \
               --key-id "$MACOS_NOTARY_KEY_ID" --issuer "$MACOS_NOTARY_ISSUER" --wait
@@ -195,15 +195,25 @@ jobs:
             echo "::error::UPDATE_SIGNING_KEY is required for release validation"; exit 1; }
           RID=${{ matrix.rid }}
           case "$RID" in
-            linux-x64) PUB="out/MissionPlanner-$MP_RELEASE_ARTIFACT-linux-x64" ;;
-            win-x64) PUB="out/MissionPlanner-$MP_RELEASE_ARTIFACT-win-x64" ;;
+            linux-x64) PUB="out/MissionPlanner10-$MP_RELEASE_ARTIFACT-linux-x64" ;;
+            win-x64) PUB="out/MissionPlanner10-$MP_RELEASE_ARTIFACT-win-x64" ;;
             osx-x64|osx-arm64) PUB="out/macos" ;;
           esac
           if [[ "$RID" == osx-* ]]; then
-            BUNDLE="upload/MissionPlanner-$MP_RELEASE_ARTIFACT-$RID.zip"
+            BUNDLE="upload/MissionPlanner10-$MP_RELEASE_ARTIFACT-$RID.zip"
           else
-            BUNDLE="upload/MissionPlanner-$MP_RELEASE_ARTIFACT-$RID-update.zip"
-            python3 build/make-update-bundle.py "$PUB" "$BUNDLE"
+            BUNDLE="upload/MissionPlanner10-$MP_RELEASE_ARTIFACT-$RID-update.zip"
+            # Keep one release-only legacy apphost alias so the pre-brand portable updater can
+            # consume the first MissionPlanner10 bundle. Human packages contain only the new name.
+            UPDATE_PUB="$RUNNER_TEMP/missionplanner10-update-$RID"
+            mkdir -p "$UPDATE_PUB"
+            cp -a "$PUB/." "$UPDATE_PUB/"
+            if [[ "$RID" == win-* ]]; then
+              cp "$UPDATE_PUB/MissionPlanner10.exe" "$UPDATE_PUB/MissionPlanner.exe"
+            else
+              cp "$UPDATE_PUB/MissionPlanner10" "$UPDATE_PUB/MissionPlanner"
+            fi
+            python3 build/make-update-bundle.py "$UPDATE_PUB" "$BUNDLE"
           fi
           BUNDLE_NAME=$(basename "$BUNDLE")
           BUNDLE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/$BUNDLE_NAME"
