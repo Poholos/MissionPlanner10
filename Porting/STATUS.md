@@ -2,6 +2,32 @@
 
 Updated: **2026-08-25**.
 
+## Flight Data Actions and joystick-dialog parity checkpoint
+
+- Branch `fix/actions-panel-parity` was compared directly with the current official Mission
+  Planner checkpoint `67a3c4f22bd1b38ac499f9756902e04fa4ed8444`. Upstream has two distinct
+  controls: `BUT_joystick` in the five-column Actions table opens
+  `new JoystickSetup().ShowUserControl()`, while `but_disablejoystick` is a separate map overlay
+  that appears only while joystick output is active. The early Avalonia port incorrectly replaced
+  the first role with an always-visible `Disable Joystick` action.
+- The Actions tab now follows the official five-column/five-row placement for its action, waypoint,
+  mode and mount selectors; Auto/Loiter/RTL, home/restart/raw-sensor/arm, joystick/message/resume,
+  clear-track/abort and numeric speed/altitude/loiter controls. The port-specific MAVLink message
+  rate tool remains available in a collapsed expander below the official surface.
+- `Joystick` now opens a separate modeless `JoystickSetupWindow`, matching upstream
+  `ShowUserControl()` behavior instead of navigating to Setup. The window directly hosts the full
+  native port of `JoystickSetup` (`ConfigJoystickView` plus `ConfigJoystickViewModel`), keeps an
+  enabled joystick active after close just as Mission Planner does, and disposes only its UI
+  subscriptions/timers. Repeated clicks activate the existing window rather than creating
+  competing setup sessions. The separate map-overlay `Disable Joystick` button releases control
+  and RC overrides and is visible only while the global joystick service is active.
+- A real Xvfb/XTest run opened Flight Data -> Actions and the modeless Joystick window, confirmed
+  the table layout and full axis/device controls, and closed both windows normally. Release build
+  passes with **0 warnings / 0 errors**; focused Flight Data tests pass **32/32** and the complete
+  suite passes **1459/1459**. Two new headless UI regressions lock the upstream grid/button roles,
+  direct window content, modeless visibility and single-window behavior. Claude remains disabled
+  by user instruction. No merge, push, tag or release has been performed for this branch.
+
 ## Live UDP/NV, SITL/X-Plane and Mission Planner 10 checkpoint
 
 - Local branch `fix/udp-nv-connect-state` is at code checkpoint

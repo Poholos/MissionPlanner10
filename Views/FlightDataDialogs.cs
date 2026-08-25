@@ -8,8 +8,44 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using MissionPlanner.Controls;
 using MissionPlanner.ViewModels;
+using MissionPlanner.ViewModels.GCSViews.ConfigurationView;
+using MissionPlanner.Views.GCSViews.ConfigurationView;
 
 namespace MissionPlanner.Views;
+
+/// <summary>
+/// Modeless host for the native port of the official JoystickSetup control. Flight Data opens
+/// this window directly, matching upstream's ShowUserControl() behavior without navigating away
+/// to the Setup backstage page.
+/// </summary>
+public sealed class JoystickSetupWindow : Window {
+  private readonly ConfigJoystickViewModel _viewModel;
+  private bool _disposed;
+
+  public JoystickSetupWindow() {
+    Title = "Joystick";
+    Width = 900;
+    Height = 700;
+    MinWidth = 640;
+    MinHeight = 480;
+    Background = new SolidColorBrush(Color.Parse("#1F1F20"));
+    WindowStartupLocation = WindowStartupLocation.CenterOwner;
+
+    _viewModel = new ConfigJoystickViewModel();
+    Content = new ConfigJoystickView { DataContext = _viewModel };
+    Closed += (_, _) => DisposeViewModel();
+  }
+
+  internal ConfigJoystickViewModel ViewModel => _viewModel;
+
+  private void DisposeViewModel() {
+    if (_disposed) {
+      return;
+    }
+    _disposed = true;
+    _viewModel.Dispose();
+  }
+}
 
 public class RawSensorWindow : Window {
   private readonly DispatcherTimer _timer;

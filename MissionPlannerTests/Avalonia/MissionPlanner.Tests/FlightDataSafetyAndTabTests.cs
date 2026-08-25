@@ -1,7 +1,10 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using MissionPlanner.ViewModels;
+using MissionPlanner.ViewModels.GCSViews.ConfigurationView;
 using MissionPlanner.Views;
+using MissionPlanner.Views.GCSViews.ConfigurationView;
+using AvaloniaGrid = Avalonia.Controls.Grid;
 
 namespace MissionPlanner.Tests;
 
@@ -149,6 +152,56 @@ public class FlightDataSafetyAndTabTests {
       items[0].IsVisible = false;
       vm.SelectActionTab(0);
       Assert.Same(items[1], tabs.SelectedItem);
+    } finally {
+      vm.Dispose();
+    }
+  }
+
+  [AvaloniaFact]
+  public void Actions_layout_and_joystick_buttons_match_their_distinct_upstream_roles() {
+    var view = new FlightDataView();
+    var vm = new FlightDataViewModel();
+    try {
+      view.DataContext = vm;
+      var grid = Assert.IsType<AvaloniaGrid>(
+          view.FindControl<AvaloniaGrid>("OfficialActionsGrid"));
+      var actionSelector = Assert.IsType<ComboBox>(
+          view.FindControl<ComboBox>("ActionSelector"));
+      var doAction = Assert.IsType<Button>(view.FindControl<Button>("DoActionButton"));
+      var setup = Assert.IsType<Button>(view.FindControl<Button>("JoystickSetupButton"));
+      var disable = Assert.IsType<Button>(view.FindControl<Button>("DisableJoystickButton"));
+
+      Assert.Equal(5, grid.ColumnDefinitions.Count);
+      Assert.Equal(5, grid.RowDefinitions.Count);
+      Assert.Equal((0, 0), (AvaloniaGrid.GetRow(actionSelector), AvaloniaGrid.GetColumn(actionSelector)));
+      Assert.Equal((0, 1), (AvaloniaGrid.GetRow(doAction), AvaloniaGrid.GetColumn(doAction)));
+      Assert.Equal((3, 2), (AvaloniaGrid.GetRow(setup), AvaloniaGrid.GetColumn(setup)));
+      Assert.Equal("Joystick", setup.Content);
+      Assert.Equal("Disable Joystick", disable.Content);
+      Assert.NotSame(setup.Command, disable.Command);
+
+      Assert.False(disable.IsVisible);
+      vm.IsJoystickActive = true;
+      Assert.True(disable.IsVisible);
+    } finally {
+      vm.Dispose();
+    }
+  }
+
+  [AvaloniaFact]
+  public void Joystick_action_opens_the_original_setup_port_as_a_separate_modeless_window() {
+    var vm = new FlightDataViewModel();
+    try {
+      vm.JoystickCommand.Execute(null);
+
+      var window = Assert.IsType<JoystickSetupWindow>(vm.ActiveJoystickSetupWindow);
+      var view = Assert.IsType<ConfigJoystickView>(window.Content);
+      Assert.Same(window.ViewModel, view.DataContext);
+      Assert.IsType<ConfigJoystickViewModel>(view.DataContext);
+      Assert.True(window.IsVisible);
+
+      vm.JoystickCommand.Execute(null);
+      Assert.Same(window, vm.ActiveJoystickSetupWindow);
     } finally {
       vm.Dispose();
     }

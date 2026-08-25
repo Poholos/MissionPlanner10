@@ -59,7 +59,7 @@
           Margin="0,0,0,10"
         />
         <TextBlock Text="Axes" Classes="fieldlbl" FontWeight="Bold" Margin="0,0,0,4" />
-        <Grid ColumnDefinitions="60,150,*,70,70,80" Margin="0,0,0,4">
+        <Grid ColumnDefinitions="60,150,*,70,70,100" Margin="0,0,0,4">
           <TextBlock Grid.Column="0" Text="Channel" Classes="fieldlbl" />
           <TextBlock Grid.Column="1" Text="Axis" Classes="fieldlbl" />
           <TextBlock Grid.Column="2" Text="Value" Classes="fieldlbl" />
@@ -71,7 +71,7 @@
         <ItemsControl ItemsSource="{Binding Axes}">
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="cv:JoyAxisRow">
-              <Grid ColumnDefinitions="60,150,*,70,70,80" Margin="0,2">
+              <Grid ColumnDefinitions="60,150,*,70,70,100" Margin="0,2">
                 <TextBlock Grid.Column="0" Text="{Binding Label}" Classes="fieldlbl" VerticalAlignment="Center" />
                 <ComboBox
                   Grid.Column="1"

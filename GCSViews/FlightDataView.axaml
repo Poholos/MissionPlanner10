@@ -182,132 +182,116 @@
         </TabItem>
 
         <TabItem Header="Actions">
+          <ScrollViewer VerticalScrollBarVisibility="Auto"
+                        HorizontalScrollBarVisibility="Auto">
+            <StackPanel Margin="6" Spacing="6">
+              <!-- Keep the same five-column command placement as upstream FlightData.tabActions. -->
+              <Grid x:Name="OfficialActionsGrid" MinWidth="620"
+                    ColumnDefinitions="1.35*,Auto,*,*,1.55*"
+                    RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                    ColumnSpacing="3" RowSpacing="3">
+                <Grid.Styles>
+                  <Style Selector="Grid#OfficialActionsGrid Button">
+                    <Setter Property="MinHeight" Value="32" />
+                    <Setter Property="FontSize" Value="11" />
+                    <Setter Property="HorizontalContentAlignment" Value="Center" />
+                  </Style>
+                  <Style Selector="Grid#OfficialActionsGrid ComboBox">
+                    <Setter Property="MinHeight" Value="32" />
+                    <Setter Property="FontSize" Value="11" />
+                    <Setter Property="HorizontalAlignment" Value="Stretch" />
+                  </Style>
+                  <Style Selector="Grid#OfficialActionsGrid NumericUpDown">
+                    <Setter Property="MinHeight" Value="32" />
+                    <Setter Property="FontSize" Value="11" />
+                  </Style>
+                </Grid.Styles>
 
-          <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <WrapPanel Margin="6" Orientation="Horizontal">
-              <WrapPanel.Styles>
-                <Style Selector="WrapPanel > Panel">
-                  <Setter Property="Width" Value="188" />
-                  <Setter Property="Height" Value="34" />
-                  <Setter Property="Margin" Value="3" />
-                </Style>
-                <Style Selector="WrapPanel > Button">
-                  <Setter Property="Width" Value="188" />
-                  <Setter Property="Height" Value="34" />
-                  <Setter Property="MinHeight" Value="34" />
-                  <Setter Property="Margin" Value="3" />
-                  <Setter Property="FontSize" Value="11" />
-                  <Setter Property="HorizontalContentAlignment" Value="Center" />
-                </Style>
-                <Style Selector="Panel Button">
-                  <Setter Property="FontSize" Value="11" />
-                  <Setter Property="MinHeight" Value="0" />
-                  <Setter Property="VerticalAlignment" Value="Stretch" />
-                  <Setter Property="HorizontalContentAlignment" Value="Center" />
-                </Style>
-                <Style Selector="Panel ComboBox">
-                  <Setter Property="FontSize" Value="11" />
-                  <Setter Property="MinHeight" Value="0" />
-                  <Setter Property="VerticalAlignment" Value="Stretch" />
-                </Style>
-                <Style Selector="Panel NumericUpDown">
-                  <Setter Property="FontSize" Value="11" />
-                  <Setter Property="MinWidth" Value="0" />
-                  <Setter Property="MinHeight" Value="0" />
-                  <Setter Property="VerticalAlignment" Value="Stretch" />
-                </Style>
-              </WrapPanel.Styles>
-
-              <Panel>
-                <DockPanel>
-                  <Button DockPanel.Dock="Right" Width="78" Content="Set Mode"
-                          Command="{Binding SetModeCommand}" />
-                  <ComboBox ItemsSource="{Binding Modes}" SelectedItem="{Binding SelectedMode}"
-                            HorizontalAlignment="Stretch" Margin="0,0,3,0" />
-                </DockPanel>
-              </Panel>
-              <Panel>
-                <DockPanel>
-                  <Button DockPanel.Dock="Right" Width="78" Content="Set WP"
-                          Command="{Binding SetWpCommand}" />
-                  <ComboBox ItemsSource="{Binding WpNumbers}" SelectedItem="{Binding SelectedWaypoint}"
-                            HorizontalAlignment="Stretch" Margin="0,0,3,0" />
-                </DockPanel>
-              </Panel>
-              <Panel>
-                <DockPanel>
-                  <Button DockPanel.Dock="Right" Width="78" Content="Do Action"
-                          Command="{Binding DoActionCommand}" />
-                  <ComboBox ItemsSource="{Binding Actions}" SelectedItem="{Binding SelectedAction}"
-                            HorizontalAlignment="Stretch" Margin="0,0,3,0" />
-                </DockPanel>
-              </Panel>
-              <Panel>
-                <DockPanel>
-                  <Button DockPanel.Dock="Right" Width="78" Content="Set Mount"
-                          Command="{Binding SetMountCommand}" />
-                  <ComboBox ItemsSource="{Binding MountModes}" SelectedItem="{Binding SelectedMountMode}"
-                            HorizontalAlignment="Stretch" Margin="0,0,3,0" />
-                </DockPanel>
-              </Panel>
-
-              <Panel>
-                <DockPanel>
-                  <NumericUpDown DockPanel.Dock="Right" Width="74" ShowButtonSpinner="False"
+                <ComboBox x:Name="ActionSelector" Grid.Row="0" Grid.Column="0"
+                          ItemsSource="{Binding Actions}" SelectedItem="{Binding SelectedAction}" />
+                <Button x:Name="DoActionButton" Grid.Row="0" Grid.Column="1" Content="Do Action"
+                        Command="{Binding DoActionCommand}" />
+                <Button Grid.Row="0" Grid.Column="2" Content="Auto"
+                        Command="{Binding QuickAutoCommand}" />
+                <Button Grid.Row="0" Grid.Column="3" Content="Set Home Alt"
+                        Command="{Binding SetHomeCommand}" />
+                <DockPanel Grid.Row="0" Grid.Column="4">
+                  <NumericUpDown DockPanel.Dock="Right" Width="68" ShowButtonSpinner="False"
                                  FormatString="0.0" Value="{Binding ChangeSpeedValue}" />
-                  <Button Content="Speed" Command="{Binding ChangeSpeedCommand}" Margin="0,0,3,0"
-                          HorizontalAlignment="Stretch" />
+                  <Button Content="Change Speed" Command="{Binding ChangeSpeedCommand}"
+                          Margin="0,0,3,0" HorizontalAlignment="Stretch" />
                 </DockPanel>
-              </Panel>
-              <Panel>
-                <DockPanel>
-                  <NumericUpDown DockPanel.Dock="Right" Width="74" ShowButtonSpinner="False"
+
+                <ComboBox Grid.Row="1" Grid.Column="0" ItemsSource="{Binding WpNumbers}"
+                          SelectedItem="{Binding SelectedWaypoint}" />
+                <Button Grid.Row="1" Grid.Column="1" Content="Set WP"
+                        Command="{Binding SetWpCommand}" />
+                <Button Grid.Row="1" Grid.Column="2" Content="Loiter"
+                        Command="{Binding QuickLoiterCommand}" />
+                <Button Grid.Row="1" Grid.Column="3" Content="Restart Mission"
+                        Command="{Binding RestartMissionCommand}" />
+                <DockPanel Grid.Row="1" Grid.Column="4">
+                  <NumericUpDown DockPanel.Dock="Right" Width="68" ShowButtonSpinner="False"
                                  FormatString="0.0" Value="{Binding ChangeAltValue}" />
-                  <Button Content="Alt" Command="{Binding ChangeAltCommand}" Margin="0,0,3,0"
-                          HorizontalAlignment="Stretch" />
+                  <Button Content="Change Alt" Command="{Binding ChangeAltCommand}"
+                          Margin="0,0,3,0" HorizontalAlignment="Stretch" />
                 </DockPanel>
-              </Panel>
-              <Panel>
-                <DockPanel>
-                  <NumericUpDown DockPanel.Dock="Right" Width="74" ShowButtonSpinner="False"
+
+                <ComboBox Grid.Row="2" Grid.Column="0" ItemsSource="{Binding Modes}"
+                          SelectedItem="{Binding SelectedMode}" />
+                <Button Grid.Row="2" Grid.Column="1" Content="Set Mode"
+                        Command="{Binding SetModeCommand}" />
+                <Button Grid.Row="2" Grid.Column="2" Content="RTL"
+                        Command="{Binding QuickRtlCommand}" />
+                <Button Grid.Row="2" Grid.Column="3" Content="Raw Sensor View"
+                        Command="{Binding RawSensorViewCommand}" />
+                <DockPanel Grid.Row="2" Grid.Column="4">
+                  <NumericUpDown DockPanel.Dock="Right" Width="68" ShowButtonSpinner="False"
                                  FormatString="0" Value="{Binding LoiterRadValue}" />
-                  <Button Content="Loiter Rad" Command="{Binding SetLoiterRadCommand}" Margin="0,0,3,0"
-                          HorizontalAlignment="Stretch" />
+                  <Button Content="Set Loiter Rad" Command="{Binding SetLoiterRadCommand}"
+                          Margin="0,0,3,0" HorizontalAlignment="Stretch" />
                 </DockPanel>
-              </Panel>
 
-              <Button Content="Auto" Command="{Binding QuickAutoCommand}" />
-              <Button Content="RTL" Command="{Binding QuickRtlCommand}" />
-              <Button Content="Loiter" Command="{Binding QuickLoiterCommand}" />
-              <Button Content="Arm/ Disarm" Command="{Binding ToggleArmCommand}" />
+                <ComboBox Grid.Row="3" Grid.Column="0" ItemsSource="{Binding MountModes}"
+                          SelectedItem="{Binding SelectedMountMode}" />
+                <Button Grid.Row="3" Grid.Column="1" Content="Set Mount"
+                        Command="{Binding SetMountCommand}" />
+                <Button x:Name="JoystickSetupButton" Grid.Row="3" Grid.Column="2"
+                        Content="Joystick" Command="{Binding JoystickCommand}"
+                        ToolTip.Tip="Open the joystick setup dialog" />
+                <Button Grid.Row="3" Grid.Column="3" Content="Arm / Disarm"
+                        Command="{Binding ToggleArmCommand}" />
+                <Button Grid.Row="3" Grid.Column="4" Content="Clear Track"
+                        Command="{Binding ClearTrackCommand}" />
 
-              <Button Content="Restart Mission" Command="{Binding RestartMissionCommand}" />
-              <Button Content="Resume Mission" Command="{Binding ResumeMissionCommand}" />
-              <Button Content="Abort Landing" Command="{Binding AbortLandCommand}" />
-              <Button Content="Set Home Alt" Command="{Binding SetHomeCommand}" />
+                <Button Grid.Row="4" Grid.Column="2" Content="Message"
+                        Command="{Binding ShowMessageCommand}" />
+                <Button Grid.Row="4" Grid.Column="3" Content="Resume Mission"
+                        Command="{Binding ResumeMissionCommand}" />
+                <Button Grid.Row="4" Grid.Column="4" Content="Abort Landing"
+                        Command="{Binding AbortLandCommand}" />
+              </Grid>
 
-              <Button Content="Raw Sensor View" Command="{Binding RawSensorViewCommand}" />
-              <Button Content="Clear Track" Command="{Binding ClearTrackCommand}" />
-              <Button Content="Message" Command="{Binding ShowMessageCommand}" />
-              <Button Content="Disable Joystick" Command="{Binding JoystickCommand}"
-                      ToolTip.Tip="Release active joystick control; configure it under Setup > Joystick" />
-
-              <Panel Width="382">
-                <Grid ColumnDefinitions="*,64,54,48,54" ColumnSpacing="3">
-                  <ComboBox Grid.Column="0" ItemsSource="{Binding MessageOptions}"
-                            SelectedItem="{Binding SelectedMessage}" />
-                  <NumericUpDown Grid.Column="1" Minimum="0.01" Maximum="1000"
-                                 Increment="1" FormatString="0.##"
-                                 Value="{Binding MessageRateHz}"
-                                 ToolTip.Tip="Requested MAVLink message rate in Hz" />
-                  <Button Grid.Column="2" Content="Apply" Command="{Binding ApplyMessageIntervalCommand}" />
-                  <Button Grid.Column="3" Content="Stop" Command="{Binding StopMessageIntervalCommand}" />
-                  <Button Grid.Column="4" Content="Default" Command="{Binding ResetMessageIntervalCommand}" />
-                </Grid>
-              </Panel>
-              <TextBlock Width="382" Margin="3" Text="{Binding MessageIntervalStatus}"
-                         TextWrapping="Wrap" VerticalAlignment="Center" />
-            </WrapPanel>
+              <Expander Header="MAVLink Message Rate" IsExpanded="False" MinWidth="620">
+                <StackPanel Margin="0,4,0,0" Spacing="3">
+                  <Grid ColumnDefinitions="*,64,54,48,54" ColumnSpacing="3">
+                    <ComboBox Grid.Column="0" ItemsSource="{Binding MessageOptions}"
+                              SelectedItem="{Binding SelectedMessage}" />
+                    <NumericUpDown Grid.Column="1" Minimum="0.01" Maximum="1000"
+                                   Increment="1" FormatString="0.##"
+                                   Value="{Binding MessageRateHz}"
+                                   ToolTip.Tip="Requested MAVLink message rate in Hz" />
+                    <Button Grid.Column="2" Content="Apply"
+                            Command="{Binding ApplyMessageIntervalCommand}" />
+                    <Button Grid.Column="3" Content="Stop"
+                            Command="{Binding StopMessageIntervalCommand}" />
+                    <Button Grid.Column="4" Content="Default"
+                            Command="{Binding ResetMessageIntervalCommand}" />
+                  </Grid>
+                  <TextBlock Text="{Binding MessageIntervalStatus}" TextWrapping="Wrap" />
+                </StackPanel>
+              </Expander>
+            </StackPanel>
           </ScrollViewer>
         </TabItem>
 
@@ -717,6 +701,10 @@
                     HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8">
           <CheckBox Content="Auto Pan" IsChecked="{Binding AutoPan}" Foreground="White" />
           <Button Content="Clear Track" Command="{Binding ClearTrackCommand}" Padding="6,2" />
+          <Button x:Name="DisableJoystickButton" Content="Disable Joystick"
+                  Command="{Binding DisableJoystickCommand}"
+                  IsVisible="{Binding IsJoystickActive}" Padding="6,2"
+                  ToolTip.Tip="Release active joystick control and RC overrides" />
           <CheckBox Content="Tuning" IsChecked="{Binding Tuning}" Foreground="White" />
           <Button Content="Pick…" Click="OnTuningPickClick" Padding="6,2" />
         </StackPanel>

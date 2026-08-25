@@ -26,6 +26,7 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
   private readonly PythonScriptHost _python;
   private FlightPlannerViewModel? _scriptFlightPlanner;
   private readonly Dictionary<string, Action<string>> _customActions = new(StringComparer.Ordinal);
+  private Views.JoystickSetupWindow? _joystickSetupWindow;
 
   public event Action? RequestFlightPlanner;
 
@@ -96,6 +97,9 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
 
   [ObservableProperty]
   private string _armText = "ARM";
+
+  [ObservableProperty]
+  private bool _isJoystickActive;
 
   [ObservableProperty]
   private string _messages = "";
@@ -169,6 +173,7 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
     InitTuningFields();
     LoadHudSettings();
     LoadGimbalVideoSettings();
+    IsJoystickActive = AppState.JoystickControl.Active is { enabled: true };
 
     SelectedMessage = MessageOptions.FirstOrDefault(m =>
         m.Id == (uint)MAVLink.MAVLINK_MSG_ID.ATTITUDE) ?? MessageOptions.FirstOrDefault();
@@ -213,9 +218,12 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
     _tlog.Close();
     OpenDroneId.Dispose();
     CloseVideoWindow();
+    _joystickSetupWindow?.Close();
+    _joystickSetupWindow = null;
   }
 
   private void Pump() {
+    IsJoystickActive = AppState.JoystickControl.Active is { enabled: true };
     var cs = _comPort.MAV?.cs;
     if (cs == null) {
       return;
@@ -2040,13 +2048,41 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
 
   [RelayCommand]
   private void Joystick() {
+    if (_joystickSetupWindow is { } existing) {
+      existing.Activate();
+      return;
+    }
+
+    var top = (Avalonia.Application.Current?.ApplicationLifetime
+               as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+    var window = new Views.JoystickSetupWindow();
+    _joystickSetupWindow = window;
+    window.Closed += (_, _) => {
+      if (ReferenceEquals(_joystickSetupWindow, window)) {
+        _joystickSetupWindow = null;
+      }
+    };
+    if (top != null) {
+      window.Show(top);
+    } else {
+      window.Show();
+    }
+    Log("Joystick setup opened.");
+  }
+
+  [RelayCommand]
+  private void DisableJoystick() {
     if (AppState.JoystickControl.Active is { } joystick) {
       AppState.JoystickControl.Stop(joystick, "Joystick disabled from Flight Data.");
+      IsJoystickActive = false;
       Log("Joystick disabled and RC overrides released.");
     } else {
-      Log("Joystick is not enabled. Configure it under Setup > Joystick.");
+      IsJoystickActive = false;
+      Log("Joystick is not enabled.");
     }
   }
+
+  internal Views.JoystickSetupWindow? ActiveJoystickSetupWindow => _joystickSetupWindow;
 
   [RelayCommand]
   private async Task ShowMessage() {
