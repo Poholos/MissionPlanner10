@@ -12,6 +12,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using MissionPlanner.Comms;
 using MissionPlanner.Utilities;
 
 namespace MissionPlanner.Services;
@@ -34,6 +35,7 @@ public sealed class SitlStartOptions {
   public int SystemId { get; init; } = 1;
   public bool UseIdentityParameters { get; init; }
   public int? SecondarySerialClientPort { get; init; }
+  public bool ReserveTelemetryConnection { get; init; }
 }
 
 internal sealed record SitlSwarmInstancePlan(
@@ -72,6 +74,7 @@ public class SitlLauncher {
       new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
 
   private Process? _process;
+  private TcpClient? _readyTelemetryClient;
 
   private UdpClient? _rcSend;
   private int _instance;
@@ -100,6 +103,21 @@ public class SitlLauncher {
   public int TcpPort => TcpPortForInstance(_instance);
 
   public string TcpEndpoint => $"tcp:{_host}:{TcpPort}";
+
+  internal TcpSerial? TakePreparedTelemetryStream() {
+    TcpClient? client = Interlocked.Exchange(ref _readyTelemetryClient, null);
+    if (client == null) {
+      return null;
+    }
+
+    var stream = new TcpSerial {
+      Host = _host,
+      Port = TcpPort.ToString(CultureInfo.InvariantCulture),
+    };
+    stream.client.Dispose();
+    stream.client = client;
+    return stream;
+  }
 
   private static string CacheDir => AppPaths.SitlCacheRoot;
 
@@ -286,6 +304,8 @@ public class SitlLauncher {
       CreateNoWindow = true,
     };
     psi.EnvironmentVariables["HOME"] = workdir;
+    psi.EnvironmentVariables["PATH"] = BuildChildPath(
+        CacheDir, workdir, psi.EnvironmentVariables["PATH"]);
 
     try {
       Emit($"Starting SITL: {Path.GetFileName(binary)} {args}");
@@ -310,7 +330,8 @@ public class SitlLauncher {
     _process.BeginErrorReadLine();
 
     Emit($"Waiting for {TcpEndpoint} ...");
-    if (await WaitForPortAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false)) {
+    if (await WaitForPortAsync(
+            TimeSpan.FromSeconds(30), opts.ReserveTelemetryConnection).ConfigureAwait(false)) {
       Emit($"SITL listening on {TcpEndpoint}.");
       OpenRcOverride();
       return true;
@@ -383,6 +404,7 @@ public class SitlLauncher {
 
     }
     _rcSend = null;
+    Interlocked.Exchange(ref _readyTelemetryClient, null)?.Dispose();
 
     var proc = _process;
     _process = null;
@@ -590,6 +612,11 @@ public class SitlLauncher {
 
   private static string QuoteArgument(string value) =>
       '"' + value.Replace("\"", "\\\"") + '"';
+
+  internal static string BuildChildPath(
+      string binaryDirectory, string workingDirectory, string? inheritedPath) =>
+      string.Join(Path.PathSeparator, new[] { binaryDirectory, workingDirectory, inheritedPath }
+          .Where(path => !string.IsNullOrWhiteSpace(path)));
 
   private async Task<string?> EnsureBinaryAsync(string exeName, SitlChannel channel) {
     Directory.CreateDirectory(CacheDir);
@@ -807,22 +834,28 @@ public class SitlLauncher {
     }
   }
 
-  private async Task<bool> WaitForPortAsync(TimeSpan timeout) {
+  private async Task<bool> WaitForPortAsync(TimeSpan timeout, bool reserveConnection) {
     var deadline = DateTime.UtcNow + timeout;
     while (DateTime.UtcNow < deadline) {
       if (!IsRunning) {
         Emit("SITL process exited before opening its port.");
         return false;
       }
+      TcpClient? client = null;
       try {
-        using var client = new TcpClient();
+        client = new TcpClient();
         var connect = client.ConnectAsync(_host, TcpPort);
         if (await Task.WhenAny(connect, Task.Delay(500)).ConfigureAwait(false) == connect &&
             client.Connected) {
+          if (reserveConnection) {
+            Interlocked.Exchange(ref _readyTelemetryClient, client)?.Dispose();
+            client = null;
+          }
           return true;
         }
       } catch {
-
+      } finally {
+        client?.Dispose();
       }
       await Task.Delay(500).ConfigureAwait(false);
     }

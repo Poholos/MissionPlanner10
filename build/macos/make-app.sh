@@ -8,7 +8,9 @@ PUBLISH_DIR="$1"
 VERSION="$2"
 APP="$3"
 HERE="$(cd "$(dirname "$0")" && pwd)"
-EXE="MissionPlanner"
+EXE="MissionPlanner10"
+
+"$HERE/../rename-apphost.sh" "$PUBLISH_DIR" osx
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
@@ -33,7 +35,7 @@ elif command -v codesign >/dev/null 2>&1; then
   # ships with a standalone signature that is malformed for a bundle; strip it, then --deep
   # ad-hoc sign so Info.plist is bound and _CodeSignature is sealed (else Gatekeeper: "damaged").
   codesign --remove-signature "$APP/Contents/MacOS/$EXE" 2>/dev/null || true
-  codesign --force --deep --sign - --identifier io.github.rouniy.missionplanner "$APP"
+  codesign --force --deep --sign - --identifier io.github.rouniy.missionplanner10 "$APP"
   codesign --verify --strict --verbose=2 "$APP"
 fi
 

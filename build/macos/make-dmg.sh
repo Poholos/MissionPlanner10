@@ -7,7 +7,7 @@ set -euo pipefail
 
 APP="${1:?application bundle path is required}"
 DMG="${2:?output DMG path is required}"
-VOLUME_NAME="${3:-Mission Planner}"
+VOLUME_NAME="${3:-Mission Planner 10}"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "make-dmg.sh requires macOS and hdiutil" >&2

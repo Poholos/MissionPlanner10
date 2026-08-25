@@ -21,6 +21,52 @@ public class ConnectionHealthTests {
   }
 
   [Fact]
+  public void Inbound_udp_listener_is_never_closed_because_devices_are_silent() {
+    var now = new DateTime(2026, 8, 25, 12, 0, 20, DateTimeKind.Utc);
+    var connected = now.AddMinutes(-1);
+    using var listener = new UdpSerial();
+    using var udpClient = new UdpSerialConnect();
+    using var serial = new CommsInjection();
+
+    Assert.True(ConnectionHealth.IsSilent(
+        now, DateTime.MinValue, connected, TimeSpan.FromSeconds(10)));
+    Assert.False(ConnectionHealth.ShouldCloseSilentLink(
+        listener, false, now, DateTime.MinValue, connected, TimeSpan.FromSeconds(10)));
+    Assert.True(ConnectionHealth.ShouldCloseSilentLink(
+        udpClient, false, now, DateTime.MinValue, connected, TimeSpan.FromSeconds(10)));
+    Assert.True(ConnectionHealth.ShouldCloseSilentLink(
+        serial, false, now, DateTime.MinValue, connected, TimeSpan.FromSeconds(10)));
+  }
+
+  [Fact]
+  public void Inbound_udp_listener_survives_repeated_packet_reader_errors() {
+    using var listener = new UdpSerial();
+    using var udpClient = new UdpSerialConnect();
+    using var serial = new CommsInjection();
+
+    Assert.False(ConnectionHealth.ShouldCloseAfterReaderErrors(listener));
+    Assert.True(ConnectionHealth.ShouldCloseAfterReaderErrors(udpClient));
+    Assert.True(ConnectionHealth.ShouldCloseAfterReaderErrors(serial));
+    Assert.False(ConnectionHealth.ShouldPollReader(listener));
+    Assert.False(ConnectionHealth.ShouldPollReader(udpClient));
+    Assert.False(ConnectionHealth.ShouldPollReader(serial));
+  }
+
+  [Fact]
+  public void Inbound_udp_reader_accepts_a_short_datagram_without_polling_when_idle() {
+    using var socket = UdpSerial.CreateSharedListener(0);
+    using var listener = new UdpSerial(socket);
+    using var sender = new System.Net.Sockets.UdpClient();
+    var endpoint = Assert.IsType<System.Net.IPEndPoint>(socket.Client.LocalEndPoint);
+
+    sender.Send([0x01], 1, new System.Net.IPEndPoint(
+        System.Net.IPAddress.Loopback, endpoint.Port));
+
+    Assert.True(SpinWait.SpinUntil(
+        () => ConnectionHealth.ShouldPollReader(listener), TimeSpan.FromSeconds(1)));
+  }
+
+  [Fact]
   public void MissingTimestampIsNotTreatedAsAnEstablishedSilentLink() {
     Assert.False(ConnectionHealth.IsSilent(
         new DateTime(2026, 8, 21, 12, 0, 0, DateTimeKind.Utc),
@@ -282,6 +328,21 @@ public class ConnectionHealthTests {
     } finally {
       (stream as IDisposable)?.Dispose();
     }
+  }
+
+  [Fact]
+  public void Inbound_udp_never_blocks_logical_connection_on_an_arbitrary_parameter_target() {
+    using var udpListener = new UdpSerial();
+    using var pointToPoint = new CommsInjection();
+
+    Assert.True(ConnectionViewModel.ShouldLoadParametersInBackground(
+        udpListener, configured: false));
+    Assert.True(ConnectionViewModel.ShouldLoadParametersInBackground(
+        udpListener, configured: true));
+    Assert.False(ConnectionViewModel.ShouldLoadParametersInBackground(
+        pointToPoint, configured: false));
+    Assert.True(ConnectionViewModel.ShouldLoadParametersInBackground(
+        pointToPoint, configured: true));
   }
 
   [Theory]

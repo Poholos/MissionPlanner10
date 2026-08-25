@@ -26,10 +26,10 @@ if [[ "$RID" != "win-x64" ]]; then
   exit 2
 fi
 
-DIR_NAME="MissionPlanner-$MP_ARTIFACT_VERSION-$RID"
+DIR_NAME="MissionPlanner10-$MP_ARTIFACT_VERSION-$RID"
 PUBLISH_DIR="$PUBLISH_PARENT/$DIR_NAME"
 ZIP_PATH="$OUTPUT_DIR/$DIR_NAME.zip"
-MSI_PATH="$OUTPUT_DIR/MissionPlanner-$MP_ARTIFACT_VERSION-$RID.msi"
+MSI_PATH="$OUTPUT_DIR/MissionPlanner10-$MP_ARTIFACT_VERSION-$RID.msi"
 
 case "$PUBLISH_DIR" in
   /|""|"$PUBLISH_PARENT")
@@ -60,7 +60,9 @@ env -u VERSION "$DOTNET" publish "$APP_PROJECT" \
   -p:MissionPlannerCommit="$MP_COMMIT$MP_DIRTY_SUFFIX" \
   -o "$PUBLISH_TEMP"
 
-test -s "$PUBLISH_TEMP/MissionPlanner.exe"
+"$ROOT_DIR/build/rename-apphost.sh" "$PUBLISH_TEMP" "$RID"
+
+test -s "$PUBLISH_TEMP/MissionPlanner10.exe"
 test -s "$PUBLISH_TEMP/airports.csv"
 test -s "$PUBLISH_TEMP/simpleble-c.dll"
 test -s "$PUBLISH_TEMP/simpleble.dll"
@@ -84,7 +86,7 @@ sign_windows_file() {
   "$tool" verify /pa "$target"
 }
 
-sign_windows_file "$PUBLISH_TEMP/MissionPlanner.exe"
+sign_windows_file "$PUBLISH_TEMP/MissionPlanner10.exe"
 
 mkdir -p "$PUBLISH_DIR"
 find "$PUBLISH_DIR" -mindepth 1 -delete

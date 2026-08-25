@@ -30,10 +30,10 @@ if [[ ! "$MP_PACKAGE_VERSION" =~ ^[0-9A-Za-z.+~]+$ ]]; then
   exit 2
 fi
 PACKAGE_ARCH="amd64"
-DIR_NAME="MissionPlanner-$MP_ARTIFACT_VERSION-$RID"
+DIR_NAME="MissionPlanner10-$MP_ARTIFACT_VERSION-$RID"
 PUBLISH_DIR="$PUBLISH_PARENT/$DIR_NAME"
 TAR_PATH="$OUTPUT_DIR/$DIR_NAME.tar.gz"
-DEB_PATH="$OUTPUT_DIR/missionplanner_${MP_ARTIFACT_VERSION}_${PACKAGE_ARCH}.deb"
+DEB_PATH="$OUTPUT_DIR/missionplanner10_${MP_ARTIFACT_VERSION}_${PACKAGE_ARCH}.deb"
 BUILD_EPOCH="${SOURCE_DATE_EPOCH:-$(git -C "$ROOT_DIR" log -1 --format=%ct)}"
 export SOURCE_DATE_EPOCH="$BUILD_EPOCH"
 
@@ -68,7 +68,9 @@ env -u VERSION "$DOTNET" publish "$APP_PROJECT" \
   -p:MissionPlannerCommit="$MP_COMMIT$MP_DIRTY_SUFFIX" \
   -o "$PUBLISH_TEMP"
 
-test -x "$PUBLISH_TEMP/MissionPlanner"
+"$ROOT_DIR/build/rename-apphost.sh" "$PUBLISH_TEMP" "$RID"
+
+test -x "$PUBLISH_TEMP/MissionPlanner10"
 test -s "$PUBLISH_TEMP/airports.csv"
 for unwanted in libusb-1.0.dll simpleble-c.dll simpleble.dll; do
   if [[ -e "$PUBLISH_TEMP/$unwanted" ]]; then
@@ -92,7 +94,7 @@ fi
 # managed assemblies). Normalize the release tree; only the ELF apphost is executed.
 find "$PUBLISH_TEMP" -type d -exec chmod 0755 {} +
 find "$PUBLISH_TEMP" -type f -exec chmod 0644 {} +
-chmod 0755 "$PUBLISH_TEMP/MissionPlanner"
+chmod 0755 "$PUBLISH_TEMP/MissionPlanner10"
 if [[ -f "$PUBLISH_TEMP/createdump" ]]; then
   chmod 0755 "$PUBLISH_TEMP/createdump"
 fi
@@ -100,7 +102,7 @@ fi
 mkdir -p "$PUBLISH_DIR"
 find "$PUBLISH_DIR" -mindepth 1 -delete
 cp -a "$PUBLISH_TEMP/." "$PUBLISH_DIR/"
-chmod 0755 "$PUBLISH_DIR/MissionPlanner"
+chmod 0755 "$PUBLISH_DIR/MissionPlanner10"
 
 build_tar() {
   local tar_root="$WORK_ROOT/tar"
@@ -113,7 +115,7 @@ build_tar() {
   cp "$ROOT_DIR/COPYING.txt" "$tar_app/LICENSE"
   cp "$ROOT_DIR/NOTICE.md" "$tar_app/"
   cp -a "$ROOT_DIR/LICENSES" "$tar_app/"
-  chmod 0755 "$tar_app/MissionPlanner" "$tar_app/install.sh"
+  chmod 0755 "$tar_app/MissionPlanner10" "$tar_app/install.sh"
 
   rm -f -- "$TAR_PATH"
   tar --sort=name \
@@ -125,8 +127,8 @@ build_tar() {
 
 build_deb() {
   local deb_root="$WORK_ROOT/deb"
-  local app_dir="$deb_root/usr/lib/missionplanner"
-  local doc_dir="$deb_root/usr/share/doc/missionplanner"
+  local app_dir="$deb_root/usr/lib/missionplanner10"
+  local doc_dir="$deb_root/usr/share/doc/missionplanner10"
   local installed_size
 
   if ! command -v dpkg >/dev/null 2>&1 ||
@@ -147,25 +149,25 @@ build_deb() {
 
   cp -a "$PUBLISH_TEMP/." "$app_dir/"
   : > "$app_dir/.package-managed"
-  cp "$SCRIPT_DIR/debian/missionplanner" "$deb_root/usr/bin/missionplanner"
+  cp "$SCRIPT_DIR/debian/missionplanner" "$deb_root/usr/bin/missionplanner10"
   cp "$SCRIPT_DIR/debian/missionplanner.desktop" \
-    "$deb_root/usr/share/applications/missionplanner.desktop"
+    "$deb_root/usr/share/applications/missionplanner10.desktop"
   cp "$SCRIPT_DIR/missionplanner.png" \
-    "$deb_root/usr/share/icons/hicolor/256x256/apps/missionplanner.png"
+    "$deb_root/usr/share/icons/hicolor/256x256/apps/missionplanner10.png"
   cp "$SCRIPT_DIR/debian/copyright" "$doc_dir/copyright"
   cp "$ROOT_DIR/NOTICE.md" "$doc_dir/NOTICE.md"
   cp -a "$ROOT_DIR/LICENSES" "$doc_dir/"
   cp "$SCRIPT_DIR/debian/lintian-overrides" \
-    "$deb_root/usr/share/lintian/overrides/missionplanner"
+    "$deb_root/usr/share/lintian/overrides/missionplanner10"
   cp "$SCRIPT_DIR/debian/postinst" "$deb_root/DEBIAN/postinst"
   cp "$SCRIPT_DIR/debian/postrm" "$deb_root/DEBIAN/postrm"
 
   gzip -n -9 -c "$SCRIPT_DIR/debian/missionplanner.1" \
-    > "$deb_root/usr/share/man/man1/missionplanner.1.gz"
+    > "$deb_root/usr/share/man/man1/missionplanner10.1.gz"
   {
-    echo "missionplanner ($MP_DEBIAN_VERSION) unstable; urgency=medium"
+    echo "missionplanner10 ($MP_DEBIAN_VERSION) unstable; urgency=medium"
     echo
-    echo "  * Build the self-contained cross-platform Mission Planner port."
+    echo "  * Build the self-contained cross-platform Mission Planner 10 port."
     echo
     echo " -- Rouniy <Rouniy@users.noreply.github.com>  $(date -R -d "@$BUILD_EPOCH")"
   } | gzip -n -9 > "$doc_dir/changelog.gz"
@@ -173,8 +175,8 @@ build_deb() {
   find "$deb_root" -type d -exec chmod 0755 {} +
   find "$deb_root" -type f -exec chmod 0644 {} +
   chmod 0755 \
-    "$app_dir/MissionPlanner" \
-    "$deb_root/usr/bin/missionplanner" \
+    "$app_dir/MissionPlanner10" \
+    "$deb_root/usr/bin/missionplanner10" \
     "$deb_root/DEBIAN/postinst" \
     "$deb_root/DEBIAN/postrm"
   if [[ -f "$app_dir/createdump" ]]; then
@@ -195,7 +197,7 @@ build_deb() {
 
   if command -v desktop-file-validate >/dev/null 2>&1; then
     desktop-file-validate \
-      "$deb_root/usr/share/applications/missionplanner.desktop"
+      "$deb_root/usr/share/applications/missionplanner10.desktop"
   fi
 
   rm -f -- "$DEB_PATH"

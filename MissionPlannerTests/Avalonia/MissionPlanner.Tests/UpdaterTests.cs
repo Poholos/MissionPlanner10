@@ -257,9 +257,8 @@ public class UpdaterTests {
     string install = TempDir();
     string extract = TempDir();
     Directory.Delete(extract);
-    string launcher = OperatingSystem.IsWindows()
-        ? "MissionPlanner.exe"
-        : "MissionPlanner";
+    string launcher = AppVersion.ExecutableName
+        + (OperatingSystem.IsWindows() ? ".exe" : "");
     File.WriteAllBytes(Path.Combine(source, launcher), [1, 2, 3]);
     Directory.CreateDirectory(Path.Combine(source, "sub"));
     File.WriteAllBytes(Path.Combine(source, "sub", "feature.dll"), [4, 5, 6]);

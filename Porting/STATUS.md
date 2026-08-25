@@ -2,6 +2,134 @@
 
 Updated: **2026-08-25**.
 
+## Live UDP/NV, SITL/X-Plane and Mission Planner 10 checkpoint
+
+- Local branch `fix/udp-nv-connect-state` is at code checkpoint
+  `5e6c1c8fc0e5234e243e7e914c56e63190757315`. The new atomic commits retain the first SITL TCP
+  connection (`f0e407dca`), drain short packets from persistent UDP listeners (`1813353ef`),
+  restore and filter the complete NV parameter cache (`2d4205e6e`), apply the Mission Planner 10
+  product/installer identity (`8caed8f30`), migrate legacy SITL/SRTM caches while preserving Unix
+  executable modes (`4145b5bb1`) and reject reflected GCS RTSP requests as modem identities
+  (`5e6c1c8fc`). The managed assembly intentionally remains
+  `MissionPlanner.dll` for plugin ABI compatibility; apphosts, install directories and package
+  names are Mission Planner 10. The official Mission Planner filesystem map-tile location remains
+  shared and is not migrated or renamed.
+- The final UDP-reader stall was traced backwards to the initial native Avalonia import
+  `c68d7f366`: its generic stream loop required `BytesToRead > 10`. `UdpSerial` exposes datagram
+  availability, so a short packet at the head of a bound listener could prevent every later
+  broadcast from being consumed. `402548abc` fixed the separate initial parameter-load ordering,
+  `8519ff5b9` correctly made inbound UDP persistent but exposed the inherited reader starvation as
+  an open-yet-dead socket, and `c13d14962` fixed a separate successful-progress-dialog cancellation
+  that released a newly opened transport. The current policy uses any positive byte count for a
+  bound UDP listener while retaining the legacy threshold for TCP/UART/UDP client streams; it is
+  used by both primary and secondary connection runtimes.
+- Real hardware verification used the actual shared UDP port 14565 under Xvfb and physical XTest
+  clicks through `SETUP -> NV Modem -> Refresh selected`. The socket stayed `Recv-Q=0`, `drops=0`
+  for the 30-second observation and through repeated parameter refreshes. The page listed exactly
+  five vendor-confirmed broadcasts and no autopilot: NV5 `10:18` (91/91), `255:11` (91/91), `6:6`
+  (77/77), `255:10` (59/59) and `1:5` (77/77). Cached `MAVState.param` values are replayed only
+  after an NV custom message, valid modem-info payload or strict legacy NV4 CAN passport confirms
+  the exact system/component endpoint; parameter names alone can no longer classify an autopilot
+  as a modem. Closing the live window produces no former `CancellationTokenSource` disposal stack
+  or core dump and the final Xvfb/metacity run exits 0.
+- A follow-up hardware report exposed a sixth false device at `255:190`, Mission Planner's own
+  `MAV_COMP_ID_MISSIONPLANNER` endpoint. The captured tlog proved that the reflected custom frame
+  was an outbound `NV5_RTSP_CONFIG` read request (`operation=0`), not modem status. Read/write
+  operations 0/1 can no longer establish identity; only the modem report operation 2 can. This is
+  payload-direction filtering rather than an ID blacklist: a real modem at `255:190` is still
+  accepted when it sends a valid report. A second live dropdown check shows only the five physical
+  modems and keeps `Recv-Q=0`.
+- The X-Plane/SITL regression came from using a temporary readiness connection and then opening a
+  second TCP session. External simulator models can accept/associate the first session, so the
+  launcher now retains that proven connection and hands it directly to Mission Planner. The child
+  PATH includes the SITL cache and working directory for companion runtime files. A real cached
+  Linux `ArduPlane --model xplane` integration run passes, including legacy-cache migration and
+  retained-stream consumption; no SITL process remains after the test.
+- Verification at the code checkpoint: Release solution build **0 warnings / 0 errors**; complete
+  suite **1457/1457**; focused connection/NV suite **94/94**; real X-Plane integration plus cache
+  migration **2/2**; all six migration/inventory checks pass (1623 native rows with 0 blockers,
+  708/708 source paths, no WinForms, and clean project/binary/key audits); all 28 active projects
+  report no known vulnerable direct or transitive NuGet package. One earlier full-suite run had a
+  transient Avalonia headless `Dispatcher.PushFrame` platform exception in a shapefile test; that
+  test passed immediately in isolation and the following two complete builds/runs passed, so it is
+  recorded as test-harness flakiness rather than hidden.
+- Fresh clean local artifacts are
+  `out/packages/missionplanner10_1.3.83-20260825.5e6c1c8f_amd64.deb` (60,115,816 bytes, SHA-256
+  `81592f6cc4ac788fc20fdc94c459b7f97a69a7eb818459b571da51f6d147e71f`) and
+  `out/packages/MissionPlanner10-1.3.83-20260825.5e6c1c8f-linux-x64.tar.gz` (75,376,646 bytes,
+  SHA-256 `a6810274a4f79dd52a36cf6f3be6c707c54fc2ca995006c60face03f46cd81f0`). `lintian
+  --fail-on error,warning`, gzip/TAR content checks, extracted DEB layout and a 12-second packaged
+  Xvfb smoke pass; the expected smoke timeout is 124 with no stderr, unhandled exception or crash
+  log.
+- Publication was explicitly re-authorized after the known UDP/NV and SITL/X-Plane regressions
+  were fixed and verified. Merge this checkpoint into `master`, require Linux/Windows/macOS CI
+  plus CodeQL to pass on that exact merge commit, and only then tag it so the release workflow
+  creates the GitHub Release and attaches the native Linux, Windows and macOS packages. Claude
+  remains disabled by user instruction.
+
+## Shared UDP/NV connection-state fix
+
+- Stacked branch `fix/udp-nv-connect-state` contains the earlier DroneCAN fix, initial UDP
+  publication fix `402548abc11141016ec65dcd0a8543e196820ec7`, and persistent-listener fix
+  `8519ff5b9`. Fresh hardware traces first proved that the inbound UDP listener on port 14565
+  continued receiving NV broadcasts while the main button remained `CONNECT`: synchronous initial
+  parameter loading had selected an arbitrary first endpoint and delayed logical connection
+  registration until that endpoint answered.
+- Inbound `UdpSerial` parameter loading is now always background work. A valid MAVLink open can
+  therefore mark the shared transport connected, expose `DISCONNECT`, start the reader and publish
+  the link to the NV Modem page without requiring the first broadcast `sysid:compid` to implement
+  or answer `PARAM_REQUEST_LIST`. The configured policy for point-to-point UDP client, TCP and UART
+  connections is unchanged.
+- A second hardware run exposed the independent disconnect regression. Two fresh logs contained
+  681 and 673 valid frames from multiple NV endpoints over about six seconds, including valid
+  traffic immediately before teardown. The cause was the generic ten-second silent-link policy
+  introduced in the old Avalonia port by `51cd6ca969861fa712742c23d04afc461bc2117b`
+  (`feat: expand vehicle control and telemetry parity`) and imported into the native tree by
+  `c68d7f36675748fa7f80f4f880ab71e9fe42c8a4`. It treated a bound UDP discovery socket as a
+  point-to-point vehicle session and closed it when an exclusive parameter read ended after the
+  selected target had been silent.
+- Inbound `UdpSerial` is now a persistent listener: device silence and repeated packet-reader
+  errors set link quality lost but never close the bound socket. A returning modem is discovered
+  without reopening the port. Explicit Disconnect/shutdown and an actually closed OS socket still
+  end the logical connection. The same rule covers primary and Connection List UDP listeners;
+  `UdpSerialConnect`, TCP and UART retain the existing dead-link cleanup.
+- This mattered beyond the NV page: teardown reset every vehicle parameter list, closed telemetry
+  logs, stopped speech, removed the link from `MavLinkConnectionManager` snapshots, raised the app
+  as disconnected and therefore hid the source from NV discovery, DroneCAN, map/multi-link and
+  connection-gated services. The scoped policy prevents those cascades for a merely silent inbound
+  listener without weakening point-to-point failure handling.
+- Three deterministic regressions cover the silent listener policy, repeated reader errors and a
+  real UDP socket that remains bound while a modem disappears and then accepts it when it returns.
+  A temporary live-hardware test also held the real port 14565 open for 20 seconds past the former
+  failure point. Focused connection tests pass **58/58**, the complete suite passes **1445/1445**,
+  and the Release solution builds with **0 warnings / 0 errors**. Clean local packages are
+  `out/packages/missionplanner_1.3.83-20260825.8519ff5b_amd64.deb` (60,115,152 bytes, SHA-256
+  `5ebc58e044703140492ff3dc819127fd8df47db74473640b0caad80cc5fde18f`) and
+  `out/packages/MissionPlanner-1.3.83-20260825.8519ff5b-linux-x64.tar.gz` (75,373,478 bytes,
+  SHA-256 `0071fe7d249dcbb1dcd28bd4c422a85394ad3d073154a4a6566800a6545d11c2`). `lintian`, extracted
+  payload assertions and the 12-second Xvfb smoke pass (`timeout` exit 124).
+- The fixes and packages are local only. No push, merge, tag or release was performed, and Claude
+  remains disabled by user instruction.
+
+## DroneCAN refresh and parameter-response fix
+
+- Branch `fix/dronecan-refresh-parameters` starts from the clean released `master` checkpoint
+  `294968844e7dc703f87f75724a4a5c96e52ef46b`.
+- Refresh now clears both the visible nodes/selection and the protocol `NodeList`/`NodeInfo`
+  discovery caches. Every fresh `uavcan.protocol.NodeStatus` upserts the visible row, so a node
+  cannot remain permanently hidden merely because its ID was already present in the library cache.
+- Parameter enumeration preserves the existing `GetParameters(byte)` API and adds response-aware
+  diagnostics. A node that never answers the optional `uavcan.protocol.param.GetSet` service is
+  reported as a timeout/unsupported service, while a valid terminal empty response is reported as
+  a responding node with no configurable parameters. The temporary response handler is always
+  detached, including exceptional send paths.
+- Three regression scenarios cover cache reset plus rediscovery, a status-only node that does not
+  implement the optional parameter service, and a valid empty parameter catalogue. Focused
+  DroneCAN tests pass **13/13**; the complete suite passes **1441/1441**. The Release solution
+  builds with **0 warnings / 0 errors**, and all six migration/inventory checks pass (1623 native
+  rows with 0 blockers, 708/708 source paths, no WinForms, and clean project/binary/key audits).
+- Claude remains disabled by user instruction.
+
 ## Post-release code-quality audit round 4
 
 - Branch `audit/code-quality-round-4` starts from clean released `master`

@@ -430,6 +430,7 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
       foreach (MAVLink.MAVLinkMessage packet in _transport.CachedDiscoveryPackets(link)) {
         HandlePacket(link, packet);
       }
+      ReplayCachedParameters(link, _transport.CachedParameters(link));
       RequestDiscoveryMessages(link, 0, 0);
       foreach (NvModemEndpoint endpoint in _transport.KnownEndpoints(link)) {
         RequestDiscoveryMessages(link, endpoint.SystemId, endpoint.ComponentId);
@@ -950,10 +951,18 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
     string parameterName = "";
     MAVLink.mavlink_param_value_t parameter = default;
     NvModemInfoMessage modemInfo = default;
+    Nv5RtspConfigMessage rtspConfig = default;
     bool nv5Identity = msgid is NvModemMessageIds.Nv5LinkStatus
-        or NvModemMessageIds.Nv5RtspConfig or NvModemMessageIds.Nv5RtspConfigAck
+        or NvModemMessageIds.Nv5RtspConfigAck
         or NvModemMessageIds.NvEncryptionKeysAck;
     bool nv4Identity = msgid == NvModemMessageIds.NvRxStat;
+    if (msgid == NvModemMessageIds.Nv5RtspConfig) {
+      rtspConfig = packet.ToStructure<Nv5RtspConfigMessage>();
+      // Operations 0 (read) and 1 (write) originate at the GCS. A broadcast network may reflect
+      // them back with the local 255:190 source and must not turn Mission Planner into a modem.
+      // Operation 2 is the modem's report and remains a valid identity at every sysid/compid.
+      nv5Identity = rtspConfig.Operation == 2;
+    }
     if (msgid == NvModemMessageIds.NvModemInfo) {
       modemInfo = packet.ToStructure<NvModemInfoMessage>();
       if (modemInfo.SchemaVersion >= 1) {
@@ -969,8 +978,9 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
     if (msgid == (uint)MAVLink.MAVLINK_MSG_ID.PARAM_VALUE) {
       parameter = packet.ToStructure<MAVLink.mavlink_param_value_t>();
       parameterName = NvModemParameterCodec.Name(parameter.param_id);
-      nv5Identity = NvModemCatalog.IsNv5Signature(parameterName);
-      nv4Identity = device != null && NvModemCatalog.IsNv4Signature(parameterName);
+      // Parameter names are not identities: older autopilots use CH1_*/CH2_* names too.
+      // Import parameters only after a vendor message or the strict NV4 CAN passport has
+      // confirmed this exact link/system/component endpoint as a modem.
     }
     if (device == null && !nv5Identity && !nv4Identity) {
       return;
@@ -1034,10 +1044,9 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
       device.Links[status.Channel] = status;
       UpdateDeviceLabel(device);
     } else if (msgid == NvModemMessageIds.Nv5RtspConfig) {
-      Nv5RtspConfigMessage value = packet.ToStructure<Nv5RtspConfigMessage>();
-      if (value.Operation == 2) {
+      if (rtspConfig.Operation == 2) {
         bool editorDirty = ReferenceEquals(device, SelectedState) && RtspPending(device);
-        device.RtspPath = Latin1String(value.Path);
+        device.RtspPath = Latin1String(rtspConfig.Path);
         device.RtspPathReady = true;
         if (ReferenceEquals(device, SelectedState) && !editorDirty) {
           SetRtspPath(device.RtspPath);
@@ -1057,9 +1066,43 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
     RebuildCopySources();
   }
 
+  private void ReplayCachedParameters(
+      NvModemLink source, IReadOnlyList<NvModemCachedParameter> cached) {
+    foreach (IGrouping<NvModemEndpoint, NvModemCachedParameter> endpoint in cached.GroupBy(
+                 parameter => new NvModemEndpoint(
+                     parameter.SystemId, parameter.ComponentId))) {
+      var key = new NvModemDeviceKey(
+          source, endpoint.Key.SystemId, endpoint.Key.ComponentId);
+      if (!_devices.TryGetValue(key, out NvModemDeviceState? device)) {
+        continue;
+      }
+
+      foreach (NvModemCachedParameter parameter in endpoint) {
+        HandleParameterValue(
+            device, parameter.Name, parameter.Value, parameter.Type,
+            parameter.ReportedCount, parameter.RawValueBits);
+      }
+      if (ReferenceEquals(device, SelectedState)) {
+        UpdateSelectedState();
+      }
+    }
+    RebuildCopySources();
+  }
+
   private void HandleParameterValue(
       NvModemDeviceState device, MAVLink.mavlink_param_value_t message, string name) {
     double decoded = NvModemParameterCodec.Decode(message.param_value, message.param_type);
+    HandleParameterValue(device, name, decoded, message.param_type, message.param_count,
+        unchecked((uint)BitConverter.SingleToInt32Bits(message.param_value)));
+  }
+
+  private void HandleParameterValue(
+      NvModemDeviceState device,
+      string name,
+      double decoded,
+      byte type,
+      int reportedCount,
+      uint rawValueBits) {
     if (device.ParameterRefreshPending) {
       device.Parameters.Clear();
       device.ParameterTypes.Clear();
@@ -1074,8 +1117,7 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
     bool newParameter = !device.Parameters.ContainsKey(name);
     int legacyWord = NvModemCatalog.Nv4KeyWordIndex(name);
     if (device.Generation == NvModemGeneration.Nv4 && legacyWord >= 0) {
-      uint raw = unchecked((uint)BitConverter.SingleToInt32Bits(message.param_value));
-      device.LegacyKeyWords[legacyWord] = raw;
+      device.LegacyKeyWords[legacyWord] = rawValueBits;
       if (device.LegacyKeyWords.Count == 8) {
         byte[] bytes = new byte[NvModemCatalog.Nv4KeyBytes];
         for (int index = 0; index < 8; index++) {
@@ -1085,11 +1127,11 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
       }
     }
     device.Parameters[name] = decoded;
-    device.ParameterTypes[name] = message.param_type;
-    device.ExpectedParameterCount = message.param_count;
+    device.ParameterTypes[name] = type;
+    device.ExpectedParameterCount = reportedCount;
     device.ParameterListLastProgressUtc = _utcNow();
-    if (device.ParameterListInProgress && message.param_count > 0
-        && device.Parameters.Count >= message.param_count) {
+    if (device.ParameterListInProgress && reportedCount > 0
+        && device.Parameters.Count >= reportedCount) {
       device.ParameterListInProgress = false;
       if (ReferenceEquals(device, SelectedState) && !IsBusy) {
         SetStatus($"Read {device.Parameters.Count} parameters from {ModemName(device)} "
@@ -1110,7 +1152,7 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
           && NvModemCatalog.Nv5KeyWordIndex(name) >= 0;
       bool keyTypeAccepted = !nv5KeyWrite
           || write.ParameterType == (byte)MAVLink.MAV_PARAM_TYPE.INT32
-          && message.param_type == (byte)MAVLink.MAV_PARAM_TYPE.INT32;
+          && type == (byte)MAVLink.MAV_PARAM_TYPE.INT32;
       bool accepted = keyTypeAccepted
           && NvModemParameterCodec.ValuesEqual(decoded, write.Value, write.ParameterType);
       if (!accepted) {
@@ -1134,7 +1176,7 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
           row.Accept(decoded);
         }
       } else if (newParameter) {
-        AddParameterRow(name, decoded, message.param_type);
+        AddParameterRow(name, decoded, type);
       }
     }
   }

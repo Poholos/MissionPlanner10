@@ -1,4 +1,5 @@
 using MissionPlanner;
+using MissionPlanner.Comms;
 using MissionPlanner.Utilities;
 using MissionPlanner.Services;
 
@@ -140,12 +141,67 @@ public class SitlDefaultsTests {
     Assert.Contains("--wipe --uartA udpclient:127.0.0.1:9000", arguments);
   }
 
+  [Fact]
+  public void Xplane_launch_uses_the_selected_external_model() {
+    string arguments = SitlLauncher.BuildLaunchArguments(
+        "xplane", "-35.3,149.1,584,90", 1, 0,
+        defaults: null, extraCmdline: null, wipeEeprom: false,
+        secondarySerialClientPort: null);
+
+    Assert.Contains("--model \"xplane\"", arguments);
+    Assert.Contains("--instance 0 --serial0 tcp:0", arguments);
+  }
+
+  [Fact]
+  public void Sitl_child_path_finds_runtime_dependencies_and_working_files_first() {
+    string childPath = SitlLauncher.BuildChildPath(
+        Path.Combine("cache", "sitl"), Path.Combine("cache", "sitl", "xplane"),
+        Path.Combine("system", "bin"));
+
+    Assert.Equal(string.Join(Path.PathSeparator,
+        Path.Combine("cache", "sitl"),
+        Path.Combine("cache", "sitl", "xplane"),
+        Path.Combine("system", "bin")), childPath);
+  }
+
   [Theory]
   [InlineData(1)]
   [InlineData(51)]
   public void Swarm_plan_rejects_unsafe_instance_counts(int count) {
     Assert.Throws<ArgumentOutOfRangeException>(() =>
         SitlLauncher.BuildSwarmPlan(0, 0, 0, 0, count, chained: false));
+  }
+
+  [Fact]
+  [Trait("Category", "Integration")]
+  public async Task Linux_xplane_sitl_reuses_its_first_telemetry_connection() {
+    if (!OperatingSystem.IsLinux() ||
+        Environment.GetEnvironmentVariable("MP_RUN_SITL_INTEGRATION") != "1") {
+      return;
+    }
+
+    AppPaths.Initialize();
+    string binary = Path.Combine(AppPaths.SitlCacheRoot, "ArduPlane");
+    Assert.True(File.Exists(binary), $"Cached SITL binary not found: {binary}");
+    var launcher = new SitlLauncher();
+    TcpSerial? stream = null;
+    try {
+      Assert.True(await launcher.StartAsync(new SitlStartOptions {
+        Vehicle = SitlVehicle.Plane,
+        Channel = SitlChannel.Skip,
+        Model = "xplane",
+        Home = "-35.3633515,149.1652412,584,0",
+        ReserveTelemetryConnection = true,
+      }));
+
+      stream = launcher.TakePreparedTelemetryStream();
+      Assert.NotNull(stream);
+      Assert.True(stream.IsOpen);
+      Assert.Null(launcher.TakePreparedTelemetryStream());
+    } finally {
+      stream?.Dispose();
+      launcher.Stop();
+    }
   }
 
   [Fact]

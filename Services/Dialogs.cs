@@ -68,7 +68,7 @@ public static class Dialogs {
       string yesText, string noText) {
     var fallback = DefaultUpstreamResult(buttons);
     if (Owner == null) {
-      Console.Error.WriteLine($"{(string.IsNullOrWhiteSpace(caption) ? "Mission Planner" : caption)}: {text}");
+      Console.Error.WriteLine($"{(string.IsNullOrWhiteSpace(caption) ? AppVersion.DisplayName : caption)}: {text}");
       return fallback;
     }
 
@@ -285,7 +285,7 @@ public static class Dialogs {
 
   private static Task<UpstreamDialogResult> ShowUpstreamMessageAsync(string text, string caption,
       UpstreamMessageBoxButtons buttons, string yesText, string noText) {
-    var title = string.IsNullOrWhiteSpace(caption) ? "Mission Planner" : caption;
+    var title = string.IsNullOrWhiteSpace(caption) ? AppVersion.DisplayName : caption;
     return buttons switch {
       UpstreamMessageBoxButtons.OK =>
           ShowButtons(title, text, ("OK", UpstreamDialogResult.OK)),

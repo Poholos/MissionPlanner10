@@ -11,10 +11,12 @@ internal sealed record AppPathLayout(
     string ConfigRoot,
     string DataRoot,
     string CacheRoot,
-    string StateRoot);
+    string StateRoot,
+    string MapTileCacheRoot);
 
 public static class AppPaths {
-  public const string AppDirectoryName = "MissionPlanner";
+  public const string AppDirectoryName = "MissionPlanner10";
+  public const string LegacyAppDirectoryName = "MissionPlanner";
   public const string PackageManagedMarkerName = ".package-managed";
 
   private static readonly object _gate = new();
@@ -31,7 +33,9 @@ public static class AppPaths {
   public static string PoiFilePath => Path.Combine(DataRoot, "poi.txt");
   public static string SitlCacheRoot => Path.Combine(CacheRoot, "sitl");
   public static string SrtmCacheRoot => Path.Combine(CacheRoot, "srtm");
-  public static string MapTileCacheRoot => Path.Combine(CacheRoot, "map-tiles");
+  // Map tiles intentionally retain the official Mission Planner location. The filesystem cache
+  // format is shared, so Mission Planner 10, official Mission Planner and GTU can reuse downloads.
+  public static string MapTileCacheRoot => _layout.MapTileCacheRoot;
   public static string UpdateCacheRoot => Path.Combine(CacheRoot, "update");
   public static string PluginRoot => Path.Combine(DataRoot, "plugins");
   public static string PluginDataRoot => Path.Combine(DataRoot, "plugin-data");
@@ -93,7 +97,8 @@ public static class AppPaths {
             Path.Combine(configBase, AppDirectoryName),
             Path.Combine(dataBase, AppDirectoryName),
             cacheBase,
-            stateBase);
+            stateBase,
+            Path.Combine(dataBase, LegacyAppDirectoryName, "cache", "map-tiles"));
 
       case AppPlatform.MacOS:
         configBase = Path.Combine(profile, "Library", "Application Support");
@@ -103,7 +108,8 @@ public static class AppPaths {
             Path.Combine(configBase, AppDirectoryName),
             Path.Combine(configBase, AppDirectoryName),
             Path.Combine(cacheBase, AppDirectoryName),
-            Path.Combine(stateBase, AppDirectoryName));
+            Path.Combine(stateBase, AppDirectoryName),
+            Path.Combine(cacheBase, LegacyAppDirectoryName, "map-tiles"));
 
       default:
         configBase = Xdg(getEnvironment, "XDG_CONFIG_HOME", Path.Combine(profile, ".config"));
@@ -114,7 +120,8 @@ public static class AppPaths {
             Path.Combine(configBase, AppDirectoryName),
             Path.Combine(dataBase, AppDirectoryName),
             Path.Combine(cacheBase, AppDirectoryName),
-            Path.Combine(stateBase, AppDirectoryName));
+            Path.Combine(stateBase, AppDirectoryName),
+            Path.Combine(cacheBase, LegacyAppDirectoryName, "map-tiles"));
     }
   }
 
@@ -161,6 +168,18 @@ public static class AppPaths {
       CopyIfMissing(Path.Combine(legacy, "crash.log"), CrashLogPath);
     }
 
+    // Mission Planner 10 has its own cache except for the deliberately shared map tiles. Preserve
+    // already downloaded SITL binaries and terrain data from the pre-rename cache so an offline
+    // operator (or Skip Download) is not broken by the product-name migration.
+    string legacyCacheRoot = Path.GetDirectoryName(MapTileCacheRoot)!;
+    if (!SamePath(legacyCacheRoot, CacheRoot)) {
+      CopyTopLevelFiles(legacyCacheRoot, CacheRoot, IsLegacyCacheFile);
+      CopyDirectoryFilesIfMissing(
+          Path.Combine(legacyCacheRoot, "sitl"), SitlCacheRoot);
+      CopyDirectoryFilesIfMissing(
+          Path.Combine(legacyCacheRoot, "srtm"), SrtmCacheRoot);
+    }
+
     string oldSrtm = Path.Combine(InstallRoot, "srtm");
     if (!SamePath(oldSrtm, SrtmCacheRoot)) {
       CopyTopLevelFiles(oldSrtm, SrtmCacheRoot);
@@ -184,9 +203,13 @@ public static class AppPaths {
     string roaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
     string documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
     AddUnder(local, "Mission Planner");
+    AddUnder(local, LegacyAppDirectoryName);
     AddUnder(local, AppDirectoryName);
+    AddUnder(local, "MissionPlannerAvalonia");
     AddUnder(roaming, "Mission Planner");
+    AddUnder(roaming, LegacyAppDirectoryName);
     AddUnder(roaming, AppDirectoryName);
+    AddUnder(roaming, "MissionPlannerAvalonia");
     AddUnder(documents, "Mission Planner");
     return roots;
   }
@@ -221,6 +244,30 @@ public static class AppPaths {
     }
   }
 
+  internal static void CopyDirectoryFilesIfMissing(
+      string sourceDirectory, string destinationDirectory) {
+    try {
+      if (!Directory.Exists(sourceDirectory) || SamePath(sourceDirectory, destinationDirectory)) {
+        return;
+      }
+
+      var options = new EnumerationOptions {
+        RecurseSubdirectories = true,
+        AttributesToSkip = FileAttributes.ReparsePoint,
+      };
+      foreach (string source in Directory.EnumerateFiles(sourceDirectory, "*", options)) {
+        string relative = Path.GetRelativePath(sourceDirectory, source);
+        if (relative == ".." || relative.StartsWith(".." + Path.DirectorySeparatorChar,
+                StringComparison.Ordinal)) {
+          continue;
+        }
+        CopyIfMissing(source, Path.Combine(destinationDirectory, relative));
+      }
+    } catch {
+      // Migration is best-effort. Keep using the new cache even if an old file is unreadable.
+    }
+  }
+
   private static void CopyIfMissing(string source, string destination) {
     try {
       if (!File.Exists(source) || File.Exists(destination) || SamePath(source, destination)) {
@@ -228,6 +275,9 @@ public static class AppPaths {
       }
       Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
       File.Copy(source, destination, overwrite: false);
+      if (!OperatingSystem.IsWindows()) {
+        File.SetUnixFileMode(destination, File.GetUnixFileMode(source));
+      }
     } catch {
       // See CopyTopLevelFiles: retain the legacy copy and continue startup.
     }

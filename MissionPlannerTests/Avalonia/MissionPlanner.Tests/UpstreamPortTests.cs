@@ -19,10 +19,11 @@ public class UpstreamPortTests {
 
     var linux = AppPaths.Resolve(
         AppPlatform.Linux, "/home/test", "", "", EmptyEnvironment);
-    Assert.Equal("/home/test/.config/MissionPlanner", linux.ConfigRoot);
-    Assert.Equal("/home/test/.local/share/MissionPlanner", linux.DataRoot);
-    Assert.Equal("/home/test/.cache/MissionPlanner", linux.CacheRoot);
-    Assert.Equal("/home/test/.local/state/MissionPlanner", linux.StateRoot);
+    Assert.Equal("/home/test/.config/MissionPlanner10", linux.ConfigRoot);
+    Assert.Equal("/home/test/.local/share/MissionPlanner10", linux.DataRoot);
+    Assert.Equal("/home/test/.cache/MissionPlanner10", linux.CacheRoot);
+    Assert.Equal("/home/test/.local/state/MissionPlanner10", linux.StateRoot);
+    Assert.Equal("/home/test/.cache/MissionPlanner/map-tiles", linux.MapTileCacheRoot);
 
     var windows = AppPaths.Resolve(
         AppPlatform.Windows,
@@ -30,15 +31,18 @@ public class UpstreamPortTests {
         @"C:\Users\test\AppData\Roaming",
         @"C:\Users\test\AppData\Local",
         EmptyEnvironment);
-    Assert.EndsWith(Path.Combine("Roaming", "MissionPlanner"), windows.ConfigRoot);
-    Assert.EndsWith(Path.Combine("Local", "MissionPlanner"), windows.DataRoot);
+    Assert.EndsWith(Path.Combine("Roaming", "MissionPlanner10"), windows.ConfigRoot);
+    Assert.EndsWith(Path.Combine("Local", "MissionPlanner10"), windows.DataRoot);
+    Assert.EndsWith(Path.Combine("Local", "MissionPlanner", "cache", "map-tiles"),
+        windows.MapTileCacheRoot);
 
     var mac = AppPaths.Resolve(
         AppPlatform.MacOS, "/Users/test", "", "", EmptyEnvironment);
     Assert.Equal(
-        "/Users/test/Library/Application Support/MissionPlanner",
+        "/Users/test/Library/Application Support/MissionPlanner10",
         mac.ConfigRoot);
-    Assert.Equal("/Users/test/Library/Caches/MissionPlanner", mac.CacheRoot);
+    Assert.Equal("/Users/test/Library/Caches/MissionPlanner10", mac.CacheRoot);
+    Assert.Equal("/Users/test/Library/Caches/MissionPlanner/map-tiles", mac.MapTileCacheRoot);
   }
 
   [Fact]
@@ -56,10 +60,11 @@ public class UpstreamPortTests {
         "",
         name => values.GetValueOrDefault(name));
 
-    Assert.Equal("/xdg/config/MissionPlanner", layout.ConfigRoot);
-    Assert.Equal("/home/test/.local/share/MissionPlanner", layout.DataRoot);
-    Assert.Equal("/xdg/cache/MissionPlanner", layout.CacheRoot);
-    Assert.Equal("/xdg/state/MissionPlanner", layout.StateRoot);
+    Assert.Equal("/xdg/config/MissionPlanner10", layout.ConfigRoot);
+    Assert.Equal("/home/test/.local/share/MissionPlanner10", layout.DataRoot);
+    Assert.Equal("/xdg/cache/MissionPlanner10", layout.CacheRoot);
+    Assert.Equal("/xdg/state/MissionPlanner10", layout.StateRoot);
+    Assert.Equal("/xdg/cache/MissionPlanner/map-tiles", layout.MapTileCacheRoot);
   }
 
   [Fact]
@@ -72,6 +77,33 @@ public class UpstreamPortTests {
     Assert.StartsWith(
         Path.GetFullPath(AppPaths.ConfigRoot),
         Path.GetFullPath(Settings.GetUserDataDirectory()));
+  }
+
+  [Fact]
+  public void Legacy_nested_cache_files_are_copied_without_overwriting_newer_files() {
+    string root = Path.Combine(Path.GetTempPath(), "mp-cache-migration-" + Guid.NewGuid().ToString("N"));
+    string source = Path.Combine(root, "old", "sitl");
+    string destination = Path.Combine(root, "new", "sitl");
+    try {
+      Directory.CreateDirectory(Path.Combine(source, "xplane"));
+      Directory.CreateDirectory(destination);
+      string binary = Path.Combine(source, "ArduPlane");
+      File.WriteAllText(binary, "legacy binary");
+      File.WriteAllText(Path.Combine(source, "xplane", "dependency.so"), "dependency");
+      File.WriteAllText(Path.Combine(destination, "ArduPlane"), "newer binary");
+      if (!OperatingSystem.IsWindows()) {
+        File.SetUnixFileMode(binary,
+            File.GetUnixFileMode(binary) | UnixFileMode.UserExecute);
+      }
+
+      AppPaths.CopyDirectoryFilesIfMissing(source, destination);
+
+      Assert.Equal("newer binary", File.ReadAllText(Path.Combine(destination, "ArduPlane")));
+      Assert.Equal("dependency", File.ReadAllText(
+          Path.Combine(destination, "xplane", "dependency.so")));
+    } finally {
+      Directory.Delete(root, recursive: true);
+    }
   }
 
   [Fact]

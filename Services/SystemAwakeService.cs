@@ -77,7 +77,7 @@ internal static class SystemAwakeService {
     }
     return new AwakeCommand(inhibitPath, [
       "--what=sleep",
-      "--who=Mission Planner",
+      "--who=Mission Planner 10",
       "--why=Ground control station is running",
       "--mode=block",
       "--",

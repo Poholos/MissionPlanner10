@@ -6,11 +6,11 @@ APPS="$HOME/.local/share/applications"
 
 mkdir -p "$APPS"
 sed "s|@INSTALL_DIR@|$DIR|g" "$DIR/missionplanner.desktop" \
-  > "$APPS/missionplanner.desktop"
-chmod +x "$DIR/MissionPlanner"
+  > "$APPS/missionplanner10.desktop"
+chmod +x "$DIR/MissionPlanner10"
 update-desktop-database "$APPS" 2>/dev/null || true
 
-echo "Installed. Find 'Mission Planner' in your launcher (or run ./MissionPlanner)."
+echo "Installed. Find 'Mission Planner 10' in your launcher (or run ./MissionPlanner10)."
 echo
 echo "Serial access to a flight controller needs the dialout group:"
 echo "  sudo usermod -aG dialout \$USER   # then log out and back in"

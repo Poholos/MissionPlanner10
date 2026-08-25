@@ -184,6 +184,7 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
   private int _readerGeneration;
   private DateTime _connectedAtUtc = DateTime.MinValue;
   private DateTime _lastVersionPollUtc = DateTime.MinValue;
+  private DateTime _nextReaderErrorLogUtc = DateTime.MinValue;
   private bool _lastArmed;
   private int _homeRefreshRunning;
   private readonly bool _initializing;
@@ -294,7 +295,8 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
                   now, newestPacket, _connectedAtUtc, TimeSpan.FromSeconds(10))) {
             SetLinkQualityLost();
             if (ConnectionHealth.ShouldCloseSilentLink(
-                    _comPort.MAV.cs.armed, now, newestPacket, _connectedAtUtc,
+                    _comPort.BaseStream, _comPort.MAV.cs.armed,
+                    now, newestPacket, _connectedAtUtc,
                     TimeSpan.FromSeconds(10))) {
               HandleLinkLost(self, generation);
               break;
@@ -307,7 +309,8 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
         if (_comPort.giveComport == false) {
           var start = DateTime.UtcNow;
           while (_comPort.giveComport == false && _comPort.BaseStream?.IsOpen == true &&
-                 _comPort.BaseStream.BytesToRead > 10 && !ct.IsCancellationRequested &&
+                 ConnectionHealth.ShouldPollReader(_comPort.BaseStream) &&
+                 !ct.IsCancellationRequested &&
                  start.AddSeconds(1) > DateTime.UtcNow) {
             await _comPort.readPacketAsync().ConfigureAwait(false);
           }
@@ -322,11 +325,25 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
         await Task.Delay(_comPort.giveComport ? 50 : 1, ct).ConfigureAwait(false);
       } catch (OperationCanceledException) {
         break;
-      } catch {
-
+      } catch (Exception ex) {
         if (++consecutiveErrors >= 5) {
-          HandleLinkLost(self, generation);
-          break;
+          bool close = ConnectionHealth.ShouldCloseAfterReaderErrors(_comPort.BaseStream);
+          if (close) {
+            Console.Error.WriteLine(
+                $"Primary MAVLink reader had five consecutive errors on " +
+                $"{_comPort.BaseStream?.GetType().Name}; closing the connection: {ex}");
+            HandleLinkLost(self, generation);
+            break;
+          }
+          SetLinkQualityLost();
+          DateTime errorUtc = DateTime.UtcNow;
+          if (errorUtc >= _nextReaderErrorLogUtc) {
+            _nextReaderErrorLogUtc = errorUtc.AddSeconds(5);
+            Console.Error.WriteLine(
+                $"Primary MAVLink reader errors on {_comPort.BaseStream?.GetType().Name}; "
+                + $"keeping the persistent listener open: {ex}");
+          }
+          consecutiveErrors = 0;
         }
         try {
           await Task.Delay(50, ct).ConfigureAwait(false);
@@ -1209,7 +1226,8 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
         await open.WaitAsync(dlg.Token);
         if (_comPort.BaseStream.IsOpen && !dlg.CancelRequested &&
             _comPort.MAV.compid != (byte)MAVLink.MAV_COMPONENT.MAV_COMP_ID_PERIPHERAL) {
-          backgroundParamLoad = Settings.Instance.GetBoolean("Params_BG", false);
+          backgroundParamLoad = ShouldLoadParametersInBackground(
+              stream, Settings.Instance.GetBoolean("Params_BG", false));
           if (!backgroundParamLoad) {
             Task parameters = Task.Factory.StartNew(
                 () => _comPort.getParamList(),
@@ -1278,7 +1296,9 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
 
         dlg.Set(100, Status);
         await Task.Delay(1200);
-        dlg.Close();
+        // Closing a progress window normally means Cancel. This is the successful completion path,
+        // so do not fire the transport-release callback registered on the dialog token.
+        dlg.Complete();
       } else {
         dlg.Close();
         _ = _transportRelease.Begin(_comPort);
@@ -1396,6 +1416,16 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
         "WS" => new Services.PortableWebSocketSerial(primary),
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown network transport."),
       };
+
+  internal static bool ShouldLoadParametersInBackground(
+      ICommsSerial stream, bool configured) {
+    // An inbound UDP listener can receive many independent MAVLink systems. The first heartbeat
+    // only proves that the shared socket is usable; it does not select a device whose parameter
+    // service is required to answer. Waiting synchronously for that arbitrary endpoint would keep
+    // the connection logically closed (and the button labelled CONNECT), preventing pages such as
+    // NV Modem from discovering the other live broadcast endpoints.
+    return configured || stream is UdpSerial;
+  }
 
   private async Task<ICommsSerial?> ScanForStreamAsync(bool interactive) {
     var dlg = new Services.ProgressReporter("Scanning serial ports");
@@ -1544,9 +1574,27 @@ internal sealed class PreconfiguredUdpListener : UdpSerial, IPreconfiguredNetwor
 }
 
 internal static class ConnectionHealth {
+  // A bound UDP socket is a discovery surface, not a session owned by one vehicle. It must
+  // outlive disappearing broadcasters so returning modems are received without reopening it.
+  internal static bool IsPersistentListener(ICommsSerial? stream) => stream is UdpSerial;
+
+  internal static bool ShouldCloseSilentLink(ICommsSerial? stream, bool armed,
+      DateTime nowUtc, DateTime newestPacketUtc, DateTime connectedAtUtc, TimeSpan timeout) =>
+      !IsPersistentListener(stream) &&
+      ShouldCloseSilentLink(armed, nowUtc, newestPacketUtc, connectedAtUtc, timeout);
+
   internal static bool ShouldCloseSilentLink(bool armed, DateTime nowUtc,
       DateTime newestPacketUtc, DateTime connectedAtUtc, TimeSpan timeout) =>
       !armed && IsSilent(nowUtc, newestPacketUtc, connectedAtUtc, timeout);
+
+  internal static bool ShouldCloseAfterReaderErrors(ICommsSerial? stream) =>
+      !IsPersistentListener(stream);
+
+  // MAVLink can legally produce short datagrams, and UdpSerial exposes the size of the next
+  // datagram rather than a stream-sized backlog on every platform. Requiring the legacy
+  // stream-oriented >10-byte threshold can leave that datagram at the head of the socket forever.
+  internal static bool ShouldPollReader(ICommsSerial? stream) => stream != null &&
+      stream.BytesToRead > (IsPersistentListener(stream) ? 0 : 10);
 
   internal static bool IsSilent(DateTime nowUtc, DateTime newestPacketUtc,
       DateTime connectedAtUtc, TimeSpan timeout) {

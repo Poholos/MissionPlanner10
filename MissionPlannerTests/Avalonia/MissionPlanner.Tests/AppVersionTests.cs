@@ -3,6 +3,13 @@ using MissionPlanner.Services;
 namespace MissionPlanner.Tests;
 
 public class AppVersionTests {
+  [Fact]
+  public void Product_identity_is_MissionPlanner10_while_managed_ABI_remains_native() {
+    Assert.Equal("Mission Planner 10", AppVersion.DisplayName);
+    Assert.Equal("MissionPlanner10", AppVersion.ExecutableName);
+    Assert.Equal("MissionPlanner", typeof(AppVersion).Assembly.GetName().Name);
+  }
+
   [Theory]
   [InlineData("1.3.83+20260821.8a07b1b", "1.3.83", "2026-08-21", "8a07b1b",
       "1.3.83 (2026-08-21, 8a07b1b)")]

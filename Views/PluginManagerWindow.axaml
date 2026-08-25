@@ -13,7 +13,7 @@
   Background="{DynamicResource MpControlBg}">
   <Grid Margin="14" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="10">
     <StackPanel Grid.Row="0" Spacing="4">
-      <TextBlock Text="Mission Planner Plugins" FontSize="20" />
+      <TextBlock Text="Mission Planner 10 Plugins" FontSize="20" />
       <TextBlock
         Text="DLL plugins use the official Init → Loaded → Loop → Exit lifecycle through a native Avalonia host. Legacy WinForms UI plugins must be adapted and rebuilt. Only install plugins you trust: plugin code has full user access."
         TextWrapping="Wrap" Foreground="#FFCE8A" />
@@ -46,7 +46,7 @@
     </DataGrid>
 
     <TextBlock x:Name="RestartWarning" Grid.Row="3"
-               Text="Restart Mission Planner to finish applying enable/disable changes."
+               Text="Restart Mission Planner 10 to finish applying enable/disable changes."
                IsVisible="{Binding RestartRequired}" Foreground="#FFCE8A" />
 
     <Grid Grid.Row="4" ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="8">

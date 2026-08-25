@@ -382,7 +382,7 @@ public partial class ConfigPlannerViewModel : ViewModelBase, System.IDisposable 
       SpeechStatus = "Enable Speech before running the test.";
       return;
     }
-    MissionPlanner.Services.Speech.Speak("Проверка звука Mission Planner");
+    MissionPlanner.Services.Speech.Speak("Проверка звука Mission Planner 10");
     SpeechStatus = MissionPlanner.Services.Speech.LastStatus;
   }
 

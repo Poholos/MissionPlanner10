@@ -16,4 +16,21 @@ public class ProgressReporterTests {
     Assert.True(reporter.CancelRequested);
     Assert.Equal(token, reporter.Token);
   }
+
+  [AvaloniaFact]
+  public void Completing_progress_window_does_not_cancel_successful_work() {
+    var reporter = new ProgressReporter("Completed operation");
+    CancellationToken token = reporter.Token;
+    bool cancellationCallbackRan = false;
+    using CancellationTokenRegistration registration = token.Register(
+        () => cancellationCallbackRan = true);
+    reporter.Show();
+
+    reporter.Complete();
+
+    Assert.False(token.IsCancellationRequested);
+    Assert.False(reporter.CancelRequested);
+    Assert.False(cancellationCallbackRan);
+    Assert.Equal(token, reporter.Token);
+  }
 }

@@ -1,10 +1,10 @@
 # A self-contained .NET application intentionally carries its matching CoreCLR,
 # compression runtime and SkiaSharp native assets instead of using a system runtime.
-missionplanner: embedded-library * [usr/lib/missionplanner/*]
+missionplanner10: embedded-library * [usr/lib/missionplanner10/*]
 # libSkiaSharp is a prebuilt NuGet runtime asset; stripping it here is not safe.
-missionplanner: unstripped-binary-or-object [usr/lib/missionplanner/libSkiaSharp.so]
+missionplanner10: unstripped-binary-or-object [usr/lib/missionplanner10/libSkiaSharp.so]
 # IronPython.StdLib installs these upstream files under the application's private module tree.
 # They are imported/read as runtime data and are never installed as system commands.
-missionplanner: interpreter-in-usr-local /usr/local/bin/python [usr/lib/missionplanner/lib/cgi.py]
-missionplanner: unusual-interpreter python [usr/lib/missionplanner/lib/encodings/rot_13.py]
-missionplanner: script-not-executable [usr/lib/missionplanner/lib/ctypes/macholib/fetch_macholib]
+missionplanner10: interpreter-in-usr-local /usr/local/bin/python [usr/lib/missionplanner10/lib/cgi.py]
+missionplanner10: unusual-interpreter python [usr/lib/missionplanner10/lib/encodings/rot_13.py]
+missionplanner10: script-not-executable [usr/lib/missionplanner10/lib/ctypes/macholib/fetch_macholib]

@@ -15,7 +15,7 @@ There are two ways to get a SITL, depending on the OS.
 
 The app can download and launch ArduPilot SITL itself.
 
-1. Launch the unpacked release (`MissionPlanner.exe` on Windows or `./MissionPlanner` on Linux). If
+1. Launch the unpacked release (`MissionPlanner10.exe` on Windows or `./MissionPlanner10` on Linux). If
    Windows SmartScreen warns, use *More info → Run anyway*; the development build is unsigned.
 2. Click the **SIMULATION** tab in the top toolbar.
 3. Pick the vehicle: **Plane**, **Copter**, **Rover**, or **Heli**.

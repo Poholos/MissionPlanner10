@@ -36,7 +36,7 @@ public static class Updater {
 
   private static HttpClient CreateClient() {
     var c = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
-    c.DefaultRequestHeaders.UserAgent.ParseAdd("MissionPlanner-Updater");
+    c.DefaultRequestHeaders.UserAgent.ParseAdd("MissionPlanner10-Updater");
     return c;
   }
 
@@ -180,9 +180,8 @@ public static class Updater {
 
   private static void ApplyAndRestart(
       UpdateEngine engine, IReadOnlyList<UpdateEngine.ManifestFile> changed, string staging) {
-    string exe = Environment.ProcessPath ?? "";
+    string exe = BrandedLauncherPath(engine.InstallDir);
     if (OperatingSystem.IsWindows()) {
-
       RunWindowsHelper(engine.InstallDir, staging, exe);
     } else {
       // Linux: in-place per-file swap. macOS never reaches here — a mac manifest always carries a
@@ -231,10 +230,10 @@ public static class Updater {
         string extracted = Path.Combine(staging, "extract");
         IReadOnlyList<UpdateEngine.ManifestFile> files = engine.ExtractBundle(zip, extracted);
         if (OperatingSystem.IsWindows()) {
-          RunWindowsHelper(engine.InstallDir, extracted, Environment.ProcessPath ?? "");
+          RunWindowsHelper(engine.InstallDir, extracted, BrandedLauncherPath(engine.InstallDir));
         } else {
           engine.Apply(files, extracted);
-          string exe = Environment.ProcessPath ?? "";
+          string exe = BrandedLauncherPath(engine.InstallDir);
           if (!string.IsNullOrEmpty(exe)) {
             StartDetached(new ProcessStartInfo(exe) { UseShellExecute = false });
           }
@@ -283,6 +282,10 @@ public static class Updater {
   }
 
   private static string Q(string s) => "'" + s.Replace("'", "'\\''") + "'";
+
+  internal static string BrandedLauncherPath(string installDir) => Path.Combine(
+      installDir,
+      AppVersion.ExecutableName + (OperatingSystem.IsWindows() ? ".exe" : ""));
 
   private static void RunWindowsHelper(string installDir, string staging, string exe) {
     int pid = Environment.ProcessId;
@@ -428,7 +431,7 @@ public sealed class UpdateEngine {
     ZipFile.ExtractToDirectory(zipPath, extractionDir);
 
     string launcher = Path.Combine(extractionDir,
-        OperatingSystem.IsWindows() ? "MissionPlanner.exe" : "MissionPlanner");
+        AppVersion.ExecutableName + (OperatingSystem.IsWindows() ? ".exe" : ""));
     if (!File.Exists(launcher)) {
       throw new InvalidDataException("The update bundle does not contain the application launcher.");
     }

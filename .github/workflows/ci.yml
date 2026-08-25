@@ -52,32 +52,32 @@ jobs:
         shell: bash
         run: |
           test -z "$(find out/packages -maxdepth 1 -type f -name '*.dirty*' -print -quit)"
-          DEB=$(find out/packages -maxdepth 1 -type f -name 'missionplanner_*_amd64.deb' -print -quit)
+          DEB=$(find out/packages -maxdepth 1 -type f -name 'missionplanner10_*_amd64.deb' -print -quit)
           test -n "$DEB"
           lintian --tag-display-limit 0 "$DEB"
           ROOT=$(mktemp -d "$RUNNER_TEMP/missionplanner-deb.XXXXXXXX")
           dpkg-deb --extract "$DEB" "$ROOT"
-          test -x "$ROOT/usr/lib/missionplanner/MissionPlanner"
-          test -s "$ROOT/usr/lib/missionplanner/airports.csv"
-          test ! -e "$ROOT/usr/lib/missionplanner/simpleble-c.dll"
-          test ! -e "$ROOT/usr/lib/missionplanner/simpleble.dll"
-          test ! -e "$ROOT/usr/lib/missionplanner/libusb-1.0.dll"
+          test -x "$ROOT/usr/lib/missionplanner10/MissionPlanner10"
+          test -s "$ROOT/usr/lib/missionplanner10/airports.csv"
+          test ! -e "$ROOT/usr/lib/missionplanner10/simpleble-c.dll"
+          test ! -e "$ROOT/usr/lib/missionplanner10/simpleble.dll"
+          test ! -e "$ROOT/usr/lib/missionplanner10/libusb-1.0.dll"
           set +e
-          timeout 12s xvfb-run -a "$ROOT/usr/lib/missionplanner/MissionPlanner"
+          timeout 12s xvfb-run -a "$ROOT/usr/lib/missionplanner10/MissionPlanner10"
           STATUS=$?
           set -e
           test "$STATUS" -eq 0 -o "$STATUS" -eq 124
 
       - uses: actions/upload-artifact@v7
         with:
-          name: missionplanner-linux-x64
+          name: missionplanner10-linux-x64
           path: out/packages/*linux-x64.tar.gz
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v7
         with:
-          name: missionplanner-deb-amd64
-          path: out/packages/missionplanner_*_amd64.deb
+          name: missionplanner10-deb-amd64
+          path: out/packages/missionplanner10_*_amd64.deb
           if-no-files-found: error
 
   package-windows:
@@ -108,7 +108,7 @@ jobs:
           $zipRoot = Join-Path $env:RUNNER_TEMP "zip"
           Expand-Archive -Path $zip.FullName -DestinationPath $zipRoot
           $requiredFiles = @(
-            'MissionPlanner.exe',
+            'MissionPlanner10.exe',
             'e_sqlite3.dll',
             'airports.csv',
             'COPYING.txt',
@@ -125,7 +125,7 @@ jobs:
           # Exercise the real per-machine directory authored in Package.wxs. Overriding a
           # directory property from msiexec does not validate the installer's production path
           # and can be ignored during maintenance-mode directory resolution.
-          $msiRoot = Join-Path $env:ProgramFiles "MissionPlannerAvalonia"
+          $msiRoot = Join-Path $env:ProgramFiles "MissionPlanner10"
           $installLog = Join-Path $env:RUNNER_TEMP "msi-install.log"
           try {
             $process = Start-Process msiexec.exe -Wait -PassThru -ArgumentList @(
@@ -155,7 +155,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: missionplanner-windows-x64
+          name: missionplanner10-windows-x64
           path: |
             out/packages/*win-x64.zip
             out/packages/*win-x64.msi
@@ -187,7 +187,6 @@ jobs:
             -p:MissionPlannerBuildDate="$MP_BUILD_DATE" \
             -p:MissionPlannerCommit="$MP_COMMIT" \
             -o "out/$RID"
-          test -x "out/$RID/MissionPlanner"
           test -s "out/$RID/libsimpleble-c.dylib"
           test -s "out/$RID/libsimpleble.0.dylib"
           test -s "out/$RID/lib/libvlc.5.dylib"
@@ -201,11 +200,11 @@ jobs:
           test "$MP_DIRTY_SUFFIX" = ""
           mkdir -p dist upload
           ./build/macos/make-app.sh "out/$RID" "$MP_UPSTREAM_VERSION" \
-            "dist/Mission Planner.app"
-          ditto -c -k --sequesterRsrc --keepParent "dist/Mission Planner.app" \
-            "upload/MissionPlanner-${RID}.zip"
-          DMG="upload/MissionPlanner-${RID}.dmg"
-          ./build/macos/make-dmg.sh "dist/Mission Planner.app" "$DMG"
+            "dist/Mission Planner 10.app"
+          ditto -c -k --sequesterRsrc --keepParent "dist/Mission Planner 10.app" \
+            "upload/MissionPlanner10-${RID}.zip"
+          DMG="upload/MissionPlanner10-${RID}.dmg"
+          ./build/macos/make-dmg.sh "dist/Mission Planner 10.app" "$DMG"
 
           MOUNT_POINT=$(mktemp -d "$RUNNER_TEMP/missionplanner-dmg.XXXXXXXX")
           DMG_MOUNTED=false
@@ -218,7 +217,7 @@ jobs:
           trap cleanup_dmg_mount EXIT
           hdiutil attach -quiet -readonly -nobrowse -mountpoint "$MOUNT_POINT" "$DMG"
           DMG_MOUNTED=true
-          test -x "$MOUNT_POINT/Mission Planner.app/Contents/MacOS/MissionPlanner"
+          test -x "$MOUNT_POINT/Mission Planner 10.app/Contents/MacOS/MissionPlanner10"
           test -L "$MOUNT_POINT/Applications"
           hdiutil detach -quiet "$MOUNT_POINT"
           DMG_MOUNTED=false
@@ -227,7 +226,7 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: missionplanner-${{ matrix.rid }}
+          name: missionplanner10-${{ matrix.rid }}
           path: |
             upload/*.zip
             upload/*.dmg
