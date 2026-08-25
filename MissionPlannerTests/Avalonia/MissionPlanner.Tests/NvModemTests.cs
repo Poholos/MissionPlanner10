@@ -910,6 +910,69 @@ public class NvModemTests {
     Assert.Empty(transport.Sent);
   }
 
+  [Fact]
+  public void Role_presets_follow_the_current_staged_nv5_role() {
+    var transport = new FakeTransport();
+    using var viewModel = new NvModemViewModel(transport, () => DateTime.UtcNow,
+        startTimer: false);
+    var source = new NvModemLink(new MAVLinkInterface(), "UDP NV5");
+    viewModel.HandlePacket(source, Packet(NvModemMessageIds.Nv5LinkStatus,
+        new Nv5LinkStatusMessage { Channel = 1, RadioChip = 0, Role = 0 }, 31, 68));
+    viewModel.HandlePacket(source, ParameterPacket("CH1_MOD", 0,
+        (byte)MAVLink.MAV_PARAM_TYPE.UINT32, 2, 31, 68));
+    viewModel.HandlePacket(source, ParameterPacket("CH1_ROLE", 0,
+        (byte)MAVLink.MAV_PARAM_TYPE.UINT32, 2, 31, 68));
+
+    Assert.False(viewModel.CanStageRxRolePreset);
+    Assert.True(viewModel.CanStageTxRolePreset);
+
+    viewModel.StageRadioPresetCommand.Execute("tx");
+
+    Assert.True(viewModel.CanStageRxRolePreset);
+    Assert.False(viewModel.CanStageTxRolePreset);
+
+    NvModemParameterRow role = Assert.Single(
+        viewModel.Parameters, row => row.Name == "CH1_ROLE");
+    role.ValueText = "2";
+
+    Assert.True(viewModel.CanStageRxRolePreset);
+    Assert.True(viewModel.CanStageTxRolePreset);
+  }
+
+  [Fact]
+  public void Transmitter_controls_follow_the_live_nv5_tx_state() {
+    var transport = new FakeTransport();
+    using var viewModel = new NvModemViewModel(transport, () => DateTime.UtcNow,
+        startTimer: false);
+    var source = new NvModemLink(new MAVLinkInterface(), "UDP NV5");
+
+    viewModel.HandlePacket(source, Packet(NvModemMessageIds.Nv5LinkStatus,
+        new Nv5LinkStatusMessage { Channel = 1, RadioChip = 0, Role = 2, TxState = 1 },
+        32, 68));
+
+    Assert.True(viewModel.CanControlTransmitter);
+    Assert.False(viewModel.CanEnableTransmitter);
+    Assert.True(viewModel.CanSuppressTransmitter);
+
+    transport.Sent.Clear();
+    viewModel.SetTransmitterEnabledCommand.Execute("true");
+    Assert.Empty(transport.Sent);
+
+    viewModel.HandlePacket(source, Packet(NvModemMessageIds.Nv5LinkStatus,
+        new Nv5LinkStatusMessage { Channel = 1, RadioChip = 0, Role = 2, TxState = 2 },
+        32, 68));
+
+    Assert.True(viewModel.CanEnableTransmitter);
+    Assert.False(viewModel.CanSuppressTransmitter);
+
+    viewModel.HandlePacket(source, Packet(NvModemMessageIds.Nv5LinkStatus,
+        new Nv5LinkStatusMessage { Channel = 1, RadioChip = 0, Role = 0, TxState = 0 },
+        32, 68));
+
+    Assert.False(viewModel.CanEnableTransmitter);
+    Assert.False(viewModel.CanSuppressTransmitter);
+  }
+
   [AvaloniaFact]
   public void Nv_modem_view_and_navigation_entry_are_available() {
     var transport = new FakeTransport();

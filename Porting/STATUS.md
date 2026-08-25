@@ -43,13 +43,21 @@ Updated: **2026-08-25**.
   partial files and bounds KML/KMZ document/resource decompression. `e9df0be66` passes Linux/macOS
   external-open targets as one literal argument and releases every short-lived launcher process
   handle, including updater helpers.
+- Fresh GTU `master` and `origin/master` at `bfb03b24f3180fdcba91ac7f114e7287b7b2b359`
+  were compared with the previously synchronized `ab6422d4` checkpoint. Its only new production
+  NV5Settings delta is mirrored here: RX/TX role presets are disabled when already selected, and
+  ENABLE/SUPPRESS TX follows the live `tx_state` instead of offering a redundant command. Manual
+  staged role edits refresh both controls immediately, and direct command invocation cannot bypass
+  the same-state guard. The two firmware reference repositories named by GTU are not available in
+  the local AgroSky workspace, so this synchronization is intentionally based on the clean fetched
+  GTU repository itself.
 - The active application graph was also checked for TLS validation bypasses, unsafe
   deserialization, archive/path traversal, unbounded HTTP ownership, SSH trust-all behavior,
   process/socket lifetime and primary native GDAL/SimpleBLE/libVLC ownership. No certificate
   validation bypass or active unsafe formatter was found; SFTP remains fail-closed TOFU/pinned and
   revalidates remote regular BIN files before download/delete.
-- Local verification at `bb90162de` plus this documentation change: Release solution build
-  **0 warnings / 0 errors**, **1436/1436** tests, all six migration/inventory checks pass (1623
+- Local verification of the current branch: Release solution build
+  **0 warnings / 0 errors**, **1438/1438** tests, all six migration/inventory checks pass (1623
   native rows with **0 blockers**, 708/708 pinned source paths, no WinForms, and clean project,
   binary and key audits), all 28 active projects report no known vulnerable direct or transitive
   NuGet package. Clean local Linux TAR/DEB packages
