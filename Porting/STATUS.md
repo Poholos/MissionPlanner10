@@ -2,6 +2,64 @@
 
 Updated: **2026-08-25**.
 
+## Live UDP/NV, SITL/X-Plane and Mission Planner 10 checkpoint
+
+- Local branch `fix/udp-nv-connect-state` is at code checkpoint
+  `4145b5bb1813f4fe2904b7f36cc71d5ecbfe1b9a`. The new atomic commits retain the first SITL TCP
+  connection (`f0e407dca`), drain short packets from persistent UDP listeners (`1813353ef`),
+  restore and filter the complete NV parameter cache (`2d4205e6e`), apply the Mission Planner 10
+  product/installer identity (`8caed8f30`) and migrate legacy SITL/SRTM caches while preserving
+  Unix executable modes (`4145b5bb1`). The managed assembly intentionally remains
+  `MissionPlanner.dll` for plugin ABI compatibility; apphosts, install directories and package
+  names are Mission Planner 10. The official Mission Planner filesystem map-tile location remains
+  shared and is not migrated or renamed.
+- The final UDP-reader stall was traced backwards to the initial native Avalonia import
+  `c68d7f366`: its generic stream loop required `BytesToRead > 10`. `UdpSerial` exposes datagram
+  availability, so a short packet at the head of a bound listener could prevent every later
+  broadcast from being consumed. `402548abc` fixed the separate initial parameter-load ordering,
+  `8519ff5b9` correctly made inbound UDP persistent but exposed the inherited reader starvation as
+  an open-yet-dead socket, and `c13d14962` fixed a separate successful-progress-dialog cancellation
+  that released a newly opened transport. The current policy uses any positive byte count for a
+  bound UDP listener while retaining the legacy threshold for TCP/UART/UDP client streams; it is
+  used by both primary and secondary connection runtimes.
+- Real hardware verification used the actual shared UDP port 14565 under Xvfb and physical XTest
+  clicks through `SETUP -> NV Modem -> Refresh selected`. The socket stayed `Recv-Q=0`, `drops=0`
+  for the 30-second observation and through repeated parameter refreshes. The page listed exactly
+  five vendor-confirmed broadcasts and no autopilot: NV5 `10:18` (91/91), `255:11` (91/91), `6:6`
+  (77/77), `255:10` (59/59) and `1:5` (77/77). Cached `MAVState.param` values are replayed only
+  after an NV custom message, valid modem-info payload or strict legacy NV4 CAN passport confirms
+  the exact system/component endpoint; parameter names alone can no longer classify an autopilot
+  as a modem. Closing the real window produced no former `CancellationTokenSource` disposal stack
+  or core dump; the synthetic Xvfb/metacity session did emit its generic X-connection exit status,
+  so native desktop CI remains the authoritative cross-platform shutdown check.
+- The X-Plane/SITL regression came from using a temporary readiness connection and then opening a
+  second TCP session. External simulator models can accept/associate the first session, so the
+  launcher now retains that proven connection and hands it directly to Mission Planner. The child
+  PATH includes the SITL cache and working directory for companion runtime files. A real cached
+  Linux `ArduPlane --model xplane` integration run passes, including legacy-cache migration and
+  retained-stream consumption; no SITL process remains after the test.
+- Verification at the code checkpoint: Release solution build **0 warnings / 0 errors**; complete
+  suite **1454/1454**; focused connection/NV suite **91/91**; real X-Plane integration plus cache
+  migration **2/2**; all six migration/inventory checks pass (1623 native rows with 0 blockers,
+  708/708 source paths, no WinForms, and clean project/binary/key audits); all 28 active projects
+  report no known vulnerable direct or transitive NuGet package. One earlier full-suite run had a
+  transient Avalonia headless `Dispatcher.PushFrame` platform exception in a shapefile test; that
+  test passed immediately in isolation and the following two complete builds/runs passed, so it is
+  recorded as test-harness flakiness rather than hidden.
+- Fresh clean local artifacts are
+  `out/packages/missionplanner10_1.3.83-20260825.4145b5bb_amd64.deb` (60,117,704 bytes, SHA-256
+  `cb54654ee8cc8b5be7e4ee2899dc27c09f0dc08b7a6a9ff0a9a9ea468ca5eb96`) and
+  `out/packages/MissionPlanner10-1.3.83-20260825.4145b5bb-linux-x64.tar.gz` (75,381,974 bytes,
+  SHA-256 `8557b4fb1c68e417ba3f6267d2976422303fefb67689e6af411dd4fce214176d`). `lintian
+  --fail-on error,warning`, gzip/TAR content checks, extracted DEB layout and a 12-second packaged
+  Xvfb smoke pass; the expected smoke timeout is 124 with no stderr, unhandled exception or crash
+  log.
+- Remaining publication step is intentionally deferred: the user cancelled push/merge/release.
+  No GitHub state was changed. When publication is explicitly re-authorized, the next executable
+  step is to push this branch, review/merge it into master, require Linux/Windows/macOS CI plus
+  CodeQL to pass, and only then create the tag/release so native Windows MSI and macOS DMG are
+  generated on their required hosts. Claude remains disabled by user instruction.
+
 ## Shared UDP/NV connection-state fix
 
 - Stacked branch `fix/udp-nv-connect-state` contains the earlier DroneCAN fix, initial UDP
