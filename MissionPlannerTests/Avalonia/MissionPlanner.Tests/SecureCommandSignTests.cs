@@ -54,4 +54,25 @@ public class SecureCommandSignTests {
     v.BlockUpdate(tampered, 0, tampered.Length);
     Assert.False(v.VerifySignature(sig));
   }
+
+  [Fact]
+  public void Payload_accepts_the_exact_mavlink_data_and_signature_limit() {
+    byte[] data = Enumerable.Range(0, 156).Select(value => (byte)value).ToArray();
+    byte[] signature = Enumerable.Repeat((byte)0xA5, 64).ToArray();
+
+    byte[] payload = ConfigSecureViewModel.BuildSecureCommandPayload(data, signature);
+
+    Assert.Equal(220, payload.Length);
+    Assert.Equal(data, payload[..data.Length]);
+    Assert.Equal(signature, payload[data.Length..]);
+  }
+
+  [Theory]
+  [InlineData(157, 64)]
+  [InlineData(221, 0)]
+  public void Payload_rejects_lengths_that_cannot_be_represented_on_the_wire(
+      int dataLength, int signatureLength) {
+    Assert.Throws<ArgumentException>(() => ConfigSecureViewModel.BuildSecureCommandPayload(
+        new byte[dataLength], new byte[signatureLength]));
+  }
 }

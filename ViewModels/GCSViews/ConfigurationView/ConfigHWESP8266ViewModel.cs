@@ -1,18 +1,26 @@
 using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.Net;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MissionPlanner;
+using MissionPlanner.Services;
 
 namespace MissionPlanner.ViewModels.GCSViews.ConfigurationView;
 
-public partial class ConfigHWESP8266ViewModel : ViewModelBase {
+public partial class ConfigHWESP8266ViewModel : ViewModelBase,
+    IActivationAware, IDeactivationAware, IDisposable {
   private const byte _udpBridge = (byte)MAVLink.MAV_COMPONENT.MAV_COMP_ID_UDP_BRIDGE;
+  private static readonly TimeSpan _parameterTimeout = TimeSpan.FromSeconds(3);
+  private static readonly TimeSpan _parameterPollInterval = TimeSpan.FromMilliseconds(100);
 
-  private readonly MAVLinkInterface _comPort = AppState.comPort;
+  private readonly MAVLinkInterface _comPort;
+  private readonly LatestOperationController _activation = new();
 
   [ObservableProperty]
   private string _ssid = "";
@@ -57,89 +65,175 @@ public partial class ConfigHWESP8266ViewModel : ViewModelBase {
 
   public bool IsConnected => _comPort.BaseStream?.IsOpen == true;
 
-  public ConfigHWESP8266ViewModel() {
-    if (IsConnected) {
-      _ = Task.Run(Activate);
-    } else {
+  public ConfigHWESP8266ViewModel() : this(AppState.comPort) {
+  }
+
+  internal ConfigHWESP8266ViewModel(MAVLinkInterface comPort) {
+    _comPort = comPort ?? throw new ArgumentNullException(nameof(comPort));
+    if (!IsConnected) {
       Status = "Not connected.";
     }
   }
 
-  private async Task Activate() {
+  public void Activate() {
     if (!IsConnected) {
-      await Dispatcher.UIThread.InvokeAsync(() => Status = "Not connected.");
+      Status = "Not connected.";
       return;
     }
 
-    await Task.Run(() => _comPort.sendPacket(new MAVLink.mavlink_param_request_list_t() {
-      target_system = 0,
-      target_component = _udpBridge,
-    }, _comPort.sysidcurrent, _udpBridge));
+    LatestOperationController.Lease operation = _activation.Begin(default);
+    _ = LoadSettingsAsync(operation);
+  }
 
-    await Task.Delay(2000);
+  public void Deactivate() => _activation.CancelCurrent();
 
+  public void Dispose() => _activation.Dispose();
+
+  private async Task LoadSettingsAsync(LatestOperationController.Lease operation) {
+    CancellationToken cancellationToken = operation.Token;
     byte sysid = _comPort.MAV.sysid;
-    var mav = _comPort.MAVlist[sysid, _udpBridge];
-
-    if (mav == null || !mav.param.ContainsKey("WIFI_SSID1")) {
-      await Dispatcher.UIThread.InvokeAsync(() => {
+    try {
+      await ApplyIfCurrentAsync(operation, () => {
         IsLoaded = false;
-        Status = "No ESP8266 / UDP-bridge component responded.";
+        Status = "Requesting ESP8266 parameters…";
       });
-      return;
+      await Task.Run(() => _comPort.sendPacket(new MAVLink.mavlink_param_request_list_t {
+        target_system = sysid,
+        target_component = _udpBridge,
+      }, sysid, _udpBridge), cancellationToken).ConfigureAwait(false);
+
+      MAVState mav = _comPort.MAVlist[sysid, _udpBridge];
+      DateTime deadline = DateTime.UtcNow + _parameterTimeout;
+      Esp8266SettingsSnapshot? snapshot = null;
+      IReadOnlyList<string> missing = [];
+      while (!TryReadSettings(mav.param, out snapshot, out missing)
+          && DateTime.UtcNow < deadline) {
+        await Task.Delay(_parameterPollInterval, cancellationToken).ConfigureAwait(false);
+      }
+      cancellationToken.ThrowIfCancellationRequested();
+      bool targetChanged = _comPort.BaseStream?.IsOpen != true
+          || _comPort.sysidcurrent != sysid;
+      if (targetChanged || snapshot is null) {
+        string status = targetChanged
+            ? "The selected device changed before ESP8266 parameters were loaded."
+            : missing.Count == 0
+                ? "No ESP8266 / UDP-bridge component responded."
+                : "Incomplete ESP8266 response; missing: " + string.Join(", ", missing) + ".";
+        await ApplyIfCurrentAsync(operation, () => {
+          IsLoaded = false;
+          Status = status;
+        });
+        return;
+      }
+
+      await ApplyIfCurrentAsync(operation, () => Apply(snapshot));
+    } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+      // Deactivation or a newer refresh owns the visible state now.
+    } catch (Exception ex) {
+      await ApplyIfCurrentAsync(operation, () => {
+        IsLoaded = false;
+        Status = "ESP8266 parameter load failed: " + ex.Message;
+      });
+    } finally {
+      operation.Dispose();
+    }
+  }
+
+  private Task ApplyIfCurrentAsync(
+      LatestOperationController.Lease operation, Action update) =>
+      Dispatcher.UIThread.InvokeAsync(() => {
+        if (operation.IsCurrent) {
+          update();
+        }
+      }).GetTask();
+
+  private void Apply(Esp8266SettingsSnapshot snapshot) {
+    Ssid = snapshot.Ssid;
+    Password = snapshot.Password;
+    Baud = snapshot.Baud;
+    Channel = snapshot.Channel;
+    IpSta = snapshot.IpSta;
+    GatewaySta = snapshot.GatewaySta;
+    SubnetSta = snapshot.SubnetSta;
+    StaMode = snapshot.WifiMode != "0";
+    Details = snapshot.Details;
+    IsLoaded = true;
+    Status = "";
+  }
+
+  internal static bool TryReadSettings(
+      MAVLink.MAVLinkParamList parameters,
+      out Esp8266SettingsSnapshot? snapshot,
+      out IReadOnlyList<string> missing) {
+    ArgumentNullException.ThrowIfNull(parameters);
+    var absent = new List<string>();
+    string ssid = ReadPackedString(parameters, "WIFI_SSID", absent);
+    string password = ReadPackedString(parameters, "WIFI_PASSWORD", absent);
+    string baud = ReadNumber(parameters, "UART_BAUDRATE", absent);
+    string channel = ReadNumber(parameters, "WIFI_CHANNEL", absent);
+    string debugEnabled = ReadNumber(parameters, "DEBUG_ENABLED", absent);
+    string wifiMode = ReadNumber(parameters, "WIFI_MODE", absent);
+    string wifiIpAddress = ReadIp(parameters, "WIFI_IPADDRESS", absent);
+    string wifiUdpHport = ReadNumber(parameters, "WIFI_UDP_HPORT", absent);
+    string wifiUdpCport = ReadNumber(parameters, "WIFI_UDP_CPORT", absent);
+    string ipSta = ReadIp(parameters, "WIFI_IPSTA", absent);
+    string gatewaySta = ReadIp(parameters, "WIFI_GATEWAYSTA", absent);
+    string subnetSta = ReadIp(parameters, "WIFI_SUBNET_STA", absent);
+    missing = absent;
+    if (absent.Count != 0) {
+      snapshot = null;
+      return false;
     }
 
-    string ssid = UnpackString(mav.param, "WIFI_SSID");
-    string password = UnpackString(mav.param, "WIFI_PASSWORD");
-    string baud = mav.param["UART_BAUDRATE"].ToString();
-    string channel = mav.param["WIFI_CHANNEL"].ToString();
-
-    string debugEnabled = mav.param["DEBUG_ENABLED"].ToString();
-    string wifiMode = mav.param["WIFI_MODE"].ToString();
-    string wifiIpAddress = UnpackIp(mav.param, "WIFI_IPADDRESS");
-    string wifiUdpHport = mav.param["WIFI_UDP_HPORT"].ToString();
-    string wifiUdpCport = mav.param["WIFI_UDP_CPORT"].ToString();
-
-    string ipSta = UnpackIp(mav.param, "WIFI_IPSTA");
-    string gatewaySta = UnpackIp(mav.param, "WIFI_GATEWAYSTA");
-    string subnetSta = UnpackIp(mav.param, "WIFI_SUBNET_STA");
-
-    string details = string.Format(
-      "DEBUG_ENABLED {0},\n" +
-      "WIFI_MODE {1},\n" +
-      "WIFI_IPADDRESS {2},\n" +
-      "WIFI_UDP_HPORT {3},\n" +
-      "WIFI_UDP_CPORT {4},\n" +
-      "WIFI_IPSTA {5},\n" +
-      "WIFI_GATEWAYSTA {6},\n" +
-      "WIFI_SUBNET_STA {7}\n",
-      debugEnabled, wifiMode, wifiIpAddress, wifiUdpHport, wifiUdpCport,
-      ipSta, gatewaySta, subnetSta);
-
-    await Dispatcher.UIThread.InvokeAsync(() => {
-      Ssid = ssid;
-      Password = password;
-      Baud = baud;
-      Channel = channel;
-      IpSta = ipSta;
-      GatewaySta = gatewaySta;
-      SubnetSta = subnetSta;
-      StaMode = wifiMode != "0";
-      Details = details;
-      IsLoaded = true;
-      Status = "";
-    });
+    string details = string.Format(CultureInfo.InvariantCulture,
+        "DEBUG_ENABLED {0},\n" +
+        "WIFI_MODE {1},\n" +
+        "WIFI_IPADDRESS {2},\n" +
+        "WIFI_UDP_HPORT {3},\n" +
+        "WIFI_UDP_CPORT {4},\n" +
+        "WIFI_IPSTA {5},\n" +
+        "WIFI_GATEWAYSTA {6},\n" +
+        "WIFI_SUBNET_STA {7}\n",
+        debugEnabled, wifiMode, wifiIpAddress, wifiUdpHport, wifiUdpCport,
+        ipSta, gatewaySta, subnetSta);
+    snapshot = new Esp8266SettingsSnapshot(
+        ssid, password, baud, channel, wifiMode, ipSta, gatewaySta, subnetSta, details);
+    return true;
   }
 
-  private static string UnpackString(MAVLink.MAVLinkParamList param, string prefix) {
-    return (Encoding.ASCII.GetString(param[prefix + "1"].data) +
-            Encoding.ASCII.GetString(param[prefix + "2"].data) +
-            Encoding.ASCII.GetString(param[prefix + "3"].data) +
-            Encoding.ASCII.GetString(param[prefix + "4"].data)).TrimEnd('\0');
+  private static string ReadPackedString(
+      MAVLink.MAVLinkParamList parameters, string prefix, ICollection<string> missing) {
+    var value = new StringBuilder(16);
+    for (int index = 1; index <= 4; index++) {
+      string name = prefix + index.ToString(CultureInfo.InvariantCulture);
+      MAVLink.MAVLinkParam? parameter = parameters[name];
+      if (parameter is null) {
+        missing.Add(name);
+      } else {
+        value.Append(Encoding.ASCII.GetString(parameter.data));
+      }
+    }
+    return value.ToString().TrimEnd('\0');
   }
 
-  private static string UnpackIp(MAVLink.MAVLinkParamList param, string name) {
-    return new IPAddress(BitConverter.GetBytes((int)param[name])).ToString();
+  private static string ReadNumber(
+      MAVLink.MAVLinkParamList parameters, string name, ICollection<string> missing) {
+    MAVLink.MAVLinkParam? parameter = parameters[name];
+    if (parameter is null) {
+      missing.Add(name);
+      return "";
+    }
+    return parameter.Value.ToString("0.######", CultureInfo.InvariantCulture);
+  }
+
+  private static string ReadIp(
+      MAVLink.MAVLinkParamList parameters, string name, ICollection<string> missing) {
+    MAVLink.MAVLinkParam? parameter = parameters[name];
+    if (parameter is null) {
+      missing.Add(name);
+      return "";
+    }
+    return new IPAddress(BitConverter.GetBytes(unchecked((int)parameter.Value))).ToString();
   }
 
   private static byte[] StringToByteArray(string input, int start, int length) {
@@ -150,9 +244,9 @@ public partial class ConfigHWESP8266ViewModel : ViewModelBase {
     return dst;
   }
 
-  private void SetU32(string name, string source, int start) {
-    _comPort.setParam((byte)_comPort.sysidcurrent, _udpBridge, name,
-      BitConverter.ToUInt32(StringToByteArray(source, start, 4), 0));
+  private bool SetU32(byte sysid, string name, string source, int start) {
+    return _comPort.setParam(sysid, _udpBridge, name,
+        BitConverter.ToUInt32(StringToByteArray(source, start, 4), 0));
   }
 
   [RelayCommand]
@@ -163,45 +257,64 @@ public partial class ConfigHWESP8266ViewModel : ViewModelBase {
     }
 
     Status = "Saving…";
+    byte sysid = _comPort.MAV.sysid;
+    string ssid = Ssid;
+    string password = Password;
+    if (!int.TryParse(Channel, NumberStyles.Integer, CultureInfo.InvariantCulture,
+            out int channel)
+        || !int.TryParse(Baud, NumberStyles.Integer, CultureInfo.InvariantCulture,
+            out int baud)
+        || !IPAddress.TryParse(IpSta, out IPAddress? ipSta)
+        || !IPAddress.TryParse(GatewaySta, out IPAddress? gatewaySta)
+        || !IPAddress.TryParse(SubnetSta, out IPAddress? subnetSta)
+        || ipSta.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork
+        || gatewaySta.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork
+        || subnetSta.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork) {
+      Status = "Invalid channel, baud rate, or IPv4 station settings.";
+      return;
+    }
+    bool staMode = StaMode;
     bool pass = await Task.Run(() => {
       try {
-        _comPort.setParam((byte)_comPort.sysidcurrent, _udpBridge, "WIFI_CHANNEL", int.Parse(Channel));
-        _comPort.setParam((byte)_comPort.sysidcurrent, _udpBridge, "UART_BAUDRATE", int.Parse(Baud));
+        bool ok = _comPort.setParam(sysid, _udpBridge, "WIFI_CHANNEL", channel);
+        ok &= _comPort.setParam(sysid, _udpBridge, "UART_BAUDRATE", baud);
 
-        SetU32("WIFI_SSID1", Ssid, 0);
-        SetU32("WIFI_SSID2", Ssid, 4);
-        SetU32("WIFI_SSID3", Ssid, 8);
-        SetU32("WIFI_SSID4", Ssid, 12);
+        ok &= SetU32(sysid, "WIFI_SSID1", ssid, 0);
+        ok &= SetU32(sysid, "WIFI_SSID2", ssid, 4);
+        ok &= SetU32(sysid, "WIFI_SSID3", ssid, 8);
+        ok &= SetU32(sysid, "WIFI_SSID4", ssid, 12);
 
-        SetU32("WIFI_PASSWORD1", Password, 0);
-        SetU32("WIFI_PASSWORD2", Password, 4);
-        SetU32("WIFI_PASSWORD3", Password, 8);
-        SetU32("WIFI_PASSWORD4", Password, 12);
+        ok &= SetU32(sysid, "WIFI_PASSWORD1", password, 0);
+        ok &= SetU32(sysid, "WIFI_PASSWORD2", password, 4);
+        ok &= SetU32(sysid, "WIFI_PASSWORD3", password, 8);
+        ok &= SetU32(sysid, "WIFI_PASSWORD4", password, 12);
 
-        SetU32("WIFI_SSIDSTA1", Ssid, 0);
-        SetU32("WIFI_SSIDSTA2", Ssid, 4);
-        SetU32("WIFI_SSIDSTA3", Ssid, 8);
-        SetU32("WIFI_SSIDSTA4", Ssid, 12);
+        ok &= SetU32(sysid, "WIFI_SSIDSTA1", ssid, 0);
+        ok &= SetU32(sysid, "WIFI_SSIDSTA2", ssid, 4);
+        ok &= SetU32(sysid, "WIFI_SSIDSTA3", ssid, 8);
+        ok &= SetU32(sysid, "WIFI_SSIDSTA4", ssid, 12);
 
-        SetU32("WIFI_PWDSTA1", Password, 0);
-        SetU32("WIFI_PWDSTA2", Password, 4);
-        SetU32("WIFI_PWDSTA3", Password, 8);
-        SetU32("WIFI_PWDSTA4", Password, 12);
+        ok &= SetU32(sysid, "WIFI_PWDSTA1", password, 0);
+        ok &= SetU32(sysid, "WIFI_PWDSTA2", password, 4);
+        ok &= SetU32(sysid, "WIFI_PWDSTA3", password, 8);
+        ok &= SetU32(sysid, "WIFI_PWDSTA4", password, 12);
 
-        _comPort.setParam((byte)_comPort.sysidcurrent, _udpBridge, "WIFI_IPSTA",
-          BitConverter.ToUInt32(IPAddress.Parse(IpSta).GetAddressBytes(), 0));
-        _comPort.setParam((byte)_comPort.sysidcurrent, _udpBridge, "WIFI_GATEWAYSTA",
-          BitConverter.ToUInt32(IPAddress.Parse(GatewaySta).GetAddressBytes(), 0));
-        _comPort.setParam((byte)_comPort.sysidcurrent, _udpBridge, "WIFI_SUBNET_STA",
-          BitConverter.ToUInt32(IPAddress.Parse(SubnetSta).GetAddressBytes(), 0));
+        ok &= _comPort.setParam(sysid, _udpBridge, "WIFI_IPSTA",
+            BitConverter.ToUInt32(ipSta.GetAddressBytes(), 0));
+        ok &= _comPort.setParam(sysid, _udpBridge, "WIFI_GATEWAYSTA",
+            BitConverter.ToUInt32(gatewaySta.GetAddressBytes(), 0));
+        ok &= _comPort.setParam(sysid, _udpBridge, "WIFI_SUBNET_STA",
+            BitConverter.ToUInt32(subnetSta.GetAddressBytes(), 0));
 
-        _comPort.setParam((byte)_comPort.sysidcurrent, _udpBridge, "WIFI_MODE", StaMode ? 1 : 0);
+        ok &= _comPort.setParam(sysid, _udpBridge, "WIFI_MODE", staMode ? 1 : 0);
+        if (!ok) {
+          return false;
+        }
 
-        bool ok = _comPort.doCommand((byte)_comPort.sysidcurrent, _udpBridge,
+        ok = _comPort.doCommand(sysid, _udpBridge,
           MAVLink.MAV_CMD.PREFLIGHT_STORAGE, 1, 0, 0, 0, 0, 0, 0);
-        ok = ok & _comPort.doCommand((byte)_comPort.sysidcurrent, _udpBridge,
+        return ok && _comPort.doCommand(sysid, _udpBridge,
           MAVLink.MAV_CMD.PREFLIGHT_REBOOT_SHUTDOWN, 0, 1, 0, 0, 0, 0, 0);
-        return ok;
       } catch {
         return false;
       }
@@ -218,13 +331,14 @@ public partial class ConfigHWESP8266ViewModel : ViewModelBase {
     }
 
     Status = "Resetting to defaults…";
+    byte sysid = _comPort.MAV.sysid;
     bool pass = await Task.Run(() => {
       try {
-        if (!_comPort.doCommand((byte)_comPort.sysidcurrent, _udpBridge,
+        if (!_comPort.doCommand(sysid, _udpBridge,
           MAVLink.MAV_CMD.PREFLIGHT_STORAGE, 2, 0, 0, 0, 0, 0, 0)) {
           return false;
         }
-        return _comPort.doCommand((byte)_comPort.sysidcurrent, _udpBridge,
+        return _comPort.doCommand(sysid, _udpBridge,
           MAVLink.MAV_CMD.PREFLIGHT_STORAGE, 1, 0, 0, 0, 0, 0, 0);
       } catch {
         return false;
@@ -232,10 +346,21 @@ public partial class ConfigHWESP8266ViewModel : ViewModelBase {
     });
 
     if (pass) {
-      await Activate();
-      Status = "Programmed OK.";
+      Status = "Programmed OK. Refreshing parameters…";
+      Activate();
     } else {
       Status = "Error setting parameter.";
     }
   }
 }
+
+internal sealed record Esp8266SettingsSnapshot(
+    string Ssid,
+    string Password,
+    string Baud,
+    string Channel,
+    string WifiMode,
+    string IpSta,
+    string GatewaySta,
+    string SubnetSta,
+    string Details);

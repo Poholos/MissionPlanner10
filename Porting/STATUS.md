@@ -1,6 +1,72 @@
 # Avalonia in-place migration status
 
-Updated: **2026-08-24**.
+Updated: **2026-08-25**.
+
+## Post-release code-quality audit round 4
+
+- Branch `audit/code-quality-round-4` starts from clean released `master`
+  `0b1456049351420ee925d0176c76d01722febf4d` and remains deliberately unmerged in draft PR #19.
+  The current reviewed implementation checkpoint is `bb90162de`; this status update follows it.
+- `b3796ba50` removes a completion/start race shared by the Python and Lua hosts. An exclusive
+  operation lease now owns exactly one cancellation source, so an old script cannot dispose the
+  source of a newer script; disposal cancels the active run, rejects restart and prevents the local
+  Lua REPL from surviving its page.
+- `e7f799629` makes ESP8266 setup activation-scoped and target-stable. It waits for a complete
+  parameter response with cancellation and a bounded timeout, reports missing fields instead of
+  throwing from an unobserved constructor task, validates IPv4 input, captures one system ID for
+  the whole write and requires every `setParam` to succeed before EEPROM persistence/reboot.
+- `4ec1d5f3e` removes unsolicited compass-motor calibration ACK packets when an idle page closes,
+  serializes Start/Finish transitions, stops a calibration that completed while its page was being
+  disposed and always releases its MAVLink subscription independently of transport failures.
+- `1d9b50305` makes closing any progress window request cancellation before disposing its source.
+  The cached token remains readable during late cleanup, avoiding invisible connection/update work
+  and the corresponding disposed-source race.
+- `fad728f47` constrains every signed update-manifest path to the install/staging roots, rejects
+  duplicate/rooted/traversal paths and invalid sizes, enforces exact signed download lengths and
+  removes partial or hash-invalid files. `23acf5b74` gives the two legacy TCP output pages a
+  cancellation-aware host owner: a new client closes the superseded client and no connection can
+  be attached after page shutdown.
+- `caa77f8a7` replaces SharpKml's direct deprecated code-page provider 5.0 with the supported
+  10.0.11 package. The remaining deprecation report is intentionally limited to xUnit 2 required
+  by `Avalonia.Headless.XUnit` and legacy transitive `System.*` packages below the compatible
+  netstandard2.0/net472 plugin graph; none is reported vulnerable and a major test/plugin ABI
+  migration is not mixed into this reliability branch.
+- `5b760281c` derives three distinct Secure AP key paths even for uppercase or missing extensions,
+  writes private key material atomically and restricts its Unix mode to `0600`. `bb90162de` rejects
+  secure-command data/signature combinations above MAVLink's 220-byte wire limit instead of
+  truncating the signature while declaring its original length; concurrent commands now receive
+  atomic sequence numbers.
+- `6dd060f5a` owns and awaits the CoT output/accept tasks, closes accepted TCP clients on stop,
+  ignores late UDP/TCP/UI callbacks, supports immediate same-port restart and makes disposal
+  idempotent. `c316b0234` rejects non-HTTPS/downgraded SITL downloads, bounds binary, metadata and
+  compressed/expanded manifest input, preserves the previous cache file on failure, removes
+  partial files and bounds KML/KMZ document/resource decompression. `e9df0be66` passes Linux/macOS
+  external-open targets as one literal argument and releases every short-lived launcher process
+  handle, including updater helpers.
+- Fresh GTU `master` and `origin/master` at `bfb03b24f3180fdcba91ac7f114e7287b7b2b359`
+  were compared with the previously synchronized `ab6422d4` checkpoint. Its only new production
+  NV5Settings delta is mirrored here: RX/TX role presets are disabled when already selected, and
+  ENABLE/SUPPRESS TX follows the live `tx_state` instead of offering a redundant command. Manual
+  staged role edits refresh both controls immediately, and direct command invocation cannot bypass
+  the same-state guard. The two firmware reference repositories named by GTU are not available in
+  the local AgroSky workspace, so this synchronization is intentionally based on the clean fetched
+  GTU repository itself.
+- The active application graph was also checked for TLS validation bypasses, unsafe
+  deserialization, archive/path traversal, unbounded HTTP ownership, SSH trust-all behavior,
+  process/socket lifetime and primary native GDAL/SimpleBLE/libVLC ownership. No certificate
+  validation bypass or active unsafe formatter was found; SFTP remains fail-closed TOFU/pinned and
+  revalidates remote regular BIN files before download/delete.
+- Local verification of the current branch: Release solution build
+  **0 warnings / 0 errors**, **1438/1438** tests, all six migration/inventory checks pass (1623
+  native rows with **0 blockers**, 708/708 pinned source paths, no WinForms, and clean project,
+  binary and key audits), all 28 active projects report no known vulnerable direct or transitive
+  NuGet package. Clean local Linux TAR/DEB packages
+  `MissionPlanner-1.3.83-20260825.bb90162d-linux-x64.tar.gz` and
+  `missionplanner_1.3.83-20260825.bb90162d_amd64.deb` build; the DEB passes `lintian`, payload
+  assertions and a 12-second Xvfb event-loop smoke (`timeout` exit 124).
+- Claude remains disabled. The next step is to push the updated draft PR #19 and require its
+  Linux/Windows/macOS package matrix and CodeQL checks to pass. Do not merge it or create a release
+  until the user reviews and explicitly requests that action.
 
 ## Current state
 

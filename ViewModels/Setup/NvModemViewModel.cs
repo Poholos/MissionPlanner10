@@ -349,10 +349,20 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
       && SelectedParameter is { IsReadOnly: false, IsValid: true, IsChanged: true };
   public bool CanCopyRadio => CanUseNv5Controls
       && SelectedPresetRadio != null && SelectedCopySource != null;
+  public bool CanStageRxRolePreset => CanUseNv5Controls
+      && TrySelectedPresetInteger("ROLE", out long role)
+      && role is >= 0 and <= 2 && role != 0;
+  public bool CanStageTxRolePreset => CanUseNv5Controls
+      && TrySelectedPresetInteger("ROLE", out long role)
+      && role is >= 0 and <= 2 && role != 1;
   public bool CanControlTransmitter => CanUseNv5Controls
       && SelectedDebugRadio is { } selected
       && SelectedState!.Links.TryGetValue(selected.Channel, out var link)
       && link.Role != 0;
+  public bool CanEnableTransmitter => CanControlTransmitter
+      && SelectedState!.Links[SelectedDebugRadio!.Channel].TxState != 1;
+  public bool CanSuppressTransmitter => CanControlTransmitter
+      && SelectedState!.Links[SelectedDebugRadio!.Channel].TxState != 2;
 
   private NvModemDeviceState? SelectedState => SelectedDevice?.State;
 
@@ -740,7 +750,8 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
   private void SetTransmitterEnabled(string? enabledText) {
     NvModemDeviceState? device = SelectedState;
     int channel = SelectedDebugRadio?.Channel ?? 0;
-    if (device == null || !CanControlTransmitter) {
+    bool enabled = string.Equals(enabledText, "true", StringComparison.OrdinalIgnoreCase);
+    if (device == null || (enabled ? !CanEnableTransmitter : !CanSuppressTransmitter)) {
       SetStatus("Select an online transmitter or transceiver radio first.", true);
       return;
     }
@@ -748,7 +759,7 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
       Kind = NvWriteKind.TransmitControl,
       Device = device,
       Channel = (byte)channel,
-      Enabled = string.Equals(enabledText, "true", StringComparison.OrdinalIgnoreCase),
+      Enabled = enabled,
     });
   }
 
@@ -1302,9 +1313,12 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
   }
 
   private void OnParameterRowChanged(object? sender, PropertyChangedEventArgs e) {
-    if (e.PropertyName is nameof(NvModemParameterRow.IsChanged)
+    if (e.PropertyName is nameof(NvModemParameterRow.ValueText)
+        or nameof(NvModemParameterRow.IsChanged)
         or nameof(NvModemParameterRow.IsValid)) {
-      if (sender is NvModemParameterRow row && row.Name.EndsWith("_MOD", StringComparison.Ordinal)) {
+      if (e.PropertyName == nameof(NvModemParameterRow.ValueText)
+          && sender is NvModemParameterRow row
+          && row.Name.EndsWith("_MOD", StringComparison.Ordinal)) {
         RebuildVisibleParameters();
       }
       RefreshControls();
@@ -1356,6 +1370,21 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
   private double StagedValue(string name, double fallback) =>
       _parameterRows.TryGetValue(name, out var row) && row.TryValue(out double value)
           ? value : fallback;
+
+  private bool TrySelectedPresetInteger(string suffix, out long value) {
+    value = 0;
+    int channel = SelectedPresetRadio?.Channel ?? 0;
+    if (channel is < 1 or > 2
+        || !_parameterRows.TryGetValue($"CH{channel}_{suffix}", out var row)
+        || !row.TryValue(out double numeric)
+        || !double.IsFinite(numeric)
+        || numeric != Math.Truncate(numeric)
+        || numeric is < long.MinValue or > long.MaxValue) {
+      return false;
+    }
+    value = (long)numeric;
+    return true;
+  }
 
   private bool IsApplicable(string name) {
     var staged = _parameterRows.Values.Where(row => row.TryValue(out _))
@@ -2123,7 +2152,11 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
     OnPropertyChanged(nameof(CanSetKey));
     OnPropertyChanged(nameof(CanRevertSelectedParameter));
     OnPropertyChanged(nameof(CanCopyRadio));
+    OnPropertyChanged(nameof(CanStageRxRolePreset));
+    OnPropertyChanged(nameof(CanStageTxRolePreset));
     OnPropertyChanged(nameof(CanControlTransmitter));
+    OnPropertyChanged(nameof(CanEnableTransmitter));
+    OnPropertyChanged(nameof(CanSuppressTransmitter));
   }
 
   private static byte[] FixedLatin1(string text, int size, int maximumBytes) {

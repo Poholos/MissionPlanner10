@@ -81,7 +81,9 @@
     <Compile Include="Services/PythonScriptHost.cs" />
     <Compile Include="Services/SikRadioFirmwareService.cs" />
     <Compile Include="Services/SikRadioSettingsService.cs" />
+    <Compile Include="Services/SizeLimitedReadStream.cs" />
     <Compile Include="Services/SystemAwakeService.cs" />
+    <Compile Include="Services/TcpSerialHostListener.cs" />
     <Compile Include="ViewModels/ExternalGuidedViewModel.cs" />
     <Compile Include="Views/DroneCanFieldGraphWindow.cs" />
     <Compile Include="Views/DroneCanSubscriberWindow.cs" />

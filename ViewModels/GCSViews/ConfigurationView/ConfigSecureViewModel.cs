@@ -17,8 +17,10 @@ using Org.BouncyCastle.OpenSsl;
 namespace MissionPlanner.ViewModels.GCSViews.ConfigurationView;
 
 public partial class ConfigSecureViewModel : ViewModelBase {
+  internal const int MaximumSecureCommandPayloadBytes = 220;
+
   private readonly MAVLinkInterface _comPort = AppState.comPort;
-  private uint _sequence = 1;
+  private int _sequence;
   private byte[]? _sessionKey;
 
   private Ed25519PrivateKeyParameters? _signingKey;
@@ -221,17 +223,11 @@ public partial class ConfigSecureViewModel : ViewModelBase {
   };
 
   private MAVLink.mavlink_secure_command_reply_t? SendSecureCommand(uint operation, byte[] data, bool sign) {
-    var seq = _sequence++;
+    uint seq = unchecked((uint)Interlocked.Increment(ref _sequence));
 
     var sig = sign ? MakeSignature(seq, operation, data) : Array.Empty<byte>();
     var sigLength = (byte)sig.Length;
-
-    var payload = new byte[220];
-    Array.Copy(data, 0, payload, 0, Math.Min(data.Length, payload.Length));
-    if (sigLength > 0) {
-
-      Array.Copy(sig, 0, payload, data.Length, Math.Min(sig.Length, payload.Length - data.Length));
-    }
+    byte[] payload = BuildSecureCommandPayload(data, sig);
 
     var req = new MAVLink.mavlink_secure_command_t {
       sequence = seq,
@@ -270,6 +266,20 @@ public partial class ConfigSecureViewModel : ViewModelBase {
     }
 
     return result;
+  }
+
+  internal static byte[] BuildSecureCommandPayload(byte[] data, byte[] signature) {
+    ArgumentNullException.ThrowIfNull(data);
+    ArgumentNullException.ThrowIfNull(signature);
+    if (data.Length + (long)signature.Length > MaximumSecureCommandPayloadBytes) {
+      throw new ArgumentException(
+          $"Secure command data and signature exceed the "
+          + $"{MaximumSecureCommandPayloadBytes}-byte MAVLink limit.");
+    }
+    var payload = new byte[MaximumSecureCommandPayloadBytes];
+    data.CopyTo(payload, 0);
+    signature.CopyTo(payload, data.Length);
+    return payload;
   }
 
   private static byte[] LoadPublicKey(string path) {

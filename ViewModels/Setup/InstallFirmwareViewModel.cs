@@ -534,7 +534,8 @@ public partial class InstallFirmwareViewModel : ViewModelBase {
 
   private static void OpenUrl(string url) {
     try {
-      Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+      using Process? process = Process.Start(
+          new ProcessStartInfo(url) { UseShellExecute = true });
     } catch {
     }
   }

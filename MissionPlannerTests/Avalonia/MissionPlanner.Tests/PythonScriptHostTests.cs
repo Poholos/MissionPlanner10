@@ -62,4 +62,22 @@ public class PythonScriptHostTests {
     Assert.Contains("ValueError", text, StringComparison.Ordinal);
     Assert.Contains("broken-script", text, StringComparison.Ordinal);
   }
+
+  [Fact]
+  public async Task Dispose_cancels_active_script_and_rejects_restart() {
+    var host = new PythonScriptHost();
+    var output = new ConcurrentQueue<string>();
+    host.Output += output.Enqueue;
+    Task run = host.RunAsync("print('loop-started')\nwhile True:\n    pass\n");
+    Assert.True(SpinWait.SpinUntil(
+        () => string.Concat(output).Contains("loop-started", StringComparison.Ordinal),
+        TimeSpan.FromSeconds(2)));
+
+    host.Dispose();
+    await run.WaitAsync(TimeSpan.FromSeconds(5));
+
+    Assert.False(host.IsRunning);
+    await Assert.ThrowsAsync<ObjectDisposedException>(
+        () => host.RunAsync("print('too-late')\n"));
+  }
 }

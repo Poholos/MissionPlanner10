@@ -6,13 +6,12 @@ using MoonSharp.Interpreter;
 
 namespace MissionPlanner.Services;
 
-public class LuaScriptHost {
-  private CancellationTokenSource? _cts;
-  private int _running;
+public sealed class LuaScriptHost : IDisposable {
+  private readonly ExclusiveOperationController _operation = new();
 
   public event Action<string>? Output;
 
-  public bool IsRunning => Volatile.Read(ref _running) != 0;
+  public bool IsRunning => _operation.IsRunning;
 
   public Task RunFileAsync(string path) {
     var code = File.ReadAllText(path);
@@ -20,44 +19,44 @@ public class LuaScriptHost {
   }
 
   public Task RunAsync(string code) {
-    if (Interlocked.Exchange(ref _running, 1) != 0) {
+    ExclusiveOperationController.Lease? operation = _operation.TryBegin();
+    if (operation is null) {
       Emit("Script already running.");
       return Task.CompletedTask;
     }
 
-    _cts = new CancellationTokenSource();
-    var token = _cts.Token;
+    CancellationToken token = operation.Token;
 
-    return Task.Run(() => {
-      try {
-        var script = new Script();
-        script.Options.DebugPrint = s => Emit(s);
-        RegisterGlobals(script, token);
-        var result = script.DoString(code);
-        if (result != null && result.Type != DataType.Nil && result.Type != DataType.Void) {
-          Emit(result.ToPrintString());
-        }
-        Emit("Script finished.");
-      } catch (OperationCanceledException) {
-        Emit("Script aborted.");
-      } catch (InterpreterException ex) {
-        Emit("Lua error: " + ex.DecoratedMessage);
-      } catch (Exception ex) {
-        Emit("Error: " + ex.Message);
-      } finally {
-        Volatile.Write(ref _running, 0);
-        _cts?.Dispose();
-        _cts = null;
-      }
-    });
-  }
-
-  public void Abort() {
     try {
-      _cts?.Cancel();
-    } catch (ObjectDisposedException) {
+      return Task.Run(() => {
+        using (operation) {
+          try {
+            var script = new Script();
+            script.Options.DebugPrint = s => Emit(s);
+            RegisterGlobals(script, token);
+            var result = script.DoString(code);
+            if (result != null && result.Type != DataType.Nil && result.Type != DataType.Void) {
+              Emit(result.ToPrintString());
+            }
+            Emit("Script finished.");
+          } catch (OperationCanceledException) {
+            Emit("Script aborted.");
+          } catch (InterpreterException ex) {
+            Emit("Lua error: " + ex.DecoratedMessage);
+          } catch (Exception ex) {
+            Emit("Error: " + ex.Message);
+          }
+        }
+      });
+    } catch {
+      operation.Dispose();
+      throw;
     }
   }
+
+  public void Abort() => _operation.CancelCurrent();
+
+  public void Dispose() => _operation.Dispose();
 
   private void RegisterGlobals(Script script, CancellationToken token) {
     try {

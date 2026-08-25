@@ -1,6 +1,9 @@
+using System.Net;
+using System.Net.Sockets;
 using System.Xml.Linq;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Threading;
 using MissionPlanner.Services;
 using MissionPlanner.ViewModels;
 using MissionPlanner.Views;
@@ -123,5 +126,86 @@ public class CotEventSerializerTests {
     Assert.Equal(6, grid.Columns.Count);
     Assert.All(grid.Columns, column => Assert.False(column.IsReadOnly));
     view.CommitIdentityEdits();
+  }
+
+  [AvaloniaFact]
+  public async Task Tcp_host_stop_discards_late_callbacks_and_releases_the_port() {
+    int port = FreeTcpPort();
+    using var viewModel = CreateTcpHost(port);
+
+    await viewModel.ToggleConnectCommand.ExecuteAsync(null);
+    Assert.True(viewModel.IsRunning, viewModel.Status);
+    using (var client = new TcpClient()) {
+      await client.ConnectAsync(IPAddress.Loopback, port);
+      await Task.Delay(100);
+      await viewModel.StopAsync();
+    }
+    Dispatcher.UIThread.RunJobs();
+
+    Assert.False(viewModel.IsRunning);
+    Assert.Equal("Stopped.", viewModel.Status);
+
+    await viewModel.ToggleConnectCommand.ExecuteAsync(null);
+    Assert.True(viewModel.IsRunning, viewModel.Status);
+    await viewModel.StopAsync();
+    Assert.Equal("Stopped.", viewModel.Status);
+  }
+
+  [AvaloniaFact]
+  public async Task Udp_host_stop_discards_a_late_peer_callback_and_releases_the_port() {
+    int port = FreeUdpPort();
+    using var viewModel = new SerialOutputCotViewModel {
+      SelectedEndpoint = SerialOutputCotViewModel.UdpHost,
+      Host = "127.0.0.1",
+      Port = port,
+      UpdateSeconds = 60,
+    };
+
+    await viewModel.ToggleConnectCommand.ExecuteAsync(null);
+    Assert.True(viewModel.IsRunning, viewModel.Status);
+    using (var client = new UdpClient(AddressFamily.InterNetwork)) {
+      await client.SendAsync(new byte[] { 1 }, new IPEndPoint(IPAddress.Loopback, port));
+      await Task.Delay(100);
+      await viewModel.StopAsync();
+    }
+    Dispatcher.UIThread.RunJobs();
+
+    Assert.False(viewModel.IsRunning);
+    Assert.Equal("Stopped.", viewModel.Status);
+
+    await viewModel.ToggleConnectCommand.ExecuteAsync(null);
+    Assert.True(viewModel.IsRunning, viewModel.Status);
+    await viewModel.StopAsync();
+  }
+
+  [AvaloniaFact]
+  public async Task Dispose_is_idempotent_while_a_host_accept_is_pending() {
+    var viewModel = CreateTcpHost(FreeTcpPort());
+    await viewModel.ToggleConnectCommand.ExecuteAsync(null);
+
+    viewModel.Dispose();
+    viewModel.Dispose();
+
+    Assert.False(viewModel.IsRunning);
+  }
+
+  private static SerialOutputCotViewModel CreateTcpHost(int port) => new() {
+    SelectedEndpoint = SerialOutputCotViewModel.TcpHost,
+    Host = "127.0.0.1",
+    Port = port,
+    UpdateSeconds = 60,
+  };
+
+  private static int FreeTcpPort() {
+    var listener = new TcpListener(IPAddress.Loopback, 0);
+    listener.Start();
+    int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+    listener.Stop();
+    return port;
+  }
+
+  private static int FreeUdpPort() {
+    using var socket = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+    return ((IPEndPoint)socket.Client.LocalEndPoint!).Port;
   }
 }

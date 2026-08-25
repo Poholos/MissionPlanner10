@@ -112,9 +112,9 @@
                 <Button Content="FEC OFF" Command="{Binding StageRadioPresetCommand}"
                         CommandParameter="fec_off" IsEnabled="{Binding CanUseNv5Controls}" Margin="0,0,5,4" />
                 <Button Content="RX ON" Command="{Binding StageRadioPresetCommand}"
-                        CommandParameter="rx" IsEnabled="{Binding CanUseNv5Controls}" Margin="0,0,5,4" />
+                        CommandParameter="rx" IsEnabled="{Binding CanStageRxRolePreset}" Margin="0,0,5,4" />
                 <Button Content="TX ON" Command="{Binding StageRadioPresetCommand}"
-                        CommandParameter="tx" IsEnabled="{Binding CanUseNv5Controls}" Margin="0,0,5,4" />
+                        CommandParameter="tx" IsEnabled="{Binding CanStageTxRolePreset}" Margin="0,0,5,4" />
               </WrapPanel>
               <WrapPanel Grid.Row="1">
                 <TextBlock Classes="fieldlbl" Text="Copy from" VerticalAlignment="Center" Margin="0,0,6,0" />
@@ -179,9 +179,9 @@
                       SelectedItem="{Binding SelectedDebugRadio, Mode=TwoWay}"
                       IsEnabled="{Binding CanUseNv5Controls}" MinWidth="110" Margin="0,0,8,0" />
             <Button Content="ENABLE TX" Command="{Binding SetTransmitterEnabledCommand}"
-                    CommandParameter="true" IsEnabled="{Binding CanControlTransmitter}" Margin="0,0,5,0" />
+                    CommandParameter="true" IsEnabled="{Binding CanEnableTransmitter}" Margin="0,0,5,0" />
             <Button Content="SUPPRESS TX" Command="{Binding SetTransmitterEnabledCommand}"
-                    CommandParameter="false" IsEnabled="{Binding CanControlTransmitter}" />
+                    CommandParameter="false" IsEnabled="{Binding CanSuppressTransmitter}" />
           </WrapPanel>
         </Expander>
       </StackPanel>

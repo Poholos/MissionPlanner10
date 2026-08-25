@@ -14,11 +14,12 @@ internal sealed class LatestOperationController : IDisposable {
   private bool _disposed;
 
   internal Lease Begin(CancellationToken lifetimeToken) {
-    var source = CancellationTokenSource.CreateLinkedTokenSource(lifetimeToken);
+    CancellationTokenSource source;
     CancellationTokenSource? previous;
     int generation;
     lock (_sync) {
       ObjectDisposedException.ThrowIf(_disposed, this);
+      source = CancellationTokenSource.CreateLinkedTokenSource(lifetimeToken);
       previous = _current;
       _current = source;
       generation = ++_generation;
@@ -103,6 +104,96 @@ internal sealed class LatestOperationController : IDisposable {
     public void Dispose() {
       if (Interlocked.Exchange(ref _disposed, 1) == 0) {
         _owner.Complete(_source, Generation);
+      }
+    }
+  }
+}
+
+/// <summary>
+/// Owns one non-replaceable operation at a time. Unlike <see cref="LatestOperationController"/>,
+/// a second caller is rejected instead of cancelling the active operation. The operation lease
+/// owns its cancellation source, so completion can never clear or dispose a newer operation.
+/// </summary>
+internal sealed class ExclusiveOperationController : IDisposable {
+  private readonly object _sync = new();
+  private CancellationTokenSource? _current;
+  private bool _disposed;
+
+  internal bool IsRunning {
+    get {
+      lock (_sync) {
+        return _current is not null;
+      }
+    }
+  }
+
+  internal Lease? TryBegin() {
+    lock (_sync) {
+      ObjectDisposedException.ThrowIf(_disposed, this);
+      if (_current is not null) {
+        return null;
+      }
+
+      var source = new CancellationTokenSource();
+      _current = source;
+      return new Lease(this, source);
+    }
+  }
+
+  internal void CancelCurrent() {
+    CancellationTokenSource? current;
+    lock (_sync) {
+      current = _current;
+    }
+    Cancel(current);
+  }
+
+  private void Complete(CancellationTokenSource source) {
+    lock (_sync) {
+      if (ReferenceEquals(_current, source)) {
+        _current = null;
+      }
+    }
+    source.Dispose();
+  }
+
+  private static void Cancel(CancellationTokenSource? source) {
+    try {
+      source?.Cancel();
+    } catch (ObjectDisposedException) {
+      // Completion can dispose the source after the snapshot above.
+    }
+  }
+
+  public void Dispose() {
+    CancellationTokenSource? current;
+    lock (_sync) {
+      if (_disposed) {
+        return;
+      }
+      _disposed = true;
+      current = _current;
+    }
+    Cancel(current);
+  }
+
+  internal sealed class Lease : IDisposable {
+    private readonly ExclusiveOperationController _owner;
+    private readonly CancellationTokenSource _source;
+    private readonly CancellationToken _token;
+    private int _disposed;
+
+    internal Lease(ExclusiveOperationController owner, CancellationTokenSource source) {
+      _owner = owner;
+      _source = source;
+      _token = source.Token;
+    }
+
+    internal CancellationToken Token => _token;
+
+    public void Dispose() {
+      if (Interlocked.Exchange(ref _disposed, 1) == 0) {
+        _owner.Complete(_source);
       }
     }
   }

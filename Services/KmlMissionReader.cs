@@ -17,6 +17,8 @@ internal sealed record KmlMissionContent(
     IReadOnlyList<KmlMissionPoint> Overlay);
 
 internal static class KmlMissionReader {
+  internal const long MaximumKmlBytes = 32L * 1024 * 1024;
+
   // SharpKml's vendored TypeBrowser cache is a process-wide Dictionary without locking.
   // Keep imports serialized so simultaneous UI/test imports cannot corrupt its lazy cache.
   private static readonly object _sharpKmlLock = new();
@@ -112,8 +114,9 @@ internal static class KmlMissionReader {
   }
 
   private static KmlFile LoadKml(Stream stream) {
+    using var limited = new SizeLimitedReadStream(stream, MaximumKmlBytes, leaveOpen: true);
     lock (_sharpKmlLock) {
-      return KmlFile.Load(stream);
+      return KmlFile.Load(limited);
     }
   }
 
@@ -183,11 +186,11 @@ internal static class KmlMissionReader {
       return null;
     }
     using Stream source = entry.Open();
+    using var limited = new SizeLimitedReadStream(
+        source, KmlGroundOverlayProcessor.MaximumResourceBytes, leaveOpen: true);
     using var output = new MemoryStream((int)entry.Length);
-    source.CopyTo(output);
-    return output.Length <= KmlGroundOverlayProcessor.MaximumResourceBytes
-        ? output.ToArray()
-        : null;
+    limited.CopyTo(output);
+    return output.ToArray();
   }
 
   private static byte[]? ReadLocalResource(string directory, string href) {
