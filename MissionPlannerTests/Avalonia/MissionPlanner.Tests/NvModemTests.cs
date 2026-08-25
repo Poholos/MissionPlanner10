@@ -269,6 +269,45 @@ public class NvModemTests {
     Assert.Empty(viewModel.Parameters);
   }
 
+  [Theory]
+  [InlineData((byte)0)]
+  [InlineData((byte)1)]
+  public void Reflected_gcs_rtsp_requests_do_not_create_a_255_190_modem(byte operation) {
+    var transport = new FakeTransport();
+    using var viewModel = new NvModemViewModel(transport, () => DateTime.UtcNow,
+        startTimer: false);
+    var source = new NvModemLink(new MAVLinkInterface(), "shared UDP");
+
+    viewModel.HandlePacket(source, Packet(NvModemMessageIds.Nv5RtspConfig,
+        new Nv5RtspConfigMessage {
+          TransactionId = 9,
+          TargetSystem = 6,
+          TargetComponent = 6,
+          Operation = operation,
+          Path = new byte[96],
+        }, MAVLinkInterface.gcssysid,
+        (byte)MAVLink.MAV_COMPONENT.MAV_COMP_ID_MISSIONPLANNER));
+
+    Assert.Empty(viewModel.Devices);
+  }
+
+  [Fact]
+  public void Modem_rtsp_report_can_still_identify_a_real_255_190_endpoint() {
+    var transport = new FakeTransport();
+    using var viewModel = new NvModemViewModel(transport, () => DateTime.UtcNow,
+        startTimer: false);
+    var source = new NvModemLink(new MAVLinkInterface(), "shared UDP");
+
+    viewModel.HandlePacket(source, Packet(NvModemMessageIds.Nv5RtspConfig,
+        new Nv5RtspConfigMessage {
+          Operation = 2,
+          Path = new byte[96],
+        }, 255, 190));
+
+    NvModemDeviceChoice modem = Assert.Single(viewModel.Devices);
+    Assert.Contains("NV5 255:190", modem.Label, StringComparison.Ordinal);
+  }
+
   [Fact]
   public void Nv4_detection_uses_strict_gtu_can_node_signature_at_any_id() {
     var transport = new FakeTransport();

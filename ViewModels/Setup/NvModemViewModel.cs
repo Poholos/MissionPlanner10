@@ -951,10 +951,18 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
     string parameterName = "";
     MAVLink.mavlink_param_value_t parameter = default;
     NvModemInfoMessage modemInfo = default;
+    Nv5RtspConfigMessage rtspConfig = default;
     bool nv5Identity = msgid is NvModemMessageIds.Nv5LinkStatus
-        or NvModemMessageIds.Nv5RtspConfig or NvModemMessageIds.Nv5RtspConfigAck
+        or NvModemMessageIds.Nv5RtspConfigAck
         or NvModemMessageIds.NvEncryptionKeysAck;
     bool nv4Identity = msgid == NvModemMessageIds.NvRxStat;
+    if (msgid == NvModemMessageIds.Nv5RtspConfig) {
+      rtspConfig = packet.ToStructure<Nv5RtspConfigMessage>();
+      // Operations 0 (read) and 1 (write) originate at the GCS. A broadcast network may reflect
+      // them back with the local 255:190 source and must not turn Mission Planner into a modem.
+      // Operation 2 is the modem's report and remains a valid identity at every sysid/compid.
+      nv5Identity = rtspConfig.Operation == 2;
+    }
     if (msgid == NvModemMessageIds.NvModemInfo) {
       modemInfo = packet.ToStructure<NvModemInfoMessage>();
       if (modemInfo.SchemaVersion >= 1) {
@@ -1036,10 +1044,9 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
       device.Links[status.Channel] = status;
       UpdateDeviceLabel(device);
     } else if (msgid == NvModemMessageIds.Nv5RtspConfig) {
-      Nv5RtspConfigMessage value = packet.ToStructure<Nv5RtspConfigMessage>();
-      if (value.Operation == 2) {
+      if (rtspConfig.Operation == 2) {
         bool editorDirty = ReferenceEquals(device, SelectedState) && RtspPending(device);
-        device.RtspPath = Latin1String(value.Path);
+        device.RtspPath = Latin1String(rtspConfig.Path);
         device.RtspPathReady = true;
         if (ReferenceEquals(device, SelectedState) && !editorDirty) {
           SetRtspPath(device.RtspPath);
