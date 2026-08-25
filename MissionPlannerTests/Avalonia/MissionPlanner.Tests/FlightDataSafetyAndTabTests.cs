@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Layout;
 using MissionPlanner.ViewModels;
 using MissionPlanner.ViewModels.GCSViews.ConfigurationView;
 using MissionPlanner.Views;
@@ -173,12 +174,22 @@ public class FlightDataSafetyAndTabTests {
 
       Assert.Equal(5, grid.ColumnDefinitions.Count);
       Assert.Equal(5, grid.RowDefinitions.Count);
+      Assert.All(grid.ColumnDefinitions, definition => {
+        Assert.Equal(GridUnitType.Star, definition.Width.GridUnitType);
+        Assert.Equal(1, definition.Width.Value);
+      });
+      Assert.Equal(HorizontalAlignment.Stretch, setup.HorizontalAlignment);
       Assert.Equal((0, 0), (AvaloniaGrid.GetRow(actionSelector), AvaloniaGrid.GetColumn(actionSelector)));
       Assert.Equal((0, 1), (AvaloniaGrid.GetRow(doAction), AvaloniaGrid.GetColumn(doAction)));
       Assert.Equal((3, 2), (AvaloniaGrid.GetRow(setup), AvaloniaGrid.GetColumn(setup)));
       Assert.Equal("Joystick", setup.Content);
       Assert.Equal("Disable Joystick", disable.Content);
       Assert.NotSame(setup.Command, disable.Command);
+
+      grid.Measure(new Avalonia.Size(750, 220));
+      grid.Arrange(new Avalonia.Rect(0, 0, 750, 220));
+      double[] columnWidths = grid.ColumnDefinitions.Select(definition => definition.ActualWidth).ToArray();
+      Assert.InRange(columnWidths.Max() - columnWidths.Min(), 0, 1);
 
       Assert.False(disable.IsVisible);
       vm.IsJoystickActive = true;

@@ -1,6 +1,6 @@
 # Avalonia in-place migration status
 
-Updated: **2026-08-25**.
+Updated: **2026-08-26**.
 
 ## Flight Data Actions and joystick-dialog parity checkpoint
 
@@ -14,6 +14,11 @@ Updated: **2026-08-25**.
   mode and mount selectors; Auto/Loiter/RTL, home/restart/raw-sensor/arm, joystick/message/resume,
   clear-track/abort and numeric speed/altitude/loiter controls. The port-specific MAVLink message
   rate tool remains available in a collapsed expander below the official surface.
+- The layout follow-up also restores upstream's five equal 20-percent columns. Avalonia buttons
+  explicitly stretch to fill each table cell, the speed/altitude/loiter value editors use bounded
+  subcolumns, and the whole surface keeps a stable minimum width with horizontal scrolling only
+  when the user narrows the resizable Flight Data pane below it. This removes the irregular gaps,
+  mixed button widths and displaced numeric fields seen in the first parity implementation.
 - `Joystick` now opens a separate modeless `JoystickSetupWindow`, matching upstream
   `ShowUserControl()` behavior instead of navigating to Setup. The window directly hosts the full
   native port of `JoystickSetup` (`ConfigJoystickView` plus `ConfigJoystickViewModel`), keeps an
@@ -24,9 +29,10 @@ Updated: **2026-08-25**.
 - A real Xvfb/XTest run opened Flight Data -> Actions and the modeless Joystick window, confirmed
   the table layout and full axis/device controls, and closed both windows normally. Release build
   passes with **0 warnings / 0 errors**; focused Flight Data tests pass **32/32** and the complete
-  suite passes **1459/1459**. Two new headless UI regressions lock the upstream grid/button roles,
+  suite passes **1459/1459**. Headless UI regressions lock the upstream grid/button roles,
   direct window content, modeless visibility and single-window behavior. Claude remains disabled
-  by user instruction. No merge, push, tag or release has been performed for this branch.
+  by user instruction. The initial parity checkpoint is merged into local `master` at `6f983d21c`;
+  no push, tag or GitHub release has been performed for it.
 
 ## Live UDP/NV, SITL/X-Plane and Mission Planner 10 checkpoint
 
