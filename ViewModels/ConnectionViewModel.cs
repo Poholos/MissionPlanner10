@@ -184,6 +184,7 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
   private int _readerGeneration;
   private DateTime _connectedAtUtc = DateTime.MinValue;
   private DateTime _lastVersionPollUtc = DateTime.MinValue;
+  private DateTime _nextReaderErrorLogUtc = DateTime.MinValue;
   private bool _lastArmed;
   private int _homeRefreshRunning;
   private readonly bool _initializing;
@@ -308,7 +309,8 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
         if (_comPort.giveComport == false) {
           var start = DateTime.UtcNow;
           while (_comPort.giveComport == false && _comPort.BaseStream?.IsOpen == true &&
-                 _comPort.BaseStream.BytesToRead > 10 && !ct.IsCancellationRequested &&
+                 ConnectionHealth.ShouldPollReader(_comPort.BaseStream) &&
+                 !ct.IsCancellationRequested &&
                  start.AddSeconds(1) > DateTime.UtcNow) {
             await _comPort.readPacketAsync().ConfigureAwait(false);
           }
@@ -334,6 +336,13 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
             break;
           }
           SetLinkQualityLost();
+          DateTime errorUtc = DateTime.UtcNow;
+          if (errorUtc >= _nextReaderErrorLogUtc) {
+            _nextReaderErrorLogUtc = errorUtc.AddSeconds(5);
+            Console.Error.WriteLine(
+                $"Primary MAVLink reader errors on {_comPort.BaseStream?.GetType().Name}; "
+                + $"keeping the persistent listener open: {ex}");
+          }
           consecutiveErrors = 0;
         }
         try {
@@ -1580,6 +1589,12 @@ internal static class ConnectionHealth {
 
   internal static bool ShouldCloseAfterReaderErrors(ICommsSerial? stream) =>
       !IsPersistentListener(stream);
+
+  // MAVLink can legally produce short datagrams, and UdpSerial exposes the size of the next
+  // datagram rather than a stream-sized backlog on every platform. Requiring the legacy
+  // stream-oriented >10-byte threshold can leave that datagram at the head of the socket forever.
+  internal static bool ShouldPollReader(ICommsSerial? stream) => stream != null &&
+      stream.BytesToRead > (IsPersistentListener(stream) ? 0 : 10);
 
   internal static bool IsSilent(DateTime nowUtc, DateTime newestPacketUtc,
       DateTime connectedAtUtc, TimeSpan timeout) {

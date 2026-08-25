@@ -728,7 +728,8 @@ internal sealed class MavLinkSecondaryRuntime {
 
             DateTime readDeadline = now.AddSeconds(1);
             while (!link.giveComport && link.BaseStream?.IsOpen == true &&
-                   link.BaseStream.BytesToRead > 10 && !cancellationToken.IsCancellationRequested &&
+                   ViewModels.ConnectionHealth.ShouldPollReader(link.BaseStream) &&
+                   !cancellationToken.IsCancellationRequested &&
                    DateTime.UtcNow < readDeadline) {
               await link.readPacketAsync().ConfigureAwait(false);
             }

@@ -47,6 +47,23 @@ public class ConnectionHealthTests {
     Assert.False(ConnectionHealth.ShouldCloseAfterReaderErrors(listener));
     Assert.True(ConnectionHealth.ShouldCloseAfterReaderErrors(udpClient));
     Assert.True(ConnectionHealth.ShouldCloseAfterReaderErrors(serial));
+    Assert.False(ConnectionHealth.ShouldPollReader(listener));
+    Assert.False(ConnectionHealth.ShouldPollReader(udpClient));
+    Assert.False(ConnectionHealth.ShouldPollReader(serial));
+  }
+
+  [Fact]
+  public void Inbound_udp_reader_accepts_a_short_datagram_without_polling_when_idle() {
+    using var socket = UdpSerial.CreateSharedListener(0);
+    using var listener = new UdpSerial(socket);
+    using var sender = new System.Net.Sockets.UdpClient();
+    var endpoint = Assert.IsType<System.Net.IPEndPoint>(socket.Client.LocalEndPoint);
+
+    sender.Send([0x01], 1, new System.Net.IPEndPoint(
+        System.Net.IPAddress.Loopback, endpoint.Port));
+
+    Assert.True(SpinWait.SpinUntil(
+        () => ConnectionHealth.ShouldPollReader(listener), TimeSpan.FromSeconds(1)));
   }
 
   [Fact]
