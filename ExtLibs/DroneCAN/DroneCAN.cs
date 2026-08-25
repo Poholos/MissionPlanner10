@@ -533,9 +533,17 @@ namespace DroneCAN
 
         public List<DroneCAN.uavcan_protocol_param_GetSet_res> GetParameters(byte node)
         {
+            bool ignored;
+            return GetParameters(node, out ignored);
+        }
+
+        public List<DroneCAN.uavcan_protocol_param_GetSet_res> GetParameters(byte node, out bool receivedResponse)
+        {
             List<DroneCAN.uavcan_protocol_param_GetSet_res> paramlist = new List<DroneCAN.uavcan_protocol_param_GetSet_res>();
             ushort index = 0;
-            var timeout = DateTime.Now.AddSeconds(2);
+            var timeout = DateTime.UtcNow.AddSeconds(2);
+            bool gotResponse = false;
+            receivedResponse = false;
 
             SemaphoreSlim wait = new SemaphoreSlim(0);
 
@@ -549,10 +557,15 @@ namespace DroneCAN
                 if (msg.GetType() == typeof(DroneCAN.uavcan_protocol_param_GetSet_res))
                 {
                     var getsetreq = msg as DroneCAN.uavcan_protocol_param_GetSet_res;
+                    gotResponse = true;
 
-                    if (getsetreq.name_len == 0)
+                    if (getsetreq.name_len == 0 ||
+                        getsetreq.value.uavcan_protocol_param_Value_type ==
+                        DroneCAN.uavcan_protocol_param_Value.uavcan_protocol_param_Value_type_t
+                            .UAVCAN_PROTOCOL_PARAM_VALUE_TYPE_EMPTY)
                     {
                         timeout = DateTime.MinValue;
+                        wait.Release();
                         return;
                     }
 
@@ -565,36 +578,41 @@ namespace DroneCAN
 
                     Console.WriteLine("{0}: {1}", name, value);
 
-                    timeout = DateTime.Now.AddSeconds(2);
+                    timeout = DateTime.UtcNow.AddSeconds(2);
                     index++;
 
                     wait.Release();
                 }
             };
             MessageReceived += paramdelegate;
-
-            while (true)
+            try
             {
-                if (DateTime.Now > timeout)
-                    break;
-
-                DroneCAN.uavcan_protocol_param_GetSet_req req = new DroneCAN.uavcan_protocol_param_GetSet_req()
+                while (true)
                 {
-                    index = index
-                };
+                    if (DateTime.UtcNow > timeout)
+                        break;
+
+                    DroneCAN.uavcan_protocol_param_GetSet_req req = new DroneCAN.uavcan_protocol_param_GetSet_req()
+                    {
+                        index = index
+                    };
 
 
-                var slcan = PackageMessageSLCAN(node, 30, transferID++, req);
+                    var slcan = PackageMessageSLCAN(node, 30, transferID++, req);
 
-                WriteToStreamSLCAN(slcan);
+                    WriteToStreamSLCAN(slcan);
 
-                wait.Wait(333);
+                    wait.Wait(333);
+                }
             }
-
-            MessageReceived -= paramdelegate;
+            finally
+            {
+                MessageReceived -= paramdelegate;
+            }
 
             _paramlistcache.AddRange(paramlist);
             _paramlistcache = _paramlistcache.Distinct().ToList();
+            receivedResponse = gotResponse;
 
             return paramlist;
         }

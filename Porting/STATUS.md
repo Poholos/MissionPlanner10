@@ -2,6 +2,25 @@
 
 Updated: **2026-08-25**.
 
+## DroneCAN refresh and parameter-response fix
+
+- Branch `fix/dronecan-refresh-parameters` starts from the clean released `master` checkpoint
+  `294968844e7dc703f87f75724a4a5c96e52ef46b`.
+- Refresh now clears both the visible nodes/selection and the protocol `NodeList`/`NodeInfo`
+  discovery caches. Every fresh `uavcan.protocol.NodeStatus` upserts the visible row, so a node
+  cannot remain permanently hidden merely because its ID was already present in the library cache.
+- Parameter enumeration preserves the existing `GetParameters(byte)` API and adds response-aware
+  diagnostics. A node that never answers the optional `uavcan.protocol.param.GetSet` service is
+  reported as a timeout/unsupported service, while a valid terminal empty response is reported as
+  a responding node with no configurable parameters. The temporary response handler is always
+  detached, including exceptional send paths.
+- Three regression scenarios cover cache reset plus rediscovery, a status-only node that does not
+  implement the optional parameter service, and a valid empty parameter catalogue. Focused
+  DroneCAN tests pass **13/13**; the complete suite passes **1441/1441**. The Release solution
+  builds with **0 warnings / 0 errors**, and all six migration/inventory checks pass (1623 native
+  rows with 0 blockers, 708/708 source paths, no WinForms, and clean project/binary/key audits).
+- Claude remains disabled by user instruction.
+
 ## Post-release code-quality audit round 4
 
 - Branch `audit/code-quality-round-4` starts from clean released `master`

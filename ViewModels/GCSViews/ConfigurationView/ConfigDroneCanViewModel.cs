@@ -32,6 +32,7 @@ public partial class ConfigDroneCanViewModel : ViewModelBase, IDisposable {
   private readonly Func<IReadOnlyList<DroneCanNetworkInterfaceOption>> _networkInterfaces;
   private readonly Func<DroneCanNetworkInterfaceOption, byte, IDroneCanMulticastSession>
       _multicastSessionFactory;
+  private readonly Func<DroneCAN.DroneCAN> _canFactory;
   private readonly bool _subscribedToAppState;
   private DroneCAN.DroneCAN? _can;
   private CommsInjection? _port;
@@ -61,7 +62,8 @@ public partial class ConfigDroneCanViewModel : ViewModelBase, IDisposable {
       Func<string, int, ICommsSerial>? serialPortFactory = null,
       Func<IReadOnlyList<DroneCanNetworkInterfaceOption>>? networkInterfaces = null,
       Func<DroneCanNetworkInterfaceOption, byte, IDroneCanMulticastSession>?
-          multicastSessionFactory = null) {
+          multicastSessionFactory = null,
+      Func<DroneCAN.DroneCAN>? canFactory = null) {
     _activeTarget = activeTarget;
     _serialPortNames = serialPortNames ?? SerialPort.GetPortNames;
     _serialPortFactory = serialPortFactory ?? ((port, baud) => new SerialPort {
@@ -71,6 +73,7 @@ public partial class ConfigDroneCanViewModel : ViewModelBase, IDisposable {
     _networkInterfaces = networkInterfaces ?? DroneCanMulticastSession.GetAvailableInterfaces;
     _multicastSessionFactory = multicastSessionFactory ??
         ((networkInterface, bus) => new DroneCanMulticastSession(networkInterface, bus));
+    _canFactory = canFactory ?? (() => new DroneCAN.DroneCAN());
     _subscribedToAppState = subscribeToAppState;
     _observedTarget = CaptureActiveTarget();
     LoadDirectSlcanSettings();
@@ -338,7 +341,7 @@ public partial class ConfigDroneCanViewModel : ViewModelBase, IDisposable {
     long revision = Interlocked.Increment(ref _targetRevision);
     _mavlinkCanRun = true;
     _directPort = directPort;
-    _can = new DroneCAN.DroneCAN { SourceNode = 127 };
+    _can = CreateCanProtocol();
     IsConnected = true;
     IsBusy = true;
     Status = $"Opening direct SLCAN adapter {portName} at {baud} baud…";
@@ -373,7 +376,7 @@ public partial class ConfigDroneCanViewModel : ViewModelBase, IDisposable {
     _mavlinkCanRun = true;
     _busInUse = bus;
     _multicastSession = session;
-    var can = new DroneCAN.DroneCAN { SourceNode = 127 };
+    var can = CreateCanProtocol();
     _can = can;
     IsConnected = true;
     IsBusy = true;
@@ -718,9 +721,11 @@ public partial class ConfigDroneCanViewModel : ViewModelBase, IDisposable {
       return;
     }
 
+    _can?.NodeList.Clear();
+    _can?.NodeInfo.Clear();
     SelectedNode = null;
     Nodes.Clear();
-    Status = "Re-requesting node status…";
+    Status = "Waiting for fresh DroneCAN node status…";
   }
 
   [RelayCommand]
@@ -732,11 +737,12 @@ public partial class ConfigDroneCanViewModel : ViewModelBase, IDisposable {
 
     NodeStatus = $"Requesting parameters from node {operation.NodeId}…";
     try {
-      List<DroneCAN.DroneCAN.uavcan_protocol_param_GetSet_res> list = await Task.Run(() => {
+      var response = await Task.Run(() => {
         operation.Cancellation.Token.ThrowIfCancellationRequested();
-        var result = operation.Can.GetParameters(operation.NodeId);
+        var result = operation.Can.GetParameters(
+            operation.NodeId, out bool receivedResponse);
         operation.Cancellation.Token.ThrowIfCancellationRequested();
-        return result;
+        return (Parameters: result, ReceivedResponse: receivedResponse);
       });
       if (!IsOperationCurrent(operation)) {
         return;
@@ -747,7 +753,7 @@ public partial class ConfigDroneCanViewModel : ViewModelBase, IDisposable {
       bool hasDedicatedFavorites = Settings.Instance.ContainsKey(_favoritesKey);
       var favs = Settings.Instance.GetList(
           hasDedicatedFavorites ? _favoritesKey : "fav_params").ToHashSet();
-      foreach (var p in list) {
+      foreach (var p in response.Parameters) {
         var name = Encoding.ASCII.GetString(p.name, 0, p.name_len);
         if (string.IsNullOrEmpty(name)) {
           continue;
@@ -775,7 +781,12 @@ public partial class ConfigDroneCanViewModel : ViewModelBase, IDisposable {
       }
 
       SortAndFilterParameters();
-      NodeStatus = $"Loaded {_allNodeParams.Count} parameters from node {operation.NodeId}.";
+      NodeStatus = !response.ReceivedResponse
+          ? $"Node {operation.NodeId} did not respond to uavcan.protocol.param.GetSet; "
+              + "the parameter service may not be supported."
+          : _allNodeParams.Count == 0
+              ? $"Node {operation.NodeId} responded but exposes no configurable parameters."
+              : $"Loaded {_allNodeParams.Count} parameters from node {operation.NodeId}.";
     } catch (OperationCanceledException) when (operation.Cancellation.IsCancellationRequested) {
       // A modem/vehicle change reports the stronger session warning from the invalidation path.
     } catch (Exception ex) {
@@ -1206,7 +1217,7 @@ public partial class ConfigDroneCanViewModel : ViewModelBase, IDisposable {
     });
 
     _port = new CommsInjection();
-    _can = new DroneCAN.DroneCAN { SourceNode = 127 };
+    _can = CreateCanProtocol();
 
     var can = _can;
     var port = _port;
@@ -1301,11 +1312,7 @@ public partial class ConfigDroneCanViewModel : ViewModelBase, IDisposable {
     can.MessageReceived += (frame, msg, transferID) => {
       if (msg is DroneCAN.DroneCAN.uavcan_protocol_NodeStatus ns) {
         PostForSession(can, target, revision, () => {
-          foreach (var item in Nodes.Where(n => n.Id == frame.SourceNode)) {
-            item.Health = HealthString(ns.health);
-            item.Mode = ModeString(ns.mode);
-            item.Uptime = TimeSpan.FromSeconds(ns.uptime_sec);
-          }
+          UpsertNodeStatus(frame.SourceNode, ns);
         });
       } else if (msg is DroneCAN.DroneCAN.uavcan_protocol_GetNodeInfo_res gnires) {
         PostForSession(can, target, revision, () => {
@@ -1385,6 +1392,31 @@ public partial class ConfigDroneCanViewModel : ViewModelBase, IDisposable {
                 + ex.Message));
       }
     });
+  }
+
+  private DroneCAN.DroneCAN CreateCanProtocol() {
+    DroneCAN.DroneCAN can = _canFactory();
+    can.SourceNode = 127;
+    return can;
+  }
+
+  private void UpsertNodeStatus(
+      byte id, DroneCAN.DroneCAN.uavcan_protocol_NodeStatus status) {
+    DroneCanNode? node = Nodes.FirstOrDefault(item => item.Id == id);
+    if (node == null) {
+      Nodes.Add(new DroneCanNode {
+        Id = id,
+        Name = "?",
+        Health = HealthString(status.health),
+        Mode = ModeString(status.mode),
+        Uptime = TimeSpan.FromSeconds(status.uptime_sec),
+      });
+      return;
+    }
+
+    node.Health = HealthString(status.health);
+    node.Mode = ModeString(status.mode);
+    node.Uptime = TimeSpan.FromSeconds(status.uptime_sec);
   }
 
   private void PostForSession(

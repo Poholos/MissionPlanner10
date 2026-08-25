@@ -113,6 +113,115 @@ public class DroneCanSessionSafetyTests {
   }
 
   [AvaloniaFact]
+  public async Task Refresh_discards_cached_discovery_and_next_node_status_readds_the_node() {
+    var transport = new FakeSlcanTransport("/dev/test-slcan", 115200);
+    var can = new DroneCAN.DroneCAN();
+    using var viewModel = new ConfigDroneCanViewModel(
+        () => null,
+        serialPortNames: () => ["/dev/test-slcan"],
+        serialPortFactory: (_, _) => transport,
+        canFactory: () => can);
+    viewModel.SelectedBusIndex = 2;
+    viewModel.SelectedSerialPort = "/dev/test-slcan";
+
+    viewModel.ToggleConnectCommand.Execute(null);
+    await WaitForAsync(() => viewModel.IsConnected && !viewModel.IsBusy);
+
+    var oldStatus = new DroneCAN.DroneCAN.uavcan_protocol_NodeStatus {
+      health = (byte)DroneCAN.DroneCAN.uavcan_protocol_NodeStatus
+          .UAVCAN_PROTOCOL_NODESTATUS_HEALTH_WARNING,
+      mode = (byte)DroneCAN.DroneCAN.uavcan_protocol_NodeStatus
+          .UAVCAN_PROTOCOL_NODESTATUS_MODE_INITIALIZATION,
+      uptime_sec = 15,
+    };
+    can.NodeList[42] = oldStatus;
+    can.NodeInfo[42] = new DroneCAN.DroneCAN.uavcan_protocol_GetNodeInfo_res();
+    var oldNode = new DroneCanNode { Id = 42, Name = "stale-node" };
+    viewModel.Nodes.Add(oldNode);
+    viewModel.SelectedNode = oldNode;
+
+    viewModel.RefreshCommand.Execute(null);
+
+    Assert.Empty(can.NodeList);
+    Assert.Empty(can.NodeInfo);
+    Assert.Empty(viewModel.Nodes);
+    Assert.Null(viewModel.SelectedNode);
+
+    var freshStatus = new DroneCAN.DroneCAN.uavcan_protocol_NodeStatus {
+      health = (byte)DroneCAN.DroneCAN.uavcan_protocol_NodeStatus
+          .UAVCAN_PROTOCOL_NODESTATUS_HEALTH_OK,
+      mode = (byte)DroneCAN.DroneCAN.uavcan_protocol_NodeStatus
+          .UAVCAN_PROTOCOL_NODESTATUS_MODE_OPERATIONAL,
+      uptime_sec = 16,
+    };
+    can.InvokeMessageReceived(MessageFrame(42), freshStatus, 0);
+    Dispatcher.UIThread.RunJobs();
+
+    DroneCanNode refreshed = Assert.Single(viewModel.Nodes);
+    Assert.Equal((byte)42, refreshed.Id);
+    Assert.Equal("OK", refreshed.Health);
+    Assert.Equal("OPERATIONAL", refreshed.Mode);
+    Assert.Equal(TimeSpan.FromSeconds(16), refreshed.Uptime);
+  }
+
+  [AvaloniaFact]
+  public async Task Get_parameters_reports_when_the_node_does_not_answer_the_optional_service() {
+    var transport = new FakeSlcanTransport("/dev/test-slcan", 115200);
+    var can = new DroneCAN.DroneCAN();
+    using var viewModel = new ConfigDroneCanViewModel(
+        () => null,
+        serialPortNames: () => ["/dev/test-slcan"],
+        serialPortFactory: (_, _) => transport,
+        canFactory: () => can);
+    viewModel.SelectedBusIndex = 2;
+    viewModel.SelectedSerialPort = "/dev/test-slcan";
+
+    viewModel.ToggleConnectCommand.Execute(null);
+    await WaitForAsync(() => viewModel.IsConnected && !viewModel.IsBusy);
+    var node = new DroneCanNode { Id = 42, Name = "status-only-simulator" };
+    viewModel.Nodes.Add(node);
+    viewModel.SelectedNode = node;
+
+    await viewModel.GetParametersCommand.ExecuteAsync(null);
+
+    Assert.Empty(viewModel.NodeParams);
+    Assert.Contains("did not respond", viewModel.NodeStatus,
+        StringComparison.OrdinalIgnoreCase);
+    Assert.Contains("may not be supported", viewModel.NodeStatus,
+        StringComparison.OrdinalIgnoreCase);
+  }
+
+  [AvaloniaFact]
+  public async Task Get_parameters_distinguishes_an_empty_response_from_a_timeout() {
+    var transport = new FakeSlcanTransport("/dev/test-slcan", 115200);
+    var can = new DroneCAN.DroneCAN();
+    using var viewModel = new ConfigDroneCanViewModel(
+        () => null,
+        serialPortNames: () => ["/dev/test-slcan"],
+        serialPortFactory: (_, _) => transport,
+        canFactory: () => can);
+    viewModel.SelectedBusIndex = 2;
+    viewModel.SelectedSerialPort = "/dev/test-slcan";
+
+    viewModel.ToggleConnectCommand.Execute(null);
+    await WaitForAsync(() => viewModel.IsConnected && !viewModel.IsBusy);
+    var node = new DroneCanNode { Id = 42, Name = "empty-parameter-node" };
+    viewModel.Nodes.Add(node);
+    viewModel.SelectedNode = node;
+
+    Task request = viewModel.GetParametersCommand.ExecuteAsync(null);
+    await WaitForAsync(() => viewModel.IsBusy);
+    can.InvokeMessageReceived(ServiceResponseFrame(42, 127),
+        new DroneCAN.DroneCAN.uavcan_protocol_param_GetSet_res(), 0);
+    await request;
+    Dispatcher.UIThread.RunJobs();
+
+    Assert.Empty(viewModel.NodeParams);
+    Assert.Contains("responded but exposes no configurable parameters", viewModel.NodeStatus,
+        StringComparison.OrdinalIgnoreCase);
+  }
+
+  [AvaloniaFact]
   public void Native_view_exposes_direct_slcan_port_and_baud_controls() {
     using var viewModel = new ConfigDroneCanViewModel(
         () => null, serialPortNames: () => ["/dev/test-slcan"]);
@@ -252,6 +361,24 @@ public class DroneCanSessionSafetyTests {
       offset += value.Length;
     }
     return count;
+  }
+
+  private static DroneCAN.CANFrame MessageFrame(byte sourceNode) {
+    var frame = new DroneCAN.CANFrame(new byte[4]);
+    frame.SourceNode = sourceNode;
+    return frame;
+  }
+
+  private static DroneCAN.CANFrame ServiceResponseFrame(
+      byte sourceNode, byte destinationNode) {
+    var frame = new DroneCAN.CANFrame(new byte[4]);
+    frame.SourceNode = sourceNode;
+    frame.IsServiceMsg = true;
+    frame.SvcDestinationNode = destinationNode;
+    frame.SvcIsRequest = false;
+    frame.SvcTypeID = DroneCAN.DroneCAN.uavcan_protocol_param_GetSet_req
+        .UAVCAN_PROTOCOL_PARAM_GETSET_REQ_DT_ID;
+    return frame;
   }
 
   private sealed class FakeSlcanTransport : ICommsSerial {
