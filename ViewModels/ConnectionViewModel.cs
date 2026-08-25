@@ -1209,7 +1209,8 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
         await open.WaitAsync(dlg.Token);
         if (_comPort.BaseStream.IsOpen && !dlg.CancelRequested &&
             _comPort.MAV.compid != (byte)MAVLink.MAV_COMPONENT.MAV_COMP_ID_PERIPHERAL) {
-          backgroundParamLoad = Settings.Instance.GetBoolean("Params_BG", false);
+          backgroundParamLoad = ShouldLoadParametersInBackground(
+              stream, Settings.Instance.GetBoolean("Params_BG", false));
           if (!backgroundParamLoad) {
             Task parameters = Task.Factory.StartNew(
                 () => _comPort.getParamList(),
@@ -1396,6 +1397,16 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
         "WS" => new Services.PortableWebSocketSerial(primary),
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown network transport."),
       };
+
+  internal static bool ShouldLoadParametersInBackground(
+      ICommsSerial stream, bool configured) {
+    // An inbound UDP listener can receive many independent MAVLink systems. The first heartbeat
+    // only proves that the shared socket is usable; it does not select a device whose parameter
+    // service is required to answer. Waiting synchronously for that arbitrary endpoint would keep
+    // the connection logically closed (and the button labelled CONNECT), preventing pages such as
+    // NV Modem from discovering the other live broadcast endpoints.
+    return configured || stream is UdpSerial;
+  }
 
   private async Task<ICommsSerial?> ScanForStreamAsync(bool interactive) {
     var dlg = new Services.ProgressReporter("Scanning serial ports");

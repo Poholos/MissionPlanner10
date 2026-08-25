@@ -284,6 +284,21 @@ public class ConnectionHealthTests {
     }
   }
 
+  [Fact]
+  public void Inbound_udp_never_blocks_logical_connection_on_an_arbitrary_parameter_target() {
+    using var udpListener = new UdpSerial();
+    using var pointToPoint = new CommsInjection();
+
+    Assert.True(ConnectionViewModel.ShouldLoadParametersInBackground(
+        udpListener, configured: false));
+    Assert.True(ConnectionViewModel.ShouldLoadParametersInBackground(
+        udpListener, configured: true));
+    Assert.False(ConnectionViewModel.ShouldLoadParametersInBackground(
+        pointToPoint, configured: false));
+    Assert.True(ConnectionViewModel.ShouldLoadParametersInBackground(
+        pointToPoint, configured: true));
+  }
+
   [Theory]
   [InlineData("/dev/ttyUSB0", true)]
   [InlineData("COM3", true)]
