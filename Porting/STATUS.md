@@ -4,26 +4,47 @@ Updated: **2026-08-25**.
 
 ## Shared UDP/NV connection-state fix
 
-- Stacked branch `fix/udp-nv-connect-state` contains the earlier DroneCAN fix and functional
-  commit `402548abc11141016ec65dcd0a8543e196820ec7`. Fresh hardware traces proved that the inbound
-  UDP listener on port 14565 continued receiving NV broadcasts while the main button remained
-  `CONNECT`: synchronous initial parameter loading had selected an arbitrary first endpoint and
-  delayed logical connection registration until that endpoint answered.
+- Stacked branch `fix/udp-nv-connect-state` contains the earlier DroneCAN fix, initial UDP
+  publication fix `402548abc11141016ec65dcd0a8543e196820ec7`, and persistent-listener fix
+  `8519ff5b9`. Fresh hardware traces first proved that the inbound UDP listener on port 14565
+  continued receiving NV broadcasts while the main button remained `CONNECT`: synchronous initial
+  parameter loading had selected an arbitrary first endpoint and delayed logical connection
+  registration until that endpoint answered.
 - Inbound `UdpSerial` parameter loading is now always background work. A valid MAVLink open can
   therefore mark the shared transport connected, expose `DISCONNECT`, start the reader and publish
   the link to the NV Modem page without requiring the first broadcast `sysid:compid` to implement
   or answer `PARAM_REQUEST_LIST`. The configured policy for point-to-point UDP client, TCP and UART
   connections is unchanged.
-- A regression test fixes that transport policy. Focused connection/NV tests pass **86/86**, the
-  complete suite passes **1442/1442**, and the Release solution builds with **0 warnings / 0
-  errors**. Clean local DEB
-  `out/packages/missionplanner_1.3.83-20260825.402548ab_amd64.deb` is 60,108,752 bytes with SHA-256
-  `8363294f318e96ca1fb82e8abc72ad18efbd087cdd8bc2ba240b2ab6d791462d`; `lintian`, extracted
+- A second hardware run exposed the independent disconnect regression. Two fresh logs contained
+  681 and 673 valid frames from multiple NV endpoints over about six seconds, including valid
+  traffic immediately before teardown. The cause was the generic ten-second silent-link policy
+  introduced in the old Avalonia port by `51cd6ca969861fa712742c23d04afc461bc2117b`
+  (`feat: expand vehicle control and telemetry parity`) and imported into the native tree by
+  `c68d7f36675748fa7f80f4f880ab71e9fe42c8a4`. It treated a bound UDP discovery socket as a
+  point-to-point vehicle session and closed it when an exclusive parameter read ended after the
+  selected target had been silent.
+- Inbound `UdpSerial` is now a persistent listener: device silence and repeated packet-reader
+  errors set link quality lost but never close the bound socket. A returning modem is discovered
+  without reopening the port. Explicit Disconnect/shutdown and an actually closed OS socket still
+  end the logical connection. The same rule covers primary and Connection List UDP listeners;
+  `UdpSerialConnect`, TCP and UART retain the existing dead-link cleanup.
+- This mattered beyond the NV page: teardown reset every vehicle parameter list, closed telemetry
+  logs, stopped speech, removed the link from `MavLinkConnectionManager` snapshots, raised the app
+  as disconnected and therefore hid the source from NV discovery, DroneCAN, map/multi-link and
+  connection-gated services. The scoped policy prevents those cascades for a merely silent inbound
+  listener without weakening point-to-point failure handling.
+- Three deterministic regressions cover the silent listener policy, repeated reader errors and a
+  real UDP socket that remains bound while a modem disappears and then accepts it when it returns.
+  A temporary live-hardware test also held the real port 14565 open for 20 seconds past the former
+  failure point. Focused connection tests pass **58/58**, the complete suite passes **1445/1445**,
+  and the Release solution builds with **0 warnings / 0 errors**. Clean local packages are
+  `out/packages/missionplanner_1.3.83-20260825.8519ff5b_amd64.deb` (60,115,152 bytes, SHA-256
+  `5ebc58e044703140492ff3dc819127fd8df47db74473640b0caad80cc5fde18f`) and
+  `out/packages/MissionPlanner-1.3.83-20260825.8519ff5b-linux-x64.tar.gz` (75,373,478 bytes,
+  SHA-256 `0071fe7d249dcbb1dcd28bd4c422a85394ad3d073154a4a6566800a6545d11c2`). `lintian`, extracted
   payload assertions and the 12-second Xvfb smoke pass (`timeout` exit 124).
-- The fix and package are local only. No push, merge, tag or release was performed, and Claude
-  remains disabled by user instruction. Next acceptance is a retry against the physical NV
-  broadcast network on UDP 14565: the main button should change to `DISCONNECT`, after which the
-  NV Modem page should enumerate every responding endpoint independently.
+- The fixes and packages are local only. No push, merge, tag or release was performed, and Claude
+  remains disabled by user instruction.
 
 ## DroneCAN refresh and parameter-response fix
 
