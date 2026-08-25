@@ -198,6 +198,7 @@ public partial class SimulationViewModel : ViewModelBase {
         Speed = SimSpeed,
         ExtraCmdline = ExtraCmdline,
         WipeEeprom = WipeEeprom,
+        ReserveTelemetryConnection = true,
       };
 
       bool ok = await _sitl.StartAsync(opts);
@@ -350,10 +351,13 @@ public partial class SimulationViewModel : ViewModelBase {
       return false;
     }
 
-    AppState.CommsSettings["TCP_host"] = "127.0.0.1";
-    AppState.CommsSettings["TCP_port"] = _sitl.TcpPort.ToString(CultureInfo.InvariantCulture);
+    TcpSerial? stream = _sitl.TakePreparedTelemetryStream();
+    if (stream == null) {
+      OnLog("SITL telemetry connection was not retained; refusing a racy reconnect.");
+      return false;
+    }
     var result = await _connection.ConnectPreparedStreamAsync(
-        new TcpSerial(), "SITL", getParams: true);
+        stream, "SITL", getParams: true);
     if (!result.Connected) {
       OnLog("Connect error: " + result.Error);
     }
