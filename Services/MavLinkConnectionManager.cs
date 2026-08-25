@@ -719,7 +719,8 @@ internal sealed class MavLinkSecondaryRuntime {
                     now, newest, _connectedAtUtc, _silenceTimeout)) {
               SetLinkQualityLost(link);
               if (ViewModels.ConnectionHealth.ShouldCloseSilentLink(
-                      link.MAV.cs.armed, now, newest, _connectedAtUtc, _silenceTimeout)) {
+                      link.BaseStream, link.MAV.cs.armed,
+                      now, newest, _connectedAtUtc, _silenceTimeout)) {
                 unexpectedlyClosed = true;
                 break;
               }
@@ -743,8 +744,12 @@ internal sealed class MavLinkSecondaryRuntime {
           break;
         } catch {
           if (++consecutiveErrors >= 5) {
-            unexpectedlyClosed = true;
-            break;
+            if (ViewModels.ConnectionHealth.ShouldCloseAfterReaderErrors(link.BaseStream)) {
+              unexpectedlyClosed = true;
+              break;
+            }
+            SetLinkQualityLost(link);
+            consecutiveErrors = 0;
           }
           await Task.Delay(50, cancellationToken).ConfigureAwait(false);
         }

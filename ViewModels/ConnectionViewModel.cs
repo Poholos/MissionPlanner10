@@ -294,7 +294,8 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
                   now, newestPacket, _connectedAtUtc, TimeSpan.FromSeconds(10))) {
             SetLinkQualityLost();
             if (ConnectionHealth.ShouldCloseSilentLink(
-                    _comPort.MAV.cs.armed, now, newestPacket, _connectedAtUtc,
+                    _comPort.BaseStream, _comPort.MAV.cs.armed,
+                    now, newestPacket, _connectedAtUtc,
                     TimeSpan.FromSeconds(10))) {
               HandleLinkLost(self, generation);
               break;
@@ -322,11 +323,18 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
         await Task.Delay(_comPort.giveComport ? 50 : 1, ct).ConfigureAwait(false);
       } catch (OperationCanceledException) {
         break;
-      } catch {
-
+      } catch (Exception ex) {
         if (++consecutiveErrors >= 5) {
-          HandleLinkLost(self, generation);
-          break;
+          bool close = ConnectionHealth.ShouldCloseAfterReaderErrors(_comPort.BaseStream);
+          if (close) {
+            Console.Error.WriteLine(
+                $"Primary MAVLink reader had five consecutive errors on " +
+                $"{_comPort.BaseStream?.GetType().Name}; closing the connection: {ex}");
+            HandleLinkLost(self, generation);
+            break;
+          }
+          SetLinkQualityLost();
+          consecutiveErrors = 0;
         }
         try {
           await Task.Delay(50, ct).ConfigureAwait(false);
@@ -1555,9 +1563,21 @@ internal sealed class PreconfiguredUdpListener : UdpSerial, IPreconfiguredNetwor
 }
 
 internal static class ConnectionHealth {
+  // A bound UDP socket is a discovery surface, not a session owned by one vehicle. It must
+  // outlive disappearing broadcasters so returning modems are received without reopening it.
+  internal static bool IsPersistentListener(ICommsSerial? stream) => stream is UdpSerial;
+
+  internal static bool ShouldCloseSilentLink(ICommsSerial? stream, bool armed,
+      DateTime nowUtc, DateTime newestPacketUtc, DateTime connectedAtUtc, TimeSpan timeout) =>
+      !IsPersistentListener(stream) &&
+      ShouldCloseSilentLink(armed, nowUtc, newestPacketUtc, connectedAtUtc, timeout);
+
   internal static bool ShouldCloseSilentLink(bool armed, DateTime nowUtc,
       DateTime newestPacketUtc, DateTime connectedAtUtc, TimeSpan timeout) =>
       !armed && IsSilent(nowUtc, newestPacketUtc, connectedAtUtc, timeout);
+
+  internal static bool ShouldCloseAfterReaderErrors(ICommsSerial? stream) =>
+      !IsPersistentListener(stream);
 
   internal static bool IsSilent(DateTime nowUtc, DateTime newestPacketUtc,
       DateTime connectedAtUtc, TimeSpan timeout) {

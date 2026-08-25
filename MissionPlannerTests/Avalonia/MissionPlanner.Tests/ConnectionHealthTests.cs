@@ -21,6 +21,35 @@ public class ConnectionHealthTests {
   }
 
   [Fact]
+  public void Inbound_udp_listener_is_never_closed_because_devices_are_silent() {
+    var now = new DateTime(2026, 8, 25, 12, 0, 20, DateTimeKind.Utc);
+    var connected = now.AddMinutes(-1);
+    using var listener = new UdpSerial();
+    using var udpClient = new UdpSerialConnect();
+    using var serial = new CommsInjection();
+
+    Assert.True(ConnectionHealth.IsSilent(
+        now, DateTime.MinValue, connected, TimeSpan.FromSeconds(10)));
+    Assert.False(ConnectionHealth.ShouldCloseSilentLink(
+        listener, false, now, DateTime.MinValue, connected, TimeSpan.FromSeconds(10)));
+    Assert.True(ConnectionHealth.ShouldCloseSilentLink(
+        udpClient, false, now, DateTime.MinValue, connected, TimeSpan.FromSeconds(10)));
+    Assert.True(ConnectionHealth.ShouldCloseSilentLink(
+        serial, false, now, DateTime.MinValue, connected, TimeSpan.FromSeconds(10)));
+  }
+
+  [Fact]
+  public void Inbound_udp_listener_survives_repeated_packet_reader_errors() {
+    using var listener = new UdpSerial();
+    using var udpClient = new UdpSerialConnect();
+    using var serial = new CommsInjection();
+
+    Assert.False(ConnectionHealth.ShouldCloseAfterReaderErrors(listener));
+    Assert.True(ConnectionHealth.ShouldCloseAfterReaderErrors(udpClient));
+    Assert.True(ConnectionHealth.ShouldCloseAfterReaderErrors(serial));
+  }
+
+  [Fact]
   public void MissingTimestampIsNotTreatedAsAnEstablishedSilentLink() {
     Assert.False(ConnectionHealth.IsSilent(
         new DateTime(2026, 8, 21, 12, 0, 0, DateTimeKind.Utc),

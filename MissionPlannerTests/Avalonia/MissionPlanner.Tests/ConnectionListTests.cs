@@ -243,6 +243,50 @@ public class ConnectionListTests {
   }
 
   [Fact]
+  public async Task Silent_udp_listener_stays_bound_and_accepts_a_returning_modem() {
+    using var receiver = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+    int port = ((IPEndPoint)receiver.Client.LocalEndPoint!).Port;
+    using var sender = new UdpClient();
+    sender.Connect(IPAddress.Loopback, port);
+    var secondary = new MAVLinkInterface {
+      BaseStream = new UdpSerial(receiver),
+    };
+    using MAVLinkInterface primary = OpenInterface();
+    using var manager = new MavLinkConnectionManager(primary);
+    MavLinkConnection connection = manager.Add(secondary,
+        new ConnectionListEndpoint(
+            ConnectionListTransport.UdpListener, "127.0.0.1", port, "", 0, 1),
+        item => new MavLinkSecondaryRuntime(
+            item, manager.NotifyClosed, TimeSpan.FromMilliseconds(100)));
+
+    await Task.Delay(350);
+
+    Assert.True(connection.IsOpen);
+    Assert.Same(connection, manager.Find(secondary));
+
+    using var sendCancellation = new CancellationTokenSource();
+    Task sendLoop = SendVehiclePacketsAsync(
+        sender, systemId: 73, () => 351234567, sendCancellation.Token);
+    try {
+      await WaitUntilAsync(
+          () => secondary.MAVlist[73, 1].lastvalidpacket > DateTime.MinValue,
+          TimeSpan.FromSeconds(3));
+
+      Assert.True(connection.IsOpen);
+      Assert.True(secondary.BaseStream.IsOpen);
+    } finally {
+      sendCancellation.Cancel();
+      try {
+        await sendLoop;
+      } catch (OperationCanceledException) {
+      }
+      if (manager.Find(secondary) != null) {
+        await manager.RemoveAsync(connection);
+      }
+    }
+  }
+
+  [Fact]
   public async Task Connection_list_opens_two_real_udp_vehicles_as_independent_links() {
     int firstPort = ReserveUdpPort();
     int secondPort;
