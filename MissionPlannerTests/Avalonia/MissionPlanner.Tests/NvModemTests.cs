@@ -226,6 +226,50 @@ public class NvModemTests {
   }
 
   [Fact]
+  public void Discovery_replays_the_complete_shared_parameter_cache_not_only_the_last_packet() {
+    var transport = new FakeTransport();
+    var source = new NvModemLink(new MAVLinkInterface(), "shared UDP");
+    transport.Links.Add(source);
+    transport.Cached[source] = [Packet(NvModemMessageIds.NvModemInfo,
+        ModemInfo(5, 7, NvModemInfoFlags.Channel1Active), 255, 11)];
+    transport.Parameters[source] = [
+      CachedParameter("MAV_SYS_ID", 255, 5, 3, 255, 11),
+      CachedParameter("MODEM_PROFILE", 7, 5, 3, 255, 11),
+      CachedParameter("ETH_ENABLE", 1, 5, 3, 255, 11),
+    ];
+
+    using var viewModel = new NvModemViewModel(transport, () => DateTime.UtcNow,
+        startTimer: false);
+
+    Assert.Single(viewModel.Devices);
+    Assert.Equal(3, viewModel.Parameters.Count);
+    Assert.Equal(new[] { "ETH_ENABLE", "MAV_SYS_ID", "MODEM_PROFILE" },
+        viewModel.Parameters.Select(parameter => parameter.Name).OrderBy(name => name));
+    Assert.Equal("Parameters: 3 / 3", viewModel.ParameterProgress);
+  }
+
+  [Fact]
+  public void Parameter_names_alone_never_add_autopilots_to_the_modem_list() {
+    var transport = new FakeTransport();
+    var source = new NvModemLink(new MAVLinkInterface(), "shared UDP");
+    transport.Links.Add(source);
+    transport.Parameters[source] = [
+      CachedParameter("CH1_OPT", 4, 6, 4, 1, 1),
+      CachedParameter("CH2_REV", 1, 6, 4, 1, 1),
+      CachedParameter("MODEM_PROFILE", 7, 6, 4, 42, 1),
+      CachedParameter("RTSP_PORT", 554, 6, 4, 42, 1),
+    ];
+
+    using var viewModel = new NvModemViewModel(transport, () => DateTime.UtcNow,
+        startTimer: false);
+    viewModel.HandlePacket(source, ParameterPacket("CH1_OPT", 4, 6, 1, 1, 1));
+    viewModel.HandlePacket(source, ParameterPacket("MODEM_PROFILE", 7, 6, 1, 42, 1));
+
+    Assert.Empty(viewModel.Devices);
+    Assert.Empty(viewModel.Parameters);
+  }
+
+  [Fact]
   public void Nv4_detection_uses_strict_gtu_can_node_signature_at_any_id() {
     var transport = new FakeTransport();
     using var viewModel = new NvModemViewModel(transport, () => DateTime.UtcNow,
@@ -269,7 +313,7 @@ public class NvModemTests {
   }
 
   [Fact]
-  public void Supports_every_current_gtu_identity_mode_without_id_ranges() {
+  public void Supports_vendor_identity_modes_at_any_id_and_rejects_param_only_endpoints() {
     var transport = new FakeTransport();
     using var viewModel = new NvModemViewModel(transport, () => DateTime.UtcNow,
         startTimer: false);
@@ -290,7 +334,7 @@ public class NvModemTests {
     viewModel.HandlePacket(source, ParameterPacket(
         "MODEM_PROFILE", 8, 5, 1, 88, 222));
 
-    Assert.Equal(7, viewModel.Devices.Count);
+    Assert.Equal(6, viewModel.Devices.Count);
     Assert.Contains(viewModel.Devices, item =>
         item.Label.Contains("NV5 213:247", StringComparison.Ordinal)
         && item.Label.Contains("RX", StringComparison.Ordinal));
@@ -307,8 +351,8 @@ public class NvModemTests {
     Assert.Contains(viewModel.Devices, item =>
         item.Label.Contains("NV4 77:250", StringComparison.Ordinal)
         && item.Label.Contains("TX", StringComparison.Ordinal));
-    Assert.Contains(viewModel.Devices, item =>
-        item.Label.Contains("NV5 88:222", StringComparison.Ordinal));
+    Assert.DoesNotContain(viewModel.Devices, item =>
+        item.Label.Contains("88:222", StringComparison.Ordinal));
   }
 
   [Theory]
@@ -1039,6 +1083,14 @@ public class NvModemTests {
     };
   }
 
+  private static NvModemCachedParameter CachedParameter(
+      string name, double value, byte type, int count, byte systemId, byte componentId) {
+    float wire = NvModemParameterCodec.Encode(value, type);
+    return new NvModemCachedParameter(
+        systemId, componentId, name, value, type, count,
+        unchecked((uint)BitConverter.SingleToInt32Bits(wire)));
+  }
+
   private static NvModemInfoMessage ModemInfo(
       byte generation, byte productProfile, byte flags,
       byte channel1Role = 0, byte channel2Role = 0,
@@ -1094,6 +1146,7 @@ public class NvModemTests {
     internal List<SentPacket> Sent { get; } = [];
     internal Dictionary<NvModemLink, List<NvModemEndpoint>> Endpoints { get; } = [];
     internal Dictionary<NvModemLink, List<MAVLink.MAVLinkMessage>> Cached { get; } = [];
+    internal Dictionary<NvModemLink, List<NvModemCachedParameter>> Parameters { get; } = [];
 
     public event Action<NvModemLink, MAVLink.MAVLinkMessage>? PacketReceived {
       add { }
@@ -1112,6 +1165,9 @@ public class NvModemTests {
 
     public IReadOnlyList<MAVLink.MAVLinkMessage> CachedDiscoveryPackets(NvModemLink source) =>
         Cached.GetValueOrDefault(source) ?? [];
+
+    public IReadOnlyList<NvModemCachedParameter> CachedParameters(NvModemLink source) =>
+        Parameters.GetValueOrDefault(source) ?? [];
 
     public bool Send(NvModemLink source, object packet, byte systemId, byte componentId) {
       Sent.Add(new SentPacket(source, packet, systemId, componentId));

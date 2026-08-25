@@ -282,6 +282,15 @@ internal sealed record NvModemLink(MAVLinkInterface Link, string Name);
 
 internal readonly record struct NvModemEndpoint(byte SystemId, byte ComponentId);
 
+internal readonly record struct NvModemCachedParameter(
+    byte SystemId,
+    byte ComponentId,
+    string Name,
+    double Value,
+    byte Type,
+    int ReportedCount,
+    uint RawValueBits);
+
 internal interface INvModemMavlinkTransport : IDisposable {
   event Action<NvModemLink, MAVLink.MAVLinkMessage>? PacketReceived;
   event Action? LinksChanged;
@@ -289,6 +298,7 @@ internal interface INvModemMavlinkTransport : IDisposable {
   IReadOnlyList<NvModemLink> Snapshot();
   IReadOnlyList<NvModemEndpoint> KnownEndpoints(NvModemLink source);
   IReadOnlyList<MAVLink.MAVLinkMessage> CachedDiscoveryPackets(NvModemLink source);
+  IReadOnlyList<NvModemCachedParameter> CachedParameters(NvModemLink source);
   bool Send(NvModemLink source, object packet, byte systemId, byte componentId);
 }
 
@@ -340,7 +350,6 @@ internal sealed class NvModemMavlinkTransport : INvModemMavlinkTransport {
         NvModemMessageIds.NvEncryptionKeysAck,
         NvModemMessageIds.NvRxStat,
         (uint)MAVLink.MAVLINK_MSG_ID.UAVCAN_NODE_INFO,
-        (uint)MAVLink.MAVLINK_MSG_ID.PARAM_VALUE,
       ];
       var packets = new List<MAVLink.MAVLinkMessage>();
       foreach (MAVState mav in source.Link.MAVlist.ToArray()) {
@@ -352,6 +361,35 @@ internal sealed class NvModemMavlinkTransport : INvModemMavlinkTransport {
         }
       }
       return packets;
+    } catch {
+      return [];
+    }
+  }
+
+  public IReadOnlyList<NvModemCachedParameter> CachedParameters(NvModemLink source) {
+    try {
+      var parameters = new List<NvModemCachedParameter>();
+      foreach (MAVState mav in source.Link.MAVlist.ToArray()) {
+        MAVLink.MAVLinkParam[] snapshot = mav.param.ToArray();
+        int reported = Math.Max(mav.param.TotalReported, snapshot.Length);
+        foreach (MAVLink.MAVLinkParam parameter in snapshot) {
+          if (string.IsNullOrWhiteSpace(parameter.Name)) {
+            continue;
+          }
+          parameters.Add(new NvModemCachedParameter(
+              mav.sysid,
+              mav.compid,
+              parameter.Name,
+              parameter.Value,
+              (byte)parameter.Type,
+              reported,
+              parameter.data is { Length: >= sizeof(uint) }
+                  ? BitConverter.ToUInt32(parameter.data, 0)
+                  : unchecked((uint)BitConverter.SingleToInt32Bits(
+                      NvModemParameterCodec.Encode(parameter.Value, (byte)parameter.Type)))));
+        }
+      }
+      return parameters;
     } catch {
       return [];
     }
