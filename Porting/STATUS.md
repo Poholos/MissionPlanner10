@@ -2,6 +2,29 @@
 
 Updated: **2026-08-25**.
 
+## Shared UDP/NV connection-state fix
+
+- Stacked branch `fix/udp-nv-connect-state` contains the earlier DroneCAN fix and functional
+  commit `402548abc11141016ec65dcd0a8543e196820ec7`. Fresh hardware traces proved that the inbound
+  UDP listener on port 14565 continued receiving NV broadcasts while the main button remained
+  `CONNECT`: synchronous initial parameter loading had selected an arbitrary first endpoint and
+  delayed logical connection registration until that endpoint answered.
+- Inbound `UdpSerial` parameter loading is now always background work. A valid MAVLink open can
+  therefore mark the shared transport connected, expose `DISCONNECT`, start the reader and publish
+  the link to the NV Modem page without requiring the first broadcast `sysid:compid` to implement
+  or answer `PARAM_REQUEST_LIST`. The configured policy for point-to-point UDP client, TCP and UART
+  connections is unchanged.
+- A regression test fixes that transport policy. Focused connection/NV tests pass **86/86**, the
+  complete suite passes **1442/1442**, and the Release solution builds with **0 warnings / 0
+  errors**. Clean local DEB
+  `out/packages/missionplanner_1.3.83-20260825.402548ab_amd64.deb` is 60,108,752 bytes with SHA-256
+  `8363294f318e96ca1fb82e8abc72ad18efbd087cdd8bc2ba240b2ab6d791462d`; `lintian`, extracted
+  payload assertions and the 12-second Xvfb smoke pass (`timeout` exit 124).
+- The fix and package are local only. No push, merge, tag or release was performed, and Claude
+  remains disabled by user instruction. Next acceptance is a retry against the physical NV
+  broadcast network on UDP 14565: the main button should change to `DISCONNECT`, after which the
+  NV Modem page should enumerate every responding endpoint independently.
+
 ## DroneCAN refresh and parameter-response fix
 
 - Branch `fix/dronecan-refresh-parameters` starts from the clean released `master` checkpoint
