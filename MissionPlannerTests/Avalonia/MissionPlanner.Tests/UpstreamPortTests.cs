@@ -80,6 +80,33 @@ public class UpstreamPortTests {
   }
 
   [Fact]
+  public void Legacy_nested_cache_files_are_copied_without_overwriting_newer_files() {
+    string root = Path.Combine(Path.GetTempPath(), "mp-cache-migration-" + Guid.NewGuid().ToString("N"));
+    string source = Path.Combine(root, "old", "sitl");
+    string destination = Path.Combine(root, "new", "sitl");
+    try {
+      Directory.CreateDirectory(Path.Combine(source, "xplane"));
+      Directory.CreateDirectory(destination);
+      string binary = Path.Combine(source, "ArduPlane");
+      File.WriteAllText(binary, "legacy binary");
+      File.WriteAllText(Path.Combine(source, "xplane", "dependency.so"), "dependency");
+      File.WriteAllText(Path.Combine(destination, "ArduPlane"), "newer binary");
+      if (!OperatingSystem.IsWindows()) {
+        File.SetUnixFileMode(binary,
+            File.GetUnixFileMode(binary) | UnixFileMode.UserExecute);
+      }
+
+      AppPaths.CopyDirectoryFilesIfMissing(source, destination);
+
+      Assert.Equal("newer binary", File.ReadAllText(Path.Combine(destination, "ArduPlane")));
+      Assert.Equal("dependency", File.ReadAllText(
+          Path.Combine(destination, "xplane", "dependency.so")));
+    } finally {
+      Directory.Delete(root, recursive: true);
+    }
+  }
+
+  [Fact]
   public void LogOrganizerFindsAllSupportedExtensionsCaseInsensitively() {
     var root = Path.Combine(Path.GetTempPath(), "mp-log-organizer-" + Guid.NewGuid().ToString("N"));
     Directory.CreateDirectory(Path.Combine(root, "nested"));

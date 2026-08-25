@@ -180,6 +180,7 @@ public class SitlDefaultsTests {
       return;
     }
 
+    AppPaths.Initialize();
     string binary = Path.Combine(AppPaths.SitlCacheRoot, "ArduPlane");
     Assert.True(File.Exists(binary), $"Cached SITL binary not found: {binary}");
     var launcher = new SitlLauncher();
