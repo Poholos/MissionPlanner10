@@ -1287,7 +1287,9 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
 
         dlg.Set(100, Status);
         await Task.Delay(1200);
-        dlg.Close();
+        // Closing a progress window normally means Cancel. This is the successful completion path,
+        // so do not fire the transport-release callback registered on the dialog token.
+        dlg.Complete();
       } else {
         dlg.Close();
         _ = _transportRelease.Begin(_comPort);

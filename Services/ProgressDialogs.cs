@@ -47,6 +47,7 @@ public class ProgressReporter : Window {
   private readonly CancellationTokenSource _cts = new();
   private readonly CancellationToken _token;
   private int _cancellationDisposed;
+  private int _completed;
 
   public CancellationToken Token => _token;
   public bool CancelRequested => _cts.IsCancellationRequested;
@@ -88,6 +89,15 @@ public class ProgressReporter : Window {
     Activate();
   }
 
+  /// <summary>
+  /// Closes a successfully completed operation without turning normal dialog teardown into a
+  /// cancellation request. User/window Close still cancels outstanding work.
+  /// </summary>
+  public void Complete() {
+    Interlocked.Exchange(ref _completed, 1);
+    Close();
+  }
+
   private void RequestCancellation() {
     try {
       _cts.Cancel();
@@ -96,7 +106,9 @@ public class ProgressReporter : Window {
   }
 
   private void DisposeCancellation() {
-    RequestCancellation();
+    if (Volatile.Read(ref _completed) == 0) {
+      RequestCancellation();
+    }
     if (Interlocked.Exchange(ref _cancellationDisposed, 1) == 0) {
       _cts.Dispose();
     }
