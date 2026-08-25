@@ -5,11 +5,12 @@ Updated: **2026-08-25**.
 ## Live UDP/NV, SITL/X-Plane and Mission Planner 10 checkpoint
 
 - Local branch `fix/udp-nv-connect-state` is at code checkpoint
-  `4145b5bb1813f4fe2904b7f36cc71d5ecbfe1b9a`. The new atomic commits retain the first SITL TCP
+  `5e6c1c8fc0e5234e243e7e914c56e63190757315`. The new atomic commits retain the first SITL TCP
   connection (`f0e407dca`), drain short packets from persistent UDP listeners (`1813353ef`),
   restore and filter the complete NV parameter cache (`2d4205e6e`), apply the Mission Planner 10
-  product/installer identity (`8caed8f30`) and migrate legacy SITL/SRTM caches while preserving
-  Unix executable modes (`4145b5bb1`). The managed assembly intentionally remains
+  product/installer identity (`8caed8f30`), migrate legacy SITL/SRTM caches while preserving Unix
+  executable modes (`4145b5bb1`) and reject reflected GCS RTSP requests as modem identities
+  (`5e6c1c8fc`). The managed assembly intentionally remains
   `MissionPlanner.dll` for plugin ABI compatibility; apphosts, install directories and package
   names are Mission Planner 10. The official Mission Planner filesystem map-tile location remains
   shared and is not migrated or renamed.
@@ -29,9 +30,15 @@ Updated: **2026-08-25**.
   (77/77), `255:10` (59/59) and `1:5` (77/77). Cached `MAVState.param` values are replayed only
   after an NV custom message, valid modem-info payload or strict legacy NV4 CAN passport confirms
   the exact system/component endpoint; parameter names alone can no longer classify an autopilot
-  as a modem. Closing the real window produced no former `CancellationTokenSource` disposal stack
-  or core dump; the synthetic Xvfb/metacity session did emit its generic X-connection exit status,
-  so native desktop CI remains the authoritative cross-platform shutdown check.
+  as a modem. Closing the live window produces no former `CancellationTokenSource` disposal stack
+  or core dump and the final Xvfb/metacity run exits 0.
+- A follow-up hardware report exposed a sixth false device at `255:190`, Mission Planner's own
+  `MAV_COMP_ID_MISSIONPLANNER` endpoint. The captured tlog proved that the reflected custom frame
+  was an outbound `NV5_RTSP_CONFIG` read request (`operation=0`), not modem status. Read/write
+  operations 0/1 can no longer establish identity; only the modem report operation 2 can. This is
+  payload-direction filtering rather than an ID blacklist: a real modem at `255:190` is still
+  accepted when it sends a valid report. A second live dropdown check shows only the five physical
+  modems and keeps `Recv-Q=0`.
 - The X-Plane/SITL regression came from using a temporary readiness connection and then opening a
   second TCP session. External simulator models can accept/associate the first session, so the
   launcher now retains that proven connection and hands it directly to Mission Planner. The child
@@ -39,7 +46,7 @@ Updated: **2026-08-25**.
   Linux `ArduPlane --model xplane` integration run passes, including legacy-cache migration and
   retained-stream consumption; no SITL process remains after the test.
 - Verification at the code checkpoint: Release solution build **0 warnings / 0 errors**; complete
-  suite **1454/1454**; focused connection/NV suite **91/91**; real X-Plane integration plus cache
+  suite **1457/1457**; focused connection/NV suite **94/94**; real X-Plane integration plus cache
   migration **2/2**; all six migration/inventory checks pass (1623 native rows with 0 blockers,
   708/708 source paths, no WinForms, and clean project/binary/key audits); all 28 active projects
   report no known vulnerable direct or transitive NuGet package. One earlier full-suite run had a
@@ -47,10 +54,10 @@ Updated: **2026-08-25**.
   test passed immediately in isolation and the following two complete builds/runs passed, so it is
   recorded as test-harness flakiness rather than hidden.
 - Fresh clean local artifacts are
-  `out/packages/missionplanner10_1.3.83-20260825.4145b5bb_amd64.deb` (60,117,704 bytes, SHA-256
-  `cb54654ee8cc8b5be7e4ee2899dc27c09f0dc08b7a6a9ff0a9a9ea468ca5eb96`) and
-  `out/packages/MissionPlanner10-1.3.83-20260825.4145b5bb-linux-x64.tar.gz` (75,381,974 bytes,
-  SHA-256 `8557b4fb1c68e417ba3f6267d2976422303fefb67689e6af411dd4fce214176d`). `lintian
+  `out/packages/missionplanner10_1.3.83-20260825.5e6c1c8f_amd64.deb` (60,115,816 bytes, SHA-256
+  `81592f6cc4ac788fc20fdc94c459b7f97a69a7eb818459b571da51f6d147e71f`) and
+  `out/packages/MissionPlanner10-1.3.83-20260825.5e6c1c8f-linux-x64.tar.gz` (75,376,646 bytes,
+  SHA-256 `a6810274a4f79dd52a36cf6f3be6c707c54fc2ca995006c60face03f46cd81f0`). `lintian
   --fail-on error,warning`, gzip/TAR content checks, extracted DEB layout and a 12-second packaged
   Xvfb smoke pass; the expected smoke timeout is 124 with no stderr, unhandled exception or crash
   log.
