@@ -2,6 +2,26 @@
 
 Updated: **2026-08-26**.
 
+## Ten-second Flight Data action bounds and compact Actions layout
+
+- The Flight Data `Arm / Disarm` action now uses an explicit ten-second total MAVLink ACK bound
+  for ordinary and forced requests. The timed low-level path releases `giveComport` on expiry, so
+  a silent vehicle cannot leave the action disabled for the former four ten-second attempts.
+- `Resume Mission` applies the same bound to waypoint reads and mission-current confirmation and
+  keeps one captured link/system/component for the complete sequence. GUIDED, ARM and TAKEOFF are
+  each sent once and then state is polled within the remaining ten-second step budget; the former
+  loop could resend a blocking ARM or TAKEOFF command every second and greatly exceed its nominal
+  timeout. The already-read resume waypoint is also reused instead of requesting it twice.
+- The Actions grid remains faithful to the official five-column placement but can shrink further:
+  action buttons use smaller font/padding/minimum height, inter-column spacing is reduced, and the
+  right-hand speed/altitude/loiter pairs are proportional two-column grids instead of fixed-width
+  wrapping panels. Numeric editors and their buttons now contract together rather than moving the
+  right-hand button onto a second row while unused horizontal padding remains.
+- Focused Flight Data, MAVLink timeout and mission-protocol tests pass **50/50**. The complete
+  suite passes **1492/1492** and the Release solution builds with **0 warnings / 0 errors**. One
+  first full run hit the pre-existing timing-sensitive DroneCAN empty-response assertion; it then
+  passed alone ten consecutive times and the complete retry was green. Claude remains disabled.
+
 ## Cancellable/partial parameter loading and Open Drone ID shutdown checkpoint
 
 - Primary connection initialization now distinguishes transport opening from parameter loading.

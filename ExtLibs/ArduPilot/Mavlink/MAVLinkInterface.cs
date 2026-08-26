@@ -2509,7 +2509,26 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
             return setWPCurrentAsync(sysid, compid, index).AwaitSync();
         }
 
-        public async Task<bool> setWPCurrentAsync(byte sysid, byte compid, ushort index)
+        public bool setWPCurrent(byte sysid, byte compid, ushort index, TimeSpan responseTimeout)
+        {
+            return setWPCurrentAsync(sysid, compid, index, responseTimeout).AwaitSync();
+        }
+
+        public Task<bool> setWPCurrentAsync(byte sysid, byte compid, ushort index)
+        {
+            return setWPCurrentAsyncCore(sysid, compid, index, null);
+        }
+
+        public Task<bool> setWPCurrentAsync(byte sysid, byte compid, ushort index, TimeSpan responseTimeout)
+        {
+            if (responseTimeout <= TimeSpan.Zero)
+                throw new ArgumentOutOfRangeException(nameof(responseTimeout));
+
+            return setWPCurrentAsyncCore(sysid, compid, index, responseTimeout);
+        }
+
+        private async Task<bool> setWPCurrentAsyncCore(byte sysid, byte compid, ushort index,
+            TimeSpan? responseTimeout)
         {
             giveComport = true;
             MAVLinkMessage buffer;
@@ -2525,9 +2544,16 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
 
             DateTime start = DateTime.Now;
             int retrys = 5;
+            Stopwatch responseTimer = responseTimeout.HasValue ? Stopwatch.StartNew() : null;
 
             while (true)
             {
+                if (responseTimer != null && responseTimer.Elapsed >= responseTimeout.Value)
+                {
+                    giveComport = false;
+                    throw new TimeoutException("Timeout on read - setWPCurrent");
+                }
+
                 if (!(start.AddMilliseconds(2000) > DateTime.Now))
                 {
                     if (retrys > 0)
@@ -2684,7 +2710,26 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
             return doARMAsync(sysid, compid, armit, force).AwaitSync();
         }
 
-        public async Task<bool> doARMAsync(byte sysid, byte compid, bool armit, bool force = false)
+        public bool doARM(byte sysid, byte compid, bool armit, bool force, TimeSpan responseTimeout)
+        {
+            return doARMAsync(sysid, compid, armit, force, responseTimeout).AwaitSync();
+        }
+
+        public Task<bool> doARMAsync(byte sysid, byte compid, bool armit, bool force = false)
+        {
+            return doARMAsyncCore(sysid, compid, armit, force, null);
+        }
+
+        public Task<bool> doARMAsync(byte sysid, byte compid, bool armit, bool force, TimeSpan responseTimeout)
+        {
+            if (responseTimeout <= TimeSpan.Zero)
+                throw new ArgumentOutOfRangeException(nameof(responseTimeout));
+
+            return doARMAsyncCore(sysid, compid, armit, force, responseTimeout);
+        }
+
+        private async Task<bool> doARMAsyncCore(byte sysid, byte compid, bool armit, bool force,
+            TimeSpan? responseTimeout)
         {
             const float magic_force_arm_value = 2989.0f;
             const float magic_force_disarm_value = 21196.0f;
@@ -2692,22 +2737,20 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
             if (force)
             {
                 if (armit)
-                    return await doCommandAsync(sysid, compid, MAV_CMD.COMPONENT_ARM_DISARM, 1, magic_force_arm_value,
-                        0, 0, 0, 0,
-                        0).ConfigureAwait(false);
+                    return await doCommandAsyncCore(sysid, compid, MAV_CMD.COMPONENT_ARM_DISARM, 1,
+                        magic_force_arm_value, 0, 0, 0, 0, 0, true, null, responseTimeout).ConfigureAwait(false);
                 else
-                    return await doCommandAsync(sysid, compid, MAV_CMD.COMPONENT_ARM_DISARM, 0,
-                        magic_force_disarm_value, 0, 0, 0,
-                        0, 0).ConfigureAwait(false);
+                    return await doCommandAsyncCore(sysid, compid, MAV_CMD.COMPONENT_ARM_DISARM, 0,
+                        magic_force_disarm_value, 0, 0, 0, 0, 0, true, null, responseTimeout).ConfigureAwait(false);
             }
             else
             {
                 if (armit)
-                    return await doCommandAsync(sysid, compid, MAV_CMD.COMPONENT_ARM_DISARM, 1, 0, 0, 0, 0, 0, 0)
-                        .ConfigureAwait(false);
+                    return await doCommandAsyncCore(sysid, compid, MAV_CMD.COMPONENT_ARM_DISARM, 1, 0, 0, 0, 0,
+                        0, 0, true, null, responseTimeout).ConfigureAwait(false);
                 else
-                    return await doCommandAsync(sysid, compid, MAV_CMD.COMPONENT_ARM_DISARM, 0, 0, 0, 0, 0,
-                        0, 0).ConfigureAwait(false);
+                    return await doCommandAsyncCore(sysid, compid, MAV_CMD.COMPONENT_ARM_DISARM, 0, 0, 0, 0, 0,
+                        0, 0, true, null, responseTimeout).ConfigureAwait(false);
             }
         }
 
@@ -2740,9 +2783,17 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
                 .AwaitSync();
         }
 
-        public async Task<bool> doCommandAsync(byte sysid, byte compid, MAV_CMD actionid, float p1, float p2, float p3,
+        public Task<bool> doCommandAsync(byte sysid, byte compid, MAV_CMD actionid, float p1, float p2, float p3,
             float p4,
             float p5, float p6, float p7, bool requireack = true, Action uicallback = null)
+        {
+            return doCommandAsyncCore(sysid, compid, actionid, p1, p2, p3, p4, p5, p6, p7, requireack,
+                uicallback, null);
+        }
+
+        private async Task<bool> doCommandAsyncCore(byte sysid, byte compid, MAV_CMD actionid, float p1, float p2,
+            float p3, float p4, float p5, float p6, float p7, bool requireack, Action uicallback,
+            TimeSpan? responseTimeout)
         {
             if (BaseStream == null || BaseStream.IsOpen == false)
                 return false;
@@ -2784,6 +2835,7 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
             int retrys = 3;
 
             int timeout = 2000;
+            Stopwatch responseTimer = responseTimeout.HasValue ? Stopwatch.StartNew() : null;
 
             // imu calib take a little while
             if (actionid == MAV_CMD.PREFLIGHT_CALIBRATION && p5 == 1)
@@ -2829,6 +2881,12 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
 
             while (true)
             {
+                if (responseTimer != null && responseTimer.Elapsed >= responseTimeout.Value)
+                {
+                    giveComport = false;
+                    throw new TimeoutException("Timeout on read - doCommand");
+                }
+
                 if (DateTime.Now > GUI.AddMilliseconds(100))
                 {
                     GUI = DateTime.Now;
@@ -3461,16 +3519,42 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
             return getWPAsync(sysid, compid, index, type).AwaitSync();
         }
 
+        public Locationwp getWP(byte sysid, byte compid, ushort index, MAVLink.MAV_MISSION_TYPE type,
+            TimeSpan responseTimeout)
+        {
+            return getWPAsync(sysid, compid, index, type, responseTimeout).AwaitSync();
+        }
+
         /// <summary>
         /// Gets specfied WP
         /// </summary>
         /// <param name="index"></param>
         /// <returns>WP</returns>
-        public async Task<Locationwp> getWPAsync(byte sysid, byte compid, ushort index,
+        public Task<Locationwp> getWPAsync(byte sysid, byte compid, ushort index,
             MAVLink.MAV_MISSION_TYPE type = MAV_MISSION_TYPE.MISSION)
         {
+            return getWPAsyncCore(sysid, compid, index, type, null);
+        }
+
+        public Task<Locationwp> getWPAsync(byte sysid, byte compid, ushort index,
+            MAVLink.MAV_MISSION_TYPE type, TimeSpan responseTimeout)
+        {
+            if (responseTimeout <= TimeSpan.Zero)
+                throw new ArgumentOutOfRangeException(nameof(responseTimeout));
+
+            return getWPAsyncCore(sysid, compid, index, type, responseTimeout);
+        }
+
+        private async Task<Locationwp> getWPAsyncCore(byte sysid, byte compid, ushort index,
+            MAVLink.MAV_MISSION_TYPE type, TimeSpan? responseTimeout)
+        {
+            Stopwatch responseTimer = responseTimeout.HasValue ? Stopwatch.StartNew() : null;
             while (giveComport == true)
+            {
+                if (responseTimer != null && responseTimer.Elapsed >= responseTimeout.Value)
+                    throw new TimeoutException("Timeout on read - getWP");
                 Thread.Sleep(10);
+            }
 
             bool use_int = (MAVlist[sysid, compid].cs.capabilities & (uint) MAV_PROTOCOL_CAPABILITY.MISSION_INT) > 0;
 
@@ -3515,6 +3599,12 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
 
             while (true)
             {
+                if (responseTimer != null && responseTimer.Elapsed >= responseTimeout.Value)
+                {
+                    giveComport = false;
+                    throw new TimeoutException("Timeout on read - getWP");
+                }
+
                 if (!(start.AddMilliseconds(2500) > DateTime.Now)) // apm times out after 5000ms
                 {
                     if (retrys > 0)

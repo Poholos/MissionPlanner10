@@ -192,13 +192,13 @@
                     HorizontalAlignment="Stretch"
                     ColumnDefinitions="*,*,*,*,*"
                     RowDefinitions="Auto,Auto,Auto,Auto,Auto"
-                    ColumnSpacing="4" RowSpacing="4">
+                    ColumnSpacing="2" RowSpacing="4">
                 <Grid.Styles>
                   <Style Selector="Grid#OfficialActionsGrid Button">
                     <Setter Property="MinWidth" Value="0" />
-                    <Setter Property="MinHeight" Value="32" />
-                    <Setter Property="FontSize" Value="11" />
-                    <Setter Property="Padding" Value="4,2" />
+                    <Setter Property="MinHeight" Value="28" />
+                    <Setter Property="FontSize" Value="10" />
+                    <Setter Property="Padding" Value="1,2" />
                     <Setter Property="HorizontalAlignment" Value="Stretch" />
                     <Setter Property="HorizontalContentAlignment" Value="Center" />
                   </Style>
@@ -227,14 +227,15 @@
                         Command="{Binding QuickAutoCommand}" />
                 <Button Grid.Row="0" Grid.Column="3" Content="Set Home Alt" MaxWidth="110"
                         Command="{Binding SetHomeCommand}" />
-                <WrapPanel Grid.Row="0" Grid.Column="4" Orientation="Horizontal"
-                           ItemSpacing="3" LineSpacing="2">
-                  <NumericUpDown Width="46" ShowButtonSpinner="False"
+                <Grid x:Name="ChangeSpeedEditor" Grid.Row="0" Grid.Column="4"
+                      ColumnDefinitions="2*,3*" ColumnSpacing="2">
+                  <NumericUpDown x:Name="ChangeSpeedInput" Grid.Column="0" ShowButtonSpinner="False"
                                  FormatString="0.0" Value="{Binding ChangeSpeedValue}" />
-                  <Button Width="56" HorizontalAlignment="Left" Command="{Binding ChangeSpeedCommand}">
+                  <Button x:Name="ChangeSpeedButton" Grid.Column="1"
+                          Command="{Binding ChangeSpeedCommand}">
                     <TextBlock Text="Change Speed" TextWrapping="Wrap" TextAlignment="Center" />
                   </Button>
-                </WrapPanel>
+                </Grid>
 
                 <ComboBox Grid.Row="1" Grid.Column="0" ItemsSource="{Binding WpNumbers}"
                           SelectedItem="{Binding SelectedWaypoint}" />
@@ -244,14 +245,15 @@
                         Command="{Binding QuickLoiterCommand}" />
                 <Button Grid.Row="1" Grid.Column="3" Content="Restart Mission" MaxWidth="110"
                         Command="{Binding RestartMissionCommand}" />
-                <WrapPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal"
-                           ItemSpacing="3" LineSpacing="2">
-                  <NumericUpDown Width="46" ShowButtonSpinner="False"
+                <Grid x:Name="ChangeAltitudeEditor" Grid.Row="1" Grid.Column="4"
+                      ColumnDefinitions="2*,3*" ColumnSpacing="2">
+                  <NumericUpDown x:Name="ChangeAltitudeInput" Grid.Column="0" ShowButtonSpinner="False"
                                  FormatString="0.0" Value="{Binding ChangeAltValue}" />
-                  <Button Width="56" HorizontalAlignment="Left" Command="{Binding ChangeAltCommand}">
+                  <Button x:Name="ChangeAltitudeButton" Grid.Column="1"
+                          Command="{Binding ChangeAltCommand}">
                     <TextBlock Text="Change Alt" TextWrapping="Wrap" TextAlignment="Center" />
                   </Button>
-                </WrapPanel>
+                </Grid>
 
                 <ComboBox Grid.Row="2" Grid.Column="0" ItemsSource="{Binding Modes}"
                           SelectedItem="{Binding SelectedMode}" />
@@ -261,14 +263,15 @@
                         Command="{Binding QuickRtlCommand}" />
                 <Button Grid.Row="2" Grid.Column="3" Content="Raw Sensor View" MaxWidth="110"
                         Command="{Binding RawSensorViewCommand}" />
-                <WrapPanel Grid.Row="2" Grid.Column="4" Orientation="Horizontal"
-                           ItemSpacing="3" LineSpacing="2">
-                  <NumericUpDown Width="46" ShowButtonSpinner="False"
+                <Grid x:Name="LoiterRadiusEditor" Grid.Row="2" Grid.Column="4"
+                      ColumnDefinitions="2*,3*" ColumnSpacing="2">
+                  <NumericUpDown x:Name="LoiterRadiusInput" Grid.Column="0" ShowButtonSpinner="False"
                                  FormatString="0" Value="{Binding LoiterRadValue}" />
-                  <Button Width="56" HorizontalAlignment="Left" Command="{Binding SetLoiterRadCommand}">
+                  <Button x:Name="LoiterRadiusButton" Grid.Column="1"
+                          Command="{Binding SetLoiterRadCommand}">
                     <TextBlock Text="Set Loiter Rad" TextWrapping="Wrap" TextAlignment="Center" />
                   </Button>
-                </WrapPanel>
+                </Grid>
 
                 <ComboBox Grid.Row="3" Grid.Column="0" ItemsSource="{Binding MountModes}"
                           SelectedItem="{Binding SelectedMountMode}" />

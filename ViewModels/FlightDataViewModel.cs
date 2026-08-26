@@ -1474,6 +1474,9 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
 
   private bool Connected => CanSendMessage(_comPort);
 
+  internal static readonly TimeSpan VehicleActionResponseTimeout = TimeSpan.FromSeconds(10);
+  private static readonly TimeSpan VehicleStatePollInterval = TimeSpan.FromMilliseconds(100);
+
   internal static string VehicleActionFailureMessage(Exception exception) => exception switch {
     TimeoutException => "Timed out waiting for a response from the vehicle.",
     ObjectDisposedException => "The vehicle connection was closed while the command was running.",
@@ -1501,23 +1504,27 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
     }
 
     var statusMessages = new System.Collections.Concurrent.ConcurrentQueue<string>();
+    MAVLinkInterface link = _comPort;
+    byte targetSystem = link.MAV.sysid;
+    byte targetComponent = link.MAV.compid;
     int subscription = -1;
     try {
-      subscription = _comPort.SubscribeToPacketType(
+      subscription = link.SubscribeToPacketType(
           MAVLink.MAVLINK_MSG_ID.STATUSTEXT,
           message => {
             statusMessages.Enqueue(System.Text.Encoding.ASCII.GetString(
                 message.ToStructure<MAVLink.mavlink_statustext_t>().text).TrimEnd('\0'));
             return true;
           },
-          _comPort.MAV.sysid,
-          _comPort.MAV.compid);
+          targetSystem,
+          targetComponent);
       bool accepted;
       try {
-        accepted = await Task.Run(() => _comPort.doARM(target, false));
+        accepted = await Task.Run(() => link.doARM(
+            targetSystem, targetComponent, target, false, VehicleActionResponseTimeout));
       } finally {
         if (subscription >= 0) {
-          _comPort.UnSubscribeToPacketType(subscription);
+          link.UnSubscribeToPacketType(subscription);
           subscription = -1;
         }
       }
@@ -1539,14 +1546,15 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
         return;
       }
 
-      bool forced = await Task.Run(() => _comPort.doARM(target, true));
+      bool forced = await Task.Run(() => link.doARM(
+          targetSystem, targetComponent, target, true, VehicleActionResponseTimeout));
       Messages += $"Force {action}: {(forced ? "ok" : "rejected")}\n";
     } catch (Exception ex) {
       await ReportVehicleActionFailure("Arm / Disarm", ex);
     } finally {
       if (subscription >= 0) {
         try {
-          _comPort.UnSubscribeToPacketType(subscription);
+          link.UnSubscribeToPacketType(subscription);
         } catch (Exception ex) {
           Log("Unable to remove arm-status subscription: " + ex.Message);
         }
@@ -2120,26 +2128,34 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
         "resumemission")) {
       return;
     }
-    var cs = _comPort.MAV.cs;
-    int last = cs.lastautowp == -1 ? 1 : cs.lastautowp;
+    int last = _comPort.MAV.cs.lastautowp == -1 ? 1 : _comPort.MAV.cs.lastautowp;
     var s = await Services.Dialogs.InputBox("Resume at", "Resume mission at waypoint #", last.ToString());
     if (!int.TryParse(s, out int lastwpno) || lastwpno < 0 || lastwpno > ushort.MaxValue) {
       await Services.Dialogs.Alert(
           "Resume Mission", $"Waypoint must be between 0 and {ushort.MaxValue}.");
       return;
     }
+    MAVLinkInterface link = _comPort;
+    MAVState mav = link.MAV;
+    var cs = mav.cs;
+    byte targetSystem = mav.sysid;
+    byte targetComponent = mav.compid;
     Log("Resuming mission…");
     try {
       bool completed = await Task.Run(() => {
         var cmds = new System.Collections.Generic.List<MissionPlanner.Utilities.Locationwp>();
-        ushort wpcount = _comPort.getWPCount();
+        ushort wpcount = link.getWPCount(targetSystem, targetComponent);
         if (wpcount == 0 || lastwpno >= wpcount) {
           throw new InvalidOperationException(
               $"Waypoint {lastwpno} is not present in the vehicle mission ({wpcount} items).");
         }
-        var lastwpdata = _comPort.getWP((ushort)lastwpno);
+        var lastwpdata = link.getWP(targetSystem, targetComponent, (ushort)lastwpno,
+            MAVLink.MAV_MISSION_TYPE.MISSION, VehicleActionResponseTimeout);
         for (ushort a = 0; a < wpcount; a++) {
-          var wp = _comPort.getWP(a);
+          var wp = a == lastwpno
+              ? lastwpdata
+              : link.getWP(targetSystem, targetComponent, a,
+                  MAVLink.MAV_MISSION_TYPE.MISSION, VehicleActionResponseTimeout);
           if (a < lastwpno && a != 0) {
             if (wp.id != (ushort)MAVLink.MAV_CMD.TAKEOFF
                 && wp.id < (ushort)MAVLink.MAV_CMD.LAST) {
@@ -2152,36 +2168,45 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
           cmds.Add(wp);
         }
         ushort wpno = 0;
-        _comPort.setWPTotal((ushort)cmds.Count);
+        link.setWPTotalAsync(targetSystem, targetComponent, (ushort)cmds.Count)
+            .ConfigureAwait(false).GetAwaiter().GetResult();
         foreach (var loc in cmds) {
-          if (_comPort.setWP(loc, wpno, (MAVLink.MAV_FRAME)loc.frame)
+          if (link.setWP(targetSystem, targetComponent, loc, wpno, (MAVLink.MAV_FRAME)loc.frame)
               != MAVLink.MAV_MISSION_RESULT.MAV_MISSION_ACCEPTED) {
             return false;
           }
           wpno++;
         }
-        _comPort.setWPACK();
-        _comPort.setWPCurrent(_comPort.MAV.sysid, _comPort.MAV.compid, 1);
+        link.setWPACK(targetSystem, targetComponent);
+        link.setWPCurrent(
+            targetSystem, targetComponent, 1, VehicleActionResponseTimeout);
 
         if (cs.firmware == MissionPlanner.ArduPilot.Firmwares.ArduCopter2) {
-          if (!SpinUntil(() => {
-                _comPort.setMode("GUIDED");
-                return cs.mode.Equals("Guided", StringComparison.OrdinalIgnoreCase);
-              })) {
+          if (!SendAndWaitForVehicleState(
+              () => {
+                link.setMode(targetSystem, targetComponent, "GUIDED");
+                return true;
+              },
+              () => cs.mode.Equals("Guided", StringComparison.OrdinalIgnoreCase),
+              VehicleActionResponseTimeout)) {
             return false;
           }
-          if (!SpinUntil(() => { _comPort.doARM(true); return cs.armed; })) {
+          if (!SendAndWaitForVehicleState(
+              () => link.doARM(targetSystem, targetComponent, true, false,
+                  VehicleActionResponseTimeout),
+              () => cs.armed,
+              VehicleActionResponseTimeout)) {
             return false;
           }
-          if (!SpinUntil(() => {
-                _comPort.doCommand(_comPort.MAV.sysid, _comPort.MAV.compid,
-                    MAVLink.MAV_CMD.TAKEOFF, 0, 0, 0, 0, 0, 0, lastwpdata.alt);
-                return cs.alt >= lastwpdata.alt - 2;
-              })) {
+          if (!SendAndWaitForVehicleState(
+              () => link.doCommand(targetSystem, targetComponent,
+                  MAVLink.MAV_CMD.TAKEOFF, 0, 0, 0, 0, 0, 0, lastwpdata.alt),
+              () => cs.alt >= lastwpdata.alt - 2,
+              VehicleActionResponseTimeout)) {
             return false;
           }
         }
-        _comPort.setMode("AUTO");
+        link.setMode(targetSystem, targetComponent, "AUTO");
         return true;
       });
       if (!completed) {
@@ -2196,14 +2221,27 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
     }
   }
 
-  private static bool SpinUntil(Func<bool> tryStep) {
-    for (int i = 0; i < 30; i++) {
-      if (tryStep()) {
-        return true;
-      }
-      System.Threading.Thread.Sleep(1000);
+  internal static bool SendAndWaitForVehicleState(
+      Func<bool> sendCommand, Func<bool> stateReached, TimeSpan timeout) {
+    ArgumentNullException.ThrowIfNull(sendCommand);
+    ArgumentNullException.ThrowIfNull(stateReached);
+    if (timeout <= TimeSpan.Zero) {
+      throw new ArgumentOutOfRangeException(nameof(timeout));
     }
-    return false;
+
+    var elapsed = System.Diagnostics.Stopwatch.StartNew();
+    if (!sendCommand()) {
+      return false;
+    }
+    while (!stateReached()) {
+      TimeSpan remaining = timeout - elapsed.Elapsed;
+      if (remaining <= TimeSpan.Zero) {
+        return false;
+      }
+      System.Threading.Thread.Sleep(
+          remaining < VehicleStatePollInterval ? remaining : VehicleStatePollInterval);
+    }
+    return true;
   }
 
   [RelayCommand]

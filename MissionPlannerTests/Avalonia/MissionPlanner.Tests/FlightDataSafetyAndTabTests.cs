@@ -184,6 +184,7 @@ public class FlightDataSafetyAndTabTests {
 
   [Fact]
   public void Vehicle_action_timeouts_have_a_safe_user_facing_result() {
+    Assert.Equal(TimeSpan.FromSeconds(10), FlightDataViewModel.VehicleActionResponseTimeout);
     Assert.Equal(
         "Timed out waiting for a response from the vehicle.",
         FlightDataViewModel.VehicleActionFailureMessage(
@@ -192,6 +193,24 @@ public class FlightDataSafetyAndTabTests {
         "The vehicle connection was closed while the command was running.",
         FlightDataViewModel.VehicleActionFailureMessage(
             new ObjectDisposedException("transport")));
+  }
+
+  [Fact]
+  public void Resume_state_wait_sends_each_vehicle_command_only_once() {
+    int sends = 0;
+    var elapsed = System.Diagnostics.Stopwatch.StartNew();
+
+    bool completed = FlightDataViewModel.SendAndWaitForVehicleState(
+        () => {
+          sends++;
+          return true;
+        },
+        () => false,
+        TimeSpan.FromMilliseconds(25));
+
+    Assert.False(completed);
+    Assert.Equal(1, sends);
+    Assert.InRange(elapsed.Elapsed, TimeSpan.FromMilliseconds(20), TimeSpan.FromSeconds(1));
   }
 
   [Theory]
@@ -259,6 +278,21 @@ public class FlightDataSafetyAndTabTests {
       var arm = Assert.IsType<Button>(view.FindControl<Button>("ArmDisarmButton"));
       var resume = Assert.IsType<Button>(view.FindControl<Button>("ResumeMissionButton"));
       var disable = Assert.IsType<Button>(view.FindControl<Button>("DisableJoystickButton"));
+      var compactEditors = new[] {
+        Assert.IsType<AvaloniaGrid>(view.FindControl<AvaloniaGrid>("ChangeSpeedEditor")),
+        Assert.IsType<AvaloniaGrid>(view.FindControl<AvaloniaGrid>("ChangeAltitudeEditor")),
+        Assert.IsType<AvaloniaGrid>(view.FindControl<AvaloniaGrid>("LoiterRadiusEditor")),
+      };
+      var compactButtons = new[] {
+        Assert.IsType<Button>(view.FindControl<Button>("ChangeSpeedButton")),
+        Assert.IsType<Button>(view.FindControl<Button>("ChangeAltitudeButton")),
+        Assert.IsType<Button>(view.FindControl<Button>("LoiterRadiusButton")),
+      };
+      var compactInputs = new[] {
+        Assert.IsType<NumericUpDown>(view.FindControl<NumericUpDown>("ChangeSpeedInput")),
+        Assert.IsType<NumericUpDown>(view.FindControl<NumericUpDown>("ChangeAltitudeInput")),
+        Assert.IsType<NumericUpDown>(view.FindControl<NumericUpDown>("LoiterRadiusInput")),
+      };
       var scroll = Assert.IsType<ScrollViewer>(
           view.FindControl<ScrollViewer>("ActionsScrollViewer"));
       var messageRate = Assert.IsType<Expander>(
@@ -266,6 +300,7 @@ public class FlightDataSafetyAndTabTests {
 
       Assert.Equal(5, grid.ColumnDefinitions.Count);
       Assert.Equal(5, grid.RowDefinitions.Count);
+      Assert.Equal(2, grid.ColumnSpacing);
       Assert.All(grid.ColumnDefinitions, definition => {
         Assert.Equal(GridUnitType.Star, definition.Width.GridUnitType);
         Assert.Equal(1, definition.Width.Value);
@@ -277,6 +312,21 @@ public class FlightDataSafetyAndTabTests {
       Assert.Equal(ScrollBarVisibility.Disabled, scroll.HorizontalScrollBarVisibility);
       Assert.Equal(HorizontalAlignment.Stretch, setup.HorizontalAlignment);
       Assert.Equal(110, setup.MaxWidth);
+      Assert.All(compactEditors, editor => {
+        Assert.Equal(2, editor.ColumnDefinitions.Count);
+        Assert.Equal(2, editor.ColumnSpacing);
+        Assert.Equal((2d, 3d), (
+            editor.ColumnDefinitions[0].Width.Value,
+            editor.ColumnDefinitions[1].Width.Value));
+      });
+      Assert.All(compactButtons, button => {
+        Assert.Equal(0, button.MinWidth);
+        Assert.True(double.IsNaN(button.Width));
+      });
+      Assert.All(compactInputs, input => {
+        Assert.Equal(0, input.MinWidth);
+        Assert.True(double.IsNaN(input.Width));
+      });
       Assert.Equal((0, 0), (AvaloniaGrid.GetRow(actionSelector), AvaloniaGrid.GetColumn(actionSelector)));
       Assert.Equal((0, 1), (AvaloniaGrid.GetRow(doAction), AvaloniaGrid.GetColumn(doAction)));
       Assert.Equal((3, 2), (AvaloniaGrid.GetRow(setup), AvaloniaGrid.GetColumn(setup)));
