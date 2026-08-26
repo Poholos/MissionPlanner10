@@ -466,6 +466,11 @@ public partial class OpenDroneIdViewModel : ViewModelBase, IDisposable {
             fix.Latitude, fix.Longitude, fix.AltitudeM, fix.GeodeticAltitudeM,
             fix.FixQuality, fix.Satellites, fix.Hdop));
       } catch (TimeoutException) {
+      } catch (Exception) when (cancellationToken.IsCancellationRequested) {
+        // Closing a serial/network input is how a blocking ReadLine is interrupted. Drivers may
+        // report that normal shutdown as ObjectDisposedException/IOException instead of token
+        // cancellation; neither should fault the reader task observed by StopCoreAsync.
+        return;
       } catch (Exception ex) when (!cancellationToken.IsCancellationRequested) {
         RequestStop("Open Drone ID NMEA input stopped: " + ex.Message);
         return;
@@ -649,6 +654,7 @@ public partial class OpenDroneIdViewModel : ViewModelBase, IDisposable {
     CloseTransport();
     UnsubscribeAll();
 
+    Exception? stopError = null;
     foreach (Task? task in new[] { reader, sender, accept }) {
       if (task == null) {
         continue;
@@ -657,6 +663,14 @@ public partial class OpenDroneIdViewModel : ViewModelBase, IDisposable {
         await task.WaitAsync(TimeSpan.FromSeconds(2));
       } catch (OperationCanceledException) {
       } catch (TimeoutException) {
+      } catch (ObjectDisposedException) {
+        // A driver can surface its closed-port state after cancellation wins the shutdown race.
+      } catch (System.IO.IOException) {
+        // Serial and socket readers commonly use IOException to report an intentional close.
+      } catch (Exception ex) {
+        // Never allow a faulted background task to escape through AsyncRelayCommand and terminate
+        // the UI process. Preserve unexpected failures in the visible session status instead.
+        stopError ??= ex;
       }
     }
     cts?.Dispose();
@@ -665,7 +679,9 @@ public partial class OpenDroneIdViewModel : ViewModelBase, IDisposable {
     _targetInvalidated = false;
     Running = false;
     ConnectButtonText = "Start";
-    Status = reason;
+    Status = stopError == null
+        ? reason
+        : $"{reason} Background Open Drone ID task failed: {stopError.Message}";
     MapStatusText = "Remote ID stopped";
     MapStatusBrush = Brush("#A0606060");
     RefreshTargetDescription();

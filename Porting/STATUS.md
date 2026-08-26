@@ -2,6 +2,31 @@
 
 Updated: **2026-08-26**.
 
+## Cancellable/partial parameter loading and Open Drone ID shutdown checkpoint
+
+- Primary connection initialization now distinguishes transport opening from parameter loading.
+  Cancel/closing the progress window still aborts a port that has not opened, but once MAVLink is
+  open the action becomes `Skip Parameters`: the parameter reader is cancelled and awaited while
+  the transport, logs and telemetry connection remain active. A parameter timeout/failure likewise
+  no longer converts a valid connection into a disconnect. The configuration loading page also
+  provides `Stop Loading` and retains `Retry Now`.
+- Fresh parameters for the exact selected target are now visible incrementally in `Full Parameter
+  List`. That page bypasses the complete-list overlay, refreshes its safe snapshot twice per second,
+  preserves user-staged edits as later packets arrive, and shows a red bottom warning with the
+  received/expected counts until complete. Cancelling retains received values; a new session,
+  target switch or explicit retry still clears old values first. Specialized configuration pages
+  remain gated until the complete list because many treat a missing parameter as a default value.
+- Writing one already-received parameter from a partial list is supported and no longer forces an
+  automatic full refresh afterward. The confirmation/result explicitly says that parameters not
+  displayed were not changed and leaves a manual full refresh available.
+- Open Drone ID shutdown now treats a serial/network `ReadLine` interrupted by closing the port as
+  normal cancellation. `StopCoreAsync` also observes and contains faulted background tasks instead
+  of allowing `ObjectDisposedException: The port is closed` to escape through `AsyncRelayCommand`
+  and terminate Mission Planner 10. A deterministic blocking-read/closed-port regression test
+  covers the reported stack.
+- Focused connection/parameter/OpenDroneID tests pass 105/105; the full suite passes 1489/1489 and
+  the Release solution builds with 0 warnings and 0 errors.
+
 ## SITL AutoTune feedback and Copter Circle-overlay checkpoint
 
 - The reported Copter SITL `AutoTune` failure was traced through the live telemetry log rather

@@ -201,6 +201,31 @@ public class OpenDroneIdTests {
   }
 
   [AvaloniaFact]
+  public async Task Closing_serial_input_during_a_blocking_read_does_not_escape_stop_command() {
+    MAVLinkInterface link = OpenLink();
+    NmeaVehicleTarget? current = new(link, 14, 1);
+    var adapter = new FakeAdapter();
+    var gps = new ClosedPortReadSerial();
+    using var viewModel = new OpenDroneIdViewModel(
+        _ => current,
+        adapter,
+        _ => Task.FromResult(true),
+        (_, _, _, _) => (gps, null));
+    viewModel.SelectedInput = OpenDroneIdViewModel.UdpHost;
+    viewModel.UasId = "ABC123";
+    viewModel.OperatorId = "OP-987";
+
+    await viewModel.ToggleCommand.ExecuteAsync(null);
+    Assert.True(gps.WaitUntilReading(TimeSpan.FromSeconds(1)));
+
+    await viewModel.ToggleCommand.ExecuteAsync(null);
+
+    Assert.False(viewModel.Running);
+    Assert.Equal("Stopped.", viewModel.Status);
+    Assert.True(gps.WasClosed);
+  }
+
+  [AvaloniaFact]
   public void Native_flight_data_exposes_official_drone_id_tab_and_map_status() {
     using var viewModel = new FlightDataViewModel();
     var view = new FlightDataView { DataContext = viewModel };
@@ -278,7 +303,7 @@ public class OpenDroneIdTests {
         _handlers[component]((byte)MAVLink.MAV_ODID_ARM_STATUS.GOOD_TO_ARM, "");
   }
 
-  private sealed class RepeatingLineSerial : ICommsSerial {
+  private class RepeatingLineSerial : ICommsSerial {
     private readonly string _line;
     private int _open = 1;
 
@@ -298,11 +323,11 @@ public class OpenDroneIdTests {
     public int WriteBufferSize { get; set; }
     public int WriteTimeout { get; set; }
     public void Open() => Volatile.Write(ref _open, 1);
-    public void Close() {
+    public virtual void Close() {
       WasClosed = true;
       Volatile.Write(ref _open, 0);
     }
-    public string ReadLine() {
+    public virtual string ReadLine() {
       if (!IsOpen) {
         throw new IOException("Input is closed.");
       }
@@ -322,5 +347,26 @@ public class OpenDroneIdTests {
     public void Write(byte[] buffer, int offset, int count) { }
     public void WriteLine(string text) { }
     public void toggleDTR() { }
+  }
+
+  private sealed class ClosedPortReadSerial : RepeatingLineSerial {
+    private readonly ManualResetEventSlim _reading = new();
+    private readonly ManualResetEventSlim _closed = new();
+
+    internal ClosedPortReadSerial() : base("") {
+    }
+
+    internal bool WaitUntilReading(TimeSpan timeout) => _reading.Wait(timeout);
+
+    public override string ReadLine() {
+      _reading.Set();
+      _closed.Wait();
+      throw new ObjectDisposedException("test serial port", "The port is closed.");
+    }
+
+    public override void Close() {
+      base.Close();
+      _closed.Set();
+    }
   }
 }
