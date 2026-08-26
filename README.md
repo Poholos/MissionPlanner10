@@ -1,13 +1,22 @@
-# Mission Planner 10 — native Avalonia port
+# Mission Planner 10 — .NET 10 and Avalonia port of ArduPilot Mission Planner
 
 [![CI](https://github.com/Rouniy/MissionPlanner/actions/workflows/ci.yml/badge.svg)](https://github.com/Rouniy/MissionPlanner/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/Rouniy/MissionPlanner/actions/workflows/codeql.yml/badge.svg)](https://github.com/Rouniy/MissionPlanner/actions/workflows/codeql.yml)
 
-A native, cross-platform (macOS / Linux / Windows) port of the **ArduPilot Mission Planner** UI,
-built with **Avalonia (.NET 10)** and distributed as **Mission Planner 10**. The Avalonia
-application, reusable Mission Planner backends,
-plugins and migration history live together in this fork; there is no external source repository or
-submodule for the application.
+**Mission Planner 10** is an AI-assisted, cross-platform port of the official
+**ArduPilot Mission Planner** ground control station to **.NET 10** and **Avalonia**, targeting
+Linux, Windows and macOS. It runs as a native desktop application on all three platforms, without
+Wine or a browser wrapper. The port preserves Mission Planner's reusable flight-planning, MAVLink,
+telemetry and device-management backends while replacing the Windows-only UI with Avalonia.
+
+In addition to the cross-platform migration, this fork includes many reliability, safety and
+usability fixes, hardening changes and regression tests that have not been incorporated into the
+official Mission Planner codebase. AI tools assist with code analysis, migration and review; every
+change remains in the normal source history and is validated through automated tests,
+cross-platform builds and human review.
+
+The Avalonia application, reusable Mission Planner backends, plugins and migration history live
+together in this fork; there is no external source repository or application submodule.
 
 > Independent community port — **not** affiliated with or endorsed by ArduPilot. Based on
 > [Mission Planner](https://github.com/ArduPilot/MissionPlanner) (© Michael Oborne), GPLv3. See `NOTICE.md`.
