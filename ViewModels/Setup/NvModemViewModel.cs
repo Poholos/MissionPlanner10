@@ -168,7 +168,7 @@ internal sealed class NvModemDeviceState {
     Key = key;
   }
 
-  internal NvModemDeviceKey Key { get; }
+  internal NvModemDeviceKey Key { get; set; }
   internal NvModemGeneration Generation { get; set; }
   internal uint ProductProfile { get; set; }
   internal DateTime LastSeenUtc { get; set; }
@@ -190,6 +190,10 @@ internal sealed class NvModemDeviceState {
   internal DateTime ParameterListLastProgressUtc { get; set; }
   internal int ParameterListRetries { get; set; }
   internal DateTime RebootReadyUtc { get; set; }
+  internal bool IdentityTransitionExpected { get; set; }
+  internal byte ExpectedSystemId { get; set; }
+  internal byte ExpectedComponentId { get; set; }
+  internal DateTime IdentityTransitionExpiresUtc { get; set; }
   internal string RtspPath { get; set; } = "";
   internal bool RtspPathReady { get; set; }
   internal NvModemDeviceChoice? Choice { get; set; }
@@ -216,6 +220,9 @@ internal sealed class NvWriteOperation {
   internal byte[] Channel2Key { get; init; } = [];
   internal byte Channel { get; init; }
   internal bool Enabled { get; init; }
+  internal bool MismatchedParameterEcho { get; set; }
+  internal double ReportedParameterValue { get; set; }
+  internal byte ReportedParameterType { get; set; } = (byte)MAVLink.MAV_PARAM_TYPE.REAL32;
   internal int Retries { get; set; }
   internal DateTime SentUtc { get; set; }
 }
@@ -225,6 +232,7 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
   private static readonly TimeSpan TransactionTimeout = TimeSpan.FromMilliseconds(1200);
   private static readonly TimeSpan ParameterListTimeout = TimeSpan.FromSeconds(3);
   private static readonly TimeSpan ParameterListRetry = TimeSpan.FromSeconds(2);
+  private static readonly TimeSpan ExpectedIdentityTransition = TimeSpan.FromSeconds(15);
   private const int MaximumWriteAttempts = 3;
   private const int MaximumParameterListRetries = 6;
   private const ushort SetTransmitEnabledCommand = 42010;
@@ -232,6 +240,7 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
   private readonly INvModemMavlinkTransport _transport;
   private readonly Func<DateTime> _utcNow;
   private readonly Dictionary<NvModemDeviceKey, NvModemDeviceState> _devices = [];
+  private readonly HashSet<NvModemDeviceKey> _retiredDeviceKeys = [];
   private readonly Dictionary<string, NvModemParameterRow> _parameterRows =
       new(StringComparer.Ordinal);
   private readonly Queue<NvWriteOperation> _writeQueue = [];
@@ -581,9 +590,9 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
       case "factory":
         bool lora = chip != 0;
         name = "factory defaults";
-        Set("MOD", lora ? 0 : 1); Set("FRAME", lora ? 64 : 240); Set("FHSS", 1);
-        Set("FHSS_KHZ", lora ? 2000 : 14000); Set("GUARD_US", 3000);
-        Set("DWELL_SH", lora ? 0 : 5); Set("SYNC_PER", 16); Set("SCAN_DW", lora ? 9 : 2);
+        Set("MOD", lora ? 0 : 1); Set("FRAME", lora ? 64 : 240);
+        Set("FHSS", lora ? 1 : 0); Set("FHSS_KHZ", 40000); Set("GUARD_US", 3000);
+        Set("DWELL_SH", lora ? 0 : 5); Set("SYNC_PER", 16); Set("SCAN_DW", lora ? 5 : 2);
         Set("ENCRYPT", 1); Set("RADIO_CRC", 1);
         Set("GUARD_MULT", 0, MAVLink.MAV_PARAM_TYPE.REAL32); Set("OPEN_LOOP", 0);
         Set("LINK_MS", 5000); Set("TX_PERIOD", lora ? 100000 : 20000);
@@ -743,6 +752,9 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
     if (!ReferenceEquals(device, SelectedState) || !CanReboot) {
       SetStatus("The selected modem or its MAVLink connection changed before confirmation.", true);
       return;
+    }
+    if (device.IdentityTransitionExpected) {
+      device.IdentityTransitionExpiresUtc = _utcNow() + ExpectedIdentityTransition;
     }
     StartSingleWrite(new NvWriteOperation { Kind = NvWriteKind.Reboot, Device = device });
   }
@@ -945,12 +957,12 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
     }
 
     var key = new NvModemDeviceKey(source, packet.sysid, packet.compid);
-    _devices.TryGetValue(key, out NvModemDeviceState? device);
     uint msgid = packet.msgid;
 
     string parameterName = "";
     MAVLink.mavlink_param_value_t parameter = default;
     NvModemInfoMessage modemInfo = default;
+    bool supportedModemInfo = false;
     Nv5RtspConfigMessage rtspConfig = default;
     bool nv5Identity = msgid is NvModemMessageIds.Nv5LinkStatus
         or NvModemMessageIds.Nv5RtspConfigAck
@@ -965,7 +977,8 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
     }
     if (msgid == NvModemMessageIds.NvModemInfo) {
       modemInfo = packet.ToStructure<NvModemInfoMessage>();
-      if (modemInfo.SchemaVersion >= 1) {
+      supportedModemInfo = IsSupportedModemInfo(modemInfo);
+      if (supportedModemInfo) {
         nv4Identity = modemInfo.ModemGeneration == 4;
         nv5Identity = modemInfo.ModemGeneration == 5;
       }
@@ -982,6 +995,20 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
       // Import parameters only after a vendor message or the strict NV4 CAN passport has
       // confirmed this exact link/system/component endpoint as a modem.
     }
+    if (msgid == NvModemMessageIds.NvModemInfo && !supportedModemInfo) {
+      return;
+    }
+    if (_retiredDeviceKeys.Contains(key) && !supportedModemInfo) {
+      return;
+    }
+    if (supportedModemInfo) {
+      if (!ReconcileModemIdentity(key, modemInfo)) {
+        return;
+      }
+      _retiredDeviceKeys.Remove(key);
+    }
+
+    _devices.TryGetValue(key, out NvModemDeviceState? device);
     if (device == null && !nv5Identity && !nv4Identity) {
       return;
     }
@@ -1012,9 +1039,7 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
       SendParameterRequestList(device);
     }
 
-    if (msgid == NvModemMessageIds.NvModemInfo
-        && modemInfo.SchemaVersion >= 1
-        && modemInfo.ModemGeneration is 4 or 5) {
+    if (supportedModemInfo) {
       device.ModemInfo = modemInfo;
       device.ModemInfoReady = true;
       device.Generation = modemInfo.ModemGeneration == 4
@@ -1065,6 +1090,181 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
     }
     RebuildCopySources();
   }
+
+  private bool ReconcileModemIdentity(
+      NvModemDeviceKey announcedKey, NvModemInfoMessage identity) {
+    if (!HasStableModemIdentity(identity)) {
+      return true;
+    }
+
+    NvModemDeviceState[] matches = [.. _devices.Values.Where(device =>
+        device.ModemInfoReady
+        && !Equals(device.Key, announcedKey)
+        && Equals(device.Key.Link, announcedKey.Link)
+        && SameModemIdentity(device.ModemInfo, identity))];
+    if (matches.Length == 0) {
+      return true;
+    }
+    if (matches.Length != 1) {
+      RetireIdentityCandidate(announcedKey);
+      SetStatus("Multiple modem records reported the same UID2; identity migration is blocked.",
+          true);
+      return false;
+    }
+
+    NvModemDeviceState previous = matches[0];
+    bool expectedTransition = ExpectedIdentityTransitionMatches(previous, announcedKey);
+    if (!expectedTransition && IsOnline(previous)) {
+      RetireIdentityCandidate(announcedKey);
+      SetStatus("Two live modem endpoints reported the same UID2; identity migration is blocked.",
+          true);
+      return false;
+    }
+    if (IsBusy || _currentWrite != null || _writeQueue.Count != 0) {
+      _retiredDeviceKeys.Add(announcedKey);
+      SetStatus("The modem identity changed during a configuration transaction; migration is "
+          + "deferred until the transaction finishes.", true);
+      return false;
+    }
+
+    _devices.TryGetValue(announcedKey, out NvModemDeviceState? target);
+    if (target?.ModemInfoReady == true
+        && !SameModemIdentity(target.ModemInfo, identity)) {
+      SetStatus("The modem's new MAVLink address is already used by another device.", true);
+      return false;
+    }
+
+    MigrateDeviceIdentity(previous, target, announcedKey, identity, expectedTransition);
+    return true;
+  }
+
+  private void MigrateDeviceIdentity(
+      NvModemDeviceState previous,
+      NvModemDeviceState? target,
+      NvModemDeviceKey announcedKey,
+      NvModemInfoMessage identity,
+      bool expectedTransition) {
+    NvModemDeviceKey previousKey = previous.Key;
+    bool targetWasSelected = target != null && ReferenceEquals(target, SelectedState);
+    if (target != null && !ReferenceEquals(target, previous)) {
+      foreach ((string name, double value) in target.Parameters) {
+        previous.Parameters[name] = value;
+      }
+      foreach ((string name, byte type) in target.ParameterTypes) {
+        previous.ParameterTypes[name] = type;
+      }
+      foreach ((int channel, Nv5LinkStatusMessage status) in target.Links) {
+        previous.Links[channel] = status;
+      }
+      previous.ExpectedParameterCount = Math.Max(
+          previous.ExpectedParameterCount, target.ExpectedParameterCount);
+      previous.LastSeenUtc = Later(previous.LastSeenUtc, target.LastSeenUtc);
+      previous.RebootReadyUtc = Later(previous.RebootReadyUtc, target.RebootReadyUtc);
+      if (target.RtspPathReady) {
+        previous.RtspPath = target.RtspPath;
+        previous.RtspPathReady = true;
+      }
+      _devices.Remove(target.Key);
+      if (target.Choice != null) {
+        Devices.Remove(target.Choice);
+      }
+    }
+
+    _devices.Remove(previousKey);
+    previous.Key = announcedKey;
+    previous.ModemInfo = identity;
+    previous.ModemInfoReady = true;
+    previous.Generation = identity.ModemGeneration == 4
+        ? NvModemGeneration.Nv4 : NvModemGeneration.Nv5;
+    previous.ProductProfile = identity.ProductProfile;
+    previous.IdentityTransitionExpected = false;
+    _devices[announcedKey] = previous;
+    _retiredDeviceKeys.Add(previousKey);
+    _retiredDeviceKeys.Remove(announcedKey);
+
+    if (targetWasSelected && previous.Choice != null) {
+      _switchGuard = true;
+      SelectedDevice = previous.Choice;
+      _switchGuard = false;
+      ShowSelectedDevice(clearDeviceParameters: false);
+    }
+    UpdateDeviceLabel(previous);
+    if (expectedTransition) {
+      SetStatus($"Modem reconnected with its requested identity "
+          + $"{announcedKey.SystemId}:{announcedKey.ComponentId}.");
+    }
+  }
+
+  private void RetireIdentityCandidate(NvModemDeviceKey key) {
+    _retiredDeviceKeys.Add(key);
+    if (!_devices.TryGetValue(key, out NvModemDeviceState? candidate)
+        || candidate.ModemInfoReady
+        || ReferenceEquals(_currentWrite?.Device, candidate)) {
+      return;
+    }
+
+    bool wasSelected = ReferenceEquals(candidate, SelectedState);
+    _devices.Remove(key);
+    if (candidate.Choice != null) {
+      Devices.Remove(candidate.Choice);
+    }
+    if (wasSelected) {
+      _switchGuard = true;
+      SelectedDevice = Devices.FirstOrDefault();
+      _switchGuard = false;
+      ShowSelectedDevice(clearDeviceParameters: false);
+    }
+    RebuildCopySources();
+  }
+
+  private bool ExpectedIdentityTransitionMatches(
+      NvModemDeviceState previous, NvModemDeviceKey announcedKey) {
+    DateTime now = _utcNow();
+    return previous.IdentityTransitionExpected
+        && now >= previous.RebootReadyUtc
+        && now <= previous.IdentityTransitionExpiresUtc
+        && Equals(previous.Key.Link, announcedKey.Link)
+        && announcedKey.SystemId == previous.ExpectedSystemId
+        && announcedKey.ComponentId == previous.ExpectedComponentId;
+  }
+
+  private void ArmExpectedIdentityTransition(NvModemDeviceState device) {
+    device.ExpectedSystemId = ParameterByte(
+        device, "MAV_SYS_ID", device.Key.SystemId);
+    device.ExpectedComponentId = ParameterByte(
+        device, "LOCAL_IP_4", device.Key.ComponentId);
+    device.IdentityTransitionExpected = true;
+    device.IdentityTransitionExpiresUtc = Later(_utcNow(), device.RebootReadyUtc)
+        + ExpectedIdentityTransition;
+  }
+
+  private static byte ParameterByte(
+      NvModemDeviceState device, string name, byte fallback) {
+    double value = device.Parameters.GetValueOrDefault(name, fallback);
+    return double.IsFinite(value) && value == Math.Truncate(value)
+        && value is >= byte.MinValue and <= byte.MaxValue
+            ? (byte)value : fallback;
+  }
+
+  private static bool IsIdentityAddressParameter(string name) =>
+      name is "MAV_SYS_ID" or "LOCAL_IP_1" or "LOCAL_IP_2" or "LOCAL_IP_3" or "LOCAL_IP_4";
+
+  private static bool IsSupportedModemInfo(NvModemInfoMessage identity) =>
+      identity.SchemaVersion == 1
+      && identity.ModemGeneration is 4 or 5
+      && (identity.Capabilities & NvModemCapabilities.MavlinkParameters) != 0;
+
+  private static bool HasStableModemIdentity(NvModemInfoMessage identity) =>
+      identity.Uid2?.Any(value => value != 0) == true;
+
+  private static bool SameModemIdentity(
+      NvModemInfoMessage left, NvModemInfoMessage right) =>
+      left.ModemGeneration == right.ModemGeneration
+      && left.ProductProfile == right.ProductProfile
+      && (left.Uid2 ?? []).SequenceEqual(right.Uid2 ?? []);
+
+  private static DateTime Later(DateTime left, DateTime right) =>
+      left >= right ? left : right;
 
   private void ReplayCachedParameters(
       NvModemLink source, IReadOnlyList<NvModemCachedParameter> cached) {
@@ -1159,6 +1359,9 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
         // PARAM_VALUE has no transaction id. A list response for the same name can arrive
         // between PARAM_SET and its typed echo, so retain the staged value and wait for the
         // exact echo or the normal retry timeout.
+        write.MismatchedParameterEcho = true;
+        write.ReportedParameterValue = decoded;
+        write.ReportedParameterType = type;
         return;
       }
       device.Parameters[name] = decoded;
@@ -1168,6 +1371,14 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
       if (NvModemCatalog.RequiresManualReboot(device.Generation, name)) {
         double saveMs = device.Parameters.GetValueOrDefault("MAV_SAVE_MS", 2000);
         device.RebootReadyUtc = _utcNow().AddMilliseconds(Math.Max(100, saveMs) + 250);
+        if (device.IdentityTransitionExpected) {
+          device.IdentityTransitionExpiresUtc = Later(
+              device.IdentityTransitionExpiresUtc,
+              device.RebootReadyUtc + ExpectedIdentityTransition);
+        }
+      }
+      if (IsIdentityAddressParameter(name)) {
+        ArmExpectedIdentityTransition(device);
       }
       CompleteCurrentWrite();
     } else if (ReferenceEquals(device, SelectedState)) {
@@ -1755,7 +1966,8 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
               + "Set the matching keys on their peers, then reboot the modem.");
         }
       } else if (_rebootRequiredInTransaction) {
-        SetStatus("Parameters accepted. Wait for the flash commit, then reboot the modem.");
+        SetStatus("Parameters accepted. Flash commit is in progress; settings that restart the "
+            + "modem will follow its UID when it returns with the requested identity.");
       } else if (_parameterWriteInTransaction) {
         SetStatus(device?.Generation == NvModemGeneration.Nv4
             ? "NV4 parameters accepted, stored and applied."
@@ -1858,7 +2070,19 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
     if (_currentWrite != null && now - _currentWrite.SentUtc >= TransactionTimeout) {
       _currentWrite.Retries++;
       if (_currentWrite.Retries >= MaximumWriteAttempts) {
-        FailWrites("Modem did not acknowledge the configuration command.");
+        if (_currentWrite.Kind == NvWriteKind.Parameter
+            && _currentWrite.MismatchedParameterEcho) {
+          FailWrites($"Modem did not accept parameter {_currentWrite.Name}: requested "
+              + $"{NvModemParameterCodec.Display(_currentWrite.Value, _currentWrite.ParameterType)} "
+              + $"(type {_currentWrite.ParameterType}), modem reports "
+              + $"{NvModemParameterCodec.Display(
+                  _currentWrite.ReportedParameterValue, _currentWrite.ReportedParameterType)} "
+              + $"(type {_currentWrite.ReportedParameterType}).");
+        } else if (_currentWrite.Kind == NvWriteKind.Parameter) {
+          FailWrites($"Modem did not acknowledge parameter {_currentWrite.Name}.");
+        } else {
+          FailWrites("Modem did not acknowledge the configuration command.");
+        }
       } else {
         SendOperation(_currentWrite);
       }

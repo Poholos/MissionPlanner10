@@ -15,6 +15,9 @@ internal static class NvModemCatalog {
   internal const int Nv5KeyWordBytes = 4;
   internal const int Nv5KeyWordCount = Nv5KeyBytes / Nv5KeyWordBytes;
   internal const int Nv4KeyBytes = 32;
+  internal const int Nv5MinimumFrameBytes = 64;
+  internal const int Nv5MaximumFrameBytes = 496;
+  internal const int Nv5FrameStepBytes = 16;
 
   internal static bool IsNv5Signature(string name) =>
       name is "MODEM_PROFILE" or "RADIO_COUNT"
@@ -76,8 +79,15 @@ internal static class NvModemCatalog {
       || name.EndsWith("_HASH", StringComparison.Ordinal)
       || name.EndsWith("_CHIP", StringComparison.Ordinal);
 
-  internal static bool IsEditableValueAllowed(string name, double value) =>
-      name != "ENC_KEY_BITS" || value == 128;
+  internal static bool IsEditableValueAllowed(string name, double value) {
+    if (name.EndsWith("_FRAME", StringComparison.Ordinal)) {
+      return double.IsFinite(value)
+          && value == Math.Truncate(value)
+          && value is >= Nv5MinimumFrameBytes and <= Nv5MaximumFrameBytes
+          && (long)value % Nv5FrameStepBytes == 0;
+    }
+    return name != "ENC_KEY_BITS" || value == 128;
+  }
 
   internal static bool RequiresManualReboot(NvModemGeneration generation, string name) =>
       generation == NvModemGeneration.Nv5
@@ -217,7 +227,8 @@ internal static class NvModemCatalog {
     }
 
     if (name.EndsWith("_FRAME", StringComparison.Ordinal)) {
-      return "Fixed on-air frame size in bytes; peers must use the same value.";
+      return "Fixed on-air frame size in bytes: 64..240 in steps of 16, or up to 496 for "
+          + "LR2021 FLRC; peers must use the same value.";
     }
 
     if (name.EndsWith("_FREQ_KHZ", StringComparison.Ordinal)) {

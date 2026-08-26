@@ -535,13 +535,23 @@ Updated: **2026-08-26**.
 
 ## GTU synchronization checkpoint
 
-- NV modem behavior was last compared with `/home/alex/src/AgroSky/GTU` at clean local and fetched
-  `origin/master` `f196ea689ba0f30eb3b16a76bbf8041ee21a23de`. GTU refinement
+- NV modem behavior was last compared with `/home/alex/src/AgroSky/GTU` at fetched
+  `origin/master` `d74f43087fa591d7ac43f690e0eda5ef654373ea`; local `master` is one unrelated
+  D3D11/package commit ahead and has no additional `NV5Settings` changes. Earlier GTU refinement
   `77af510a47f8cbe7ea02fcc047019b07fb2c0c26` keeps selected-radio key targeting independent of
   `DIVERSITY`, and **Revert selected** restores one staged parameter locally without sending
   MAVLink. Both behaviors and their regression tests are ported. Checkpoint `f196ea689` additionally
-  supplies current unlocked-channel RSSI semantics, now ported with matching tests. `REFRESH_SETTING`
-  remains a typed `UINT32`; NV5 key words remain signed `INT32` values preserving the same raw bytes.
+  supplies current unlocked-channel RSSI semantics, now ported with matching tests. Newer GTU
+  changes through `d74f4308` add current LoRa/FLRC acquisition presets, 64..496/step-16 frame
+  validation, typed rejection diagnostics, attached-modem HUB management and UID2-based identity
+  migration. Mission Planner ports those semantics using the exact observed `MAVLinkInterface` as
+  its management-route boundary because its parser does not expose GTU's per-datagram sender IP and
+  scope metadata. Strict passport capability checks, offline/requested address migration and live
+  duplicate/conflict guards have matching regression coverage. `REFRESH_SETTING` remains a typed
+  `UINT32`; NV5 key words remain signed `INT32` values preserving the same raw bytes.
+- The `d74f4308` synchronization passes all 58 focused NV modem tests and the complete
+  **1506/1506** Avalonia port suite. The Release solution build completes with zero warnings and
+  zero errors before native Linux packaging.
 - Before each later NV modem change and before a release, recheck both committed and uncommitted
   GTU changes with `git status`, then compare every newer change to `hermes-gui/include/nv5settings.h`,
   `hermes-gui/src/nv5settings.cpp` and `hermes-gui/test/testnv5settings.cpp`. Update this commit and

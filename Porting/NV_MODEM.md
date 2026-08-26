@@ -1,12 +1,12 @@
 # NV Modem setup
 
 Setup > NV Modem is the Avalonia port of the `NV5Settings` widget from the local AgroSky GTU tree.
-The latest comparison used clean GTU `master`/`origin/master`
-`6c2a4b04f03fa4e693d8e6adc2b39b734e817856`. Commit
-`77af510a47f8cbe7ea02fcc047019b07fb2c0c26` is the only change to the `NV5Settings` source,
-header, UI or tests after the earlier `98e98833` baseline, and all of its modem behavior is
-represented here. The relevant source specification is `hermes-gui/include/nv5settings.h` plus
-`hermes-gui/src/nv5settings.cpp`, `hermes-gui/src/nv5settings.ui` and its regression tests.
+The latest comparison used GTU `master` and `origin/master`
+`d74f43087fa591d7ac43f690e0eda5ef654373ea`; the local-only commit after it does not touch
+`NV5Settings`. All modem changes since the previous `f196ea689` checkpoint were reviewed and their
+applicable behavior is represented here. The relevant source specification is
+`hermes-gui/include/nv5settings.h` plus `hermes-gui/src/nv5settings.cpp`,
+`hermes-gui/src/nv5settings.ui`, `docs/hermes-hub-management.md` and the regression tests.
 
 ## Connection and device identity
 
@@ -18,6 +18,12 @@ modem was observed. A device key is therefore:
 `MAVLink interface + system id + component id`
 
 This keeps modems with identical MAVLink IDs on different network or serial links independent.
+It also supports attached modems forwarded by an NV5 HUB: replies from distinct system/component
+IDs are kept on the same observed Mission Planner link, and requests are sent back on that link to
+the attached modem's exact MAVLink target. GTU can additionally bind individual UDP datagrams to
+its private `HUB_MANAGEMENT` sender/listener metadata. Mission Planner's shared parser does not
+retain per-datagram sender metadata, so its safe equivalent is link ownership; it deliberately does
+not guess an IP route that the parser has discarded.
 NV4 replies use the same observed Mission Planner link, which is the port equivalent of GTU's dirty
 addressed-UDP-route fix. Discovery has no system-ID or component-ID range. Current NV4 and NV5
 devices are identified by the periodic `NV_MODEM_INFO` passport (`53016`), including receive-only
@@ -34,6 +40,12 @@ observed address as well as by broadcast. The private SkyComm dialect is registe
 startup, before any shared connection starts reading, so an early identity/status packet is not
 lost while the setup page is still closed. An ordinary `AUTOPILOT_VERSION` is not enough to classify
 a flight controller as a modem. The corrected singular NV4 apply parameter is `REFRESH_SETTING`.
+The shared passport is accepted only at schema version 1, generation 4 or 5, and with the MAVLink
+parameter capability bit set. A nonzero `UID2` is the durable device identity. If an offline modem
+returns on the same Mission Planner link with a new system/component address, its parameter and UI
+state moves to the new address instead of creating a duplicate. An address change just written by
+this page is also accepted after `MAV_SAVE_MS` persistence. Concurrent live duplicates, ambiguous
+UIDs, occupied target addresses and identity changes during a write are rejected.
 
 ## Settings behavior
 
@@ -45,6 +57,8 @@ The page includes:
 - explicit changed, invalid and read-only state in the parameter table;
 - live NV4 or per-radio NV5 link status;
 - LR2021/LoRa/FLRC, FHSS, FEC and role presets, staged locally until **Save**;
+- current GTU acquisition defaults: LoRa uses frame 64, FHSS enabled and scan dwell 5; FLRC uses
+  frame 240, FHSS disabled and scan dwell 2; both stage a 40000 kHz FHSS span;
 - channel-settings copy from another completely read NV5 modem;
 - NV4 32-byte keys accepted as 32 printable ASCII characters or 64 hexadecimal digits (an optional
   `hex:` prefix remains compatible), while display and generation use 64 uppercase hexadecimal
@@ -73,17 +87,20 @@ or refreshing the current one clears the visible list before requesting new valu
 is retried up to six times to cover STM32 Ethernet renegotiation and then reports an error without
 blocking connection or device selection. A retry preserves parameter indexes already received
 instead of clearing a slow but progressing catalogue. Writes are serialized, acknowledged and
-retried; stale or wrongly typed list responses cannot impersonate an `INT32` key write echo. After
+retried; stale or wrongly typed list responses cannot impersonate an `INT32` key write echo. Frame
+sizes are limited to 64..496 bytes in steps of 16. If firmware repeatedly echoes the retained value
+instead of the requested value, the final error names the parameter and reports both typed values
+instead of presenting the rejection as a silent timeout. After
 ordinary NV5 `PARAM_SET` completion the page leaves the full reread to **Refresh selected** so it
 does not race the `MAV_SAVE_MS` debounce, flash commit and reboot. While a write is in flight the
 target selector is locked, and a target/link change during confirmation prevents the operation.
 
 ## Acceptance boundary
 
-The shared Mission Planner parser, custom CRC/layouts, multi-link target isolation, NV4 apply
-transaction, both NV5 key-write paths, exact typed echoes, independent diversity key targeting,
-RTSP dirty-state
-handling, preset staging, parameter-file roundtrip and slow/silent-device handling are covered by
-automated tests. A representative physical NV4 and NV5
+The shared Mission Planner parser, custom CRC/layouts, multi-link and HUB target isolation, strict
+passport validation, UID2 address migration and conflict guards, NV4 apply transaction, both NV5
+key-write paths, exact typed echoes and rejection diagnostics, independent diversity key targeting,
+RTSP dirty-state handling, current preset staging, parameter-file roundtrip and slow/silent-device
+handling are covered by automated tests. A representative physical NV4 and NV5
 modem on UDP/TCP/UART still require an operator acceptance run, including reboot/reappearance and
 real RF/RTSP behavior.

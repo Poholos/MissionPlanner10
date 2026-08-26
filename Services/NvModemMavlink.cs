@@ -23,6 +23,7 @@ internal static class NvModemInfoFlags {
 }
 
 internal static class NvModemCapabilities {
+  internal const ulong MavlinkParameters = 1UL << 0;
   internal const ulong Rtsp = 1UL << 8;
   internal const ulong AtomicEncryptionKeys = 1UL << 12;
 }
