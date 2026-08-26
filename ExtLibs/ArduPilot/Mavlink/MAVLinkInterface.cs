@@ -771,10 +771,20 @@ namespace MissionPlanner
                     {
                         PRsender.doWorkArgs.CancelRequestChanged += (o, e) =>
                         {
-                            ((UdpSerial) BaseStream).CancelConnect = true;
-                            ((ProgressWorkerEventArgs) o)
-                                .CancelAcknowledged = true;
+                            var args = (ProgressWorkerEventArgs) o;
+                            var udp = (UdpSerial) BaseStream;
+                            udp.KeepSocketOpenOnCancel = args.KeepConnectionOpenOnCancel;
+                            udp.CancelConnect = true;
+                            args.CancelAcknowledged = true;
                         };
+                        if (PRsender.doWorkArgs.CancelRequested)
+                        {
+                            var udp = (UdpSerial) BaseStream;
+                            udp.KeepSocketOpenOnCancel =
+                                PRsender.doWorkArgs.KeepConnectionOpenOnCancel;
+                            udp.CancelConnect = true;
+                            PRsender.doWorkArgs.CancelAcknowledged = true;
+                        }
                     }
 
                     BaseStream.Open();
@@ -813,7 +823,8 @@ namespace MissionPlanner
                     {
                         PRsender.doWorkArgs.CancelAcknowledged = true;
                         countDown.Stop();
-                        if (BaseStream.IsOpen)
+                        if (BaseStream.IsOpen &&
+                            !PRsender.doWorkArgs.KeepConnectionOpenOnCancel)
                             BaseStream.Close();
                         giveComport = false;
                         return;
@@ -974,7 +985,8 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
                 if (frmProgressReporter.doWorkArgs.CancelAcknowledged == true)
                 {
                     giveComport = false;
-                    if (BaseStream.IsOpen)
+                    if (BaseStream.IsOpen &&
+                        !frmProgressReporter.doWorkArgs.KeepConnectionOpenOnCancel)
                         BaseStream.Close();
                     return;
                 }

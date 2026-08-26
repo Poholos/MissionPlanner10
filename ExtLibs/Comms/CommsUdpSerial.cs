@@ -21,7 +21,8 @@ namespace MissionPlanner.Comms
 
         private bool _isopen;
 
-        public bool CancelConnect = false;
+        public volatile bool CancelConnect;
+        public volatile bool KeepSocketOpenOnCancel;
         /// <summary>
         /// add to EndPointList if need when injecting
         /// </summary>
@@ -166,12 +167,22 @@ namespace MissionPlanner.Comms
 
                 if (CancelConnect)
                 {
-                    try
+                    if (KeepSocketOpenOnCancel)
                     {
-                        client.Close();
+                        // A UDP listener is a persistent discovery surface. The primary UI may
+                        // stop waiting for an initial heartbeat/parameter target while retaining
+                        // the bound socket so future broadcasts can still be received.
+                        _isopen = true;
                     }
-                    catch
+                    else
                     {
+                        try
+                        {
+                            client.Close();
+                        }
+                        catch
+                        {
+                        }
                     }
 
                     return;
@@ -353,6 +364,8 @@ namespace MissionPlanner.Comms
         public void Close()
         {
             _isopen = false;
+            CancelConnect = false;
+            KeepSocketOpenOnCancel = false;
             if (client != null) client.Close();
 
             client = new UdpClient();

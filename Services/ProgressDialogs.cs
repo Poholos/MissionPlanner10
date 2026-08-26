@@ -56,6 +56,7 @@ public class ProgressReporter : Window {
 
   public CancellationToken Token => _token;
   public bool CancelRequested => _cts.IsCancellationRequested;
+  internal bool KeepConnectionOpenOnCancel { get; set; }
 
   public ProgressReporter(string title) {
     _token = _cts.Token;
@@ -137,6 +138,7 @@ public class ForwardingProgressReporter : IProgressReporterDialogue {
       ProgressReporter? target,
       CancellationToken operationCancellation = default) {
     _target = target;
+    doWorkArgs.KeepConnectionOpenOnCancel = target?.KeepConnectionOpenOnCancel ?? false;
     try {
       _targetCancellation = _target?.Token.Register(RequestCancellation) ?? default;
     } catch (ObjectDisposedException) {

@@ -42,4 +42,18 @@ public class ProgressReporterTests {
 
     Assert.Equal("Skip Parameters", reporter.CancellationText);
   }
+
+  [AvaloniaFact]
+  public void Persistent_transport_policy_is_forwarded_to_upstream_open() {
+    var reporter = new ProgressReporter("UDP initialization") {
+      KeepConnectionOpenOnCancel = true,
+    };
+    var forwarding = new ForwardingProgressReporter(reporter);
+
+    try {
+      Assert.True(forwarding.doWorkArgs.KeepConnectionOpenOnCancel);
+    } finally {
+      forwarding.Dispose();
+    }
+  }
 }

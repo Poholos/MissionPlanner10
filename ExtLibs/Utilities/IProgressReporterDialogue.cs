@@ -32,6 +32,13 @@ namespace MissionPlanner.Utilities
     {
         public bool ForceExit { get; set; } = false;
 
+        /// <summary>
+        /// Allows a caller that owns a persistent listener to stop MAVLink initialization without
+        /// tearing down the already-bound transport. Point-to-point connection attempts retain the
+        /// original close-on-cancel behavior.
+        /// </summary>
+        public bool KeepConnectionOpenOnCancel { get; set; }
+
         public string ErrorMessage;
         volatile bool _CancelRequested = false;
         public bool CancelRequested

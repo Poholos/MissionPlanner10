@@ -1222,6 +1222,11 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
       OpenLogs();
 
       var dlg = new Services.ProgressReporter("Connecting Mavlink");
+      bool keepTransportOpenOnCancel = ConnectionHealth.IsPersistentListener(stream);
+      dlg.KeepConnectionOpenOnCancel = keepTransportOpenOnCancel;
+      if (keepTransportOpenOnCancel) {
+        dlg.SetCancellationText("Keep UDP Open");
+      }
       _connectDialog = dlg;
 
       AppState.ActiveConnectReporter = dlg;
@@ -1230,7 +1235,8 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
       var initialization = new ConnectionInitializationState();
       using CancellationTokenRegistration cancelRegistration = dlg.Token.Register(() => {
         var stage = initialization.Stage;
-        bool releaseTransport = ShouldReleaseTransportOnInitializationCancel(stage);
+        bool releaseTransport = ShouldReleaseTransportOnInitializationCancel(
+            stage, keepTransportOpenOnCancel);
         if (releaseTransport) {
           _ = _transportRelease.Begin(_comPort);
           AppState.Connections.Primary.MarkClosed();
@@ -1264,7 +1270,14 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
             CancellationToken.None,
             TaskCreationOptions.LongRunning,
             TaskScheduler.Default);
-        await open.WaitAsync(dlg.Token);
+        if (keepTransportOpenOnCancel) {
+          // The upstream open loop observes the reporter cancellation and returns promptly while
+          // retaining the bound UDP listener. Await the worker itself so the connection is not
+          // published while that worker still owns MAVLink reads.
+          await open;
+        } else {
+          await open.WaitAsync(dlg.Token);
+        }
         if (_comPort.BaseStream.IsOpen && !dlg.CancelRequested &&
             _comPort.MAV.compid != (byte)MAVLink.MAV_COMPONENT.MAV_COMP_ID_PERIPHERAL) {
           backgroundParamLoad = ShouldLoadParametersInBackground(
@@ -1285,14 +1298,14 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
       } catch (OperationCanceledException) when (
           dlg.CancelRequested && _comPort.BaseStream.IsOpen &&
           !ShouldReleaseTransportOnInitializationCancel(
-              initialization.Stage)) {
+              initialization.Stage, keepTransportOpenOnCancel)) {
         parameterLoadSkipped = true;
       } catch (Exception ex) {
         openError = ex;
       }
       if (dlg.CancelRequested && _comPort.BaseStream.IsOpen &&
           !ShouldReleaseTransportOnInitializationCancel(
-              initialization.Stage)) {
+              initialization.Stage, keepTransportOpenOnCancel)) {
         parameterLoadSkipped = true;
         backgroundParamLoad = false;
       }
@@ -1304,7 +1317,8 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
 
       var completedStage = initialization.Stage;
       if (dlg.CancelRequested &&
-          ShouldReleaseTransportOnInitializationCancel(completedStage)) {
+          ShouldReleaseTransportOnInitializationCancel(
+              completedStage, keepTransportOpenOnCancel)) {
         dlg.Close();
         _ = _transportRelease.Begin(_comPort);
         AppState.Connections.Primary.MarkClosed();
@@ -1501,8 +1515,9 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
   }
 
   internal static bool ShouldReleaseTransportOnInitializationCancel(
-      ConnectionInitializationStage stage) =>
-      stage == ConnectionInitializationStage.OpeningTransport;
+      ConnectionInitializationStage stage,
+      bool keepTransportOpen = false) =>
+      stage == ConnectionInitializationStage.OpeningTransport && !keepTransportOpen;
 
   private async Task<ICommsSerial?> ScanForStreamAsync(bool interactive) {
     var dlg = new Services.ProgressReporter("Scanning serial ports");

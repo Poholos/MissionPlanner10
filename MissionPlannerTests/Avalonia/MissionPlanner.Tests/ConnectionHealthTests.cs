@@ -397,6 +397,12 @@ public class ConnectionHealthTests {
   }
 
   [Fact]
+  public void Persistent_udp_cancel_never_releases_the_listener_during_initialization() {
+    Assert.False(ConnectionViewModel.ShouldReleaseTransportOnInitializationCancel(
+        ConnectionInitializationStage.OpeningTransport, keepTransportOpen: true));
+  }
+
+  [Fact]
   public async Task Successful_transport_open_enters_parameter_phase_before_worker_completes() {
     var initialization = new ConnectionInitializationState();
     bool transportOpen = false;
