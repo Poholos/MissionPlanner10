@@ -277,14 +277,16 @@
                 <Button x:Name="JoystickSetupButton" Grid.Row="3" Grid.Column="2"
                         Content="Joystick" MaxWidth="110" Command="{Binding JoystickCommand}"
                         ToolTip.Tip="Open the joystick setup dialog" />
-                <Button Grid.Row="3" Grid.Column="3" Content="Arm / Disarm" MaxWidth="110"
+                <Button x:Name="ArmDisarmButton" Grid.Row="3" Grid.Column="3"
+                        Content="Arm / Disarm" MaxWidth="110"
                         Command="{Binding ToggleArmCommand}" />
                 <Button Grid.Row="3" Grid.Column="4" Content="Clear Track" MaxWidth="110"
                         Command="{Binding ClearTrackCommand}" />
 
                 <Button Grid.Row="4" Grid.Column="2" Content="Message" MaxWidth="110"
                         Command="{Binding ShowMessageCommand}" />
-                <Button Grid.Row="4" Grid.Column="3" Content="Resume Mission" MaxWidth="110"
+                <Button x:Name="ResumeMissionButton" Grid.Row="4" Grid.Column="3"
+                        Content="Resume Mission" MaxWidth="110"
                         Command="{Binding ResumeMissionCommand}" />
                 <Button Grid.Row="4" Grid.Column="4" Content="Abort Landing" MaxWidth="110"
                         Command="{Binding AbortLandCommand}" />

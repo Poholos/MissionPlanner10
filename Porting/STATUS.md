@@ -4,6 +4,12 @@ Updated: **2026-08-26**.
 
 ## Flight Data Actions and joystick-dialog parity checkpoint
 
+- Flight Data hardware Actions no longer terminate the process on a transport failure. `Message`
+  treats the legal default/disconnected `MAVLinkInterface` state (`BaseStream == null`) as closed;
+  arm/disarm, mission restart/resume, waypoint, mode, and abort-landing operations convert timeout
+  or connection-closure exceptions into a visible error and return control to the UI. Resume
+  Mission also validates its waypoint and no longer reports success after an incomplete sequence.
+  Regression tests cover null transport, timeout reporting, and initial command availability.
 - Branch `fix/actions-panel-parity` was compared directly with the current official Mission
   Planner checkpoint `67a3c4f22bd1b38ac499f9756902e04fa4ed8444`. Upstream has two distinct
   controls: `BUT_joystick` in the five-column Actions table opens

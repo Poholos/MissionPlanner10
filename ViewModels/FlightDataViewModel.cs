@@ -1472,7 +1472,19 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
     LogStatus = "Opened the MAVLink DataFlash log downloader.";
   }
 
-  private bool Connected => _comPort.BaseStream?.IsOpen == true;
+  private bool Connected => CanSendMessage(_comPort);
+
+  internal static string VehicleActionFailureMessage(Exception exception) => exception switch {
+    TimeoutException => "Timed out waiting for a response from the vehicle.",
+    ObjectDisposedException => "The vehicle connection was closed while the command was running.",
+    _ => "Command failed: " + exception.Message,
+  };
+
+  private async Task ReportVehicleActionFailure(string action, Exception exception) {
+    string message = VehicleActionFailureMessage(exception);
+    Log($"{action} failed: {exception.Message}");
+    await Services.Dialogs.Alert(action, message);
+  }
 
   [RelayCommand]
   [Obsolete]
@@ -1489,41 +1501,57 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
     }
 
     var statusMessages = new System.Collections.Concurrent.ConcurrentQueue<string>();
-    int subscription = _comPort.SubscribeToPacketType(
-        MAVLink.MAVLINK_MSG_ID.STATUSTEXT,
-        message => {
-          statusMessages.Enqueue(System.Text.Encoding.ASCII.GetString(
-              message.ToStructure<MAVLink.mavlink_statustext_t>().text).TrimEnd('\0'));
-          return true;
-        },
-        _comPort.MAV.sysid,
-        _comPort.MAV.compid);
-    bool accepted;
+    int subscription = -1;
     try {
-      accepted = await Task.Run(() => _comPort.doARM(target, false));
+      subscription = _comPort.SubscribeToPacketType(
+          MAVLink.MAVLINK_MSG_ID.STATUSTEXT,
+          message => {
+            statusMessages.Enqueue(System.Text.Encoding.ASCII.GetString(
+                message.ToStructure<MAVLink.mavlink_statustext_t>().text).TrimEnd('\0'));
+            return true;
+          },
+          _comPort.MAV.sysid,
+          _comPort.MAV.compid);
+      bool accepted;
+      try {
+        accepted = await Task.Run(() => _comPort.doARM(target, false));
+      } finally {
+        if (subscription >= 0) {
+          _comPort.UnSubscribeToPacketType(subscription);
+          subscription = -1;
+        }
+      }
+
+      if (accepted) {
+        Messages += $"{action}: ok\n";
+        return;
+      }
+
+      string reason = string.Join(Environment.NewLine,
+          statusMessages.Where(text => !string.IsNullOrWhiteSpace(text)));
+      string details = reason.Length == 0 ? "The vehicle rejected the command." : reason;
+      bool force = await Services.Dialogs.Confirm(
+          $"Force {action}",
+          $"{action} failed.\n\n{details}\n\nForce {action} bypasses safety checks and can "
+          + "cause a crash or serious injury. Continue?");
+      if (!force) {
+        Messages += $"{action}: rejected\n{details}\n";
+        return;
+      }
+
+      bool forced = await Task.Run(() => _comPort.doARM(target, true));
+      Messages += $"Force {action}: {(forced ? "ok" : "rejected")}\n";
+    } catch (Exception ex) {
+      await ReportVehicleActionFailure("Arm / Disarm", ex);
     } finally {
-      _comPort.UnSubscribeToPacketType(subscription);
+      if (subscription >= 0) {
+        try {
+          _comPort.UnSubscribeToPacketType(subscription);
+        } catch (Exception ex) {
+          Log("Unable to remove arm-status subscription: " + ex.Message);
+        }
+      }
     }
-
-    if (accepted) {
-      Messages += $"{action}: ok\n";
-      return;
-    }
-
-    string reason = string.Join(Environment.NewLine,
-        statusMessages.Where(text => !string.IsNullOrWhiteSpace(text)));
-    string details = reason.Length == 0 ? "The vehicle rejected the command." : reason;
-    bool force = await Services.Dialogs.Confirm(
-        $"Force {action}",
-        $"{action} failed.\n\n{details}\n\nForce {action} bypasses safety checks and can "
-        + "cause a crash or serious injury. Continue?");
-    if (!force) {
-      Messages += $"{action}: rejected\n{details}\n";
-      return;
-    }
-
-    bool forced = await Task.Run(() => _comPort.doARM(target, true));
-    Messages += $"Force {action}: {(forced ? "ok" : "rejected")}\n";
   }
 
   [RelayCommand]
@@ -1548,9 +1576,13 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
       Messages += $"Mode {modeName} is not available for {_comPort.MAV.cs.firmware}.\n";
       return;
     }
-    await Task.Run(() => _comPort.setMode(
-        _comPort.MAV.sysid, _comPort.MAV.compid, request));
-    Messages += $"Requested mode {modeName}\n";
+    try {
+      await Task.Run(() => _comPort.setMode(
+          _comPort.MAV.sysid, _comPort.MAV.compid, request));
+      Messages += $"Requested mode {modeName}\n";
+    } catch (Exception ex) {
+      await ReportVehicleActionFailure("Set Mode", ex);
+    }
   }
 
   private void RefreshFlightOptions(MissionPlanner.CurrentState cs) {
@@ -1949,12 +1981,16 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
       Messages += "Not connected.\n";
       return;
     }
-    await Task.Run(() => {
-      _comPort.setWPCurrent(_comPort.MAV.sysid, _comPort.MAV.compid, 0);
-      _comPort.doCommand(_comPort.MAV.sysid, _comPort.MAV.compid, MAVLink.MAV_CMD.MISSION_START,
-          0, 0, 0, 0, 0, 0, 0);
-    });
-    Log("Restart mission");
+    try {
+      await Task.Run(() => {
+        _comPort.setWPCurrent(_comPort.MAV.sysid, _comPort.MAV.compid, 0);
+        _comPort.doCommand(_comPort.MAV.sysid, _comPort.MAV.compid,
+            MAVLink.MAV_CMD.MISSION_START, 0, 0, 0, 0, 0, 0, 0);
+      });
+      Log("Restart mission");
+    } catch (Exception ex) {
+      await ReportVehicleActionFailure("Restart Mission", ex);
+    }
   }
 
   [RelayCommand]
@@ -1972,56 +2008,77 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
     var cs = _comPort.MAV.cs;
     int last = cs.lastautowp == -1 ? 1 : cs.lastautowp;
     var s = await Services.Dialogs.InputBox("Resume at", "Resume mission at waypoint #", last.ToString());
-    if (!int.TryParse(s, out int lastwpno)) {
+    if (!int.TryParse(s, out int lastwpno) || lastwpno < 0 || lastwpno > ushort.MaxValue) {
+      await Services.Dialogs.Alert(
+          "Resume Mission", $"Waypoint must be between 0 and {ushort.MaxValue}.");
       return;
     }
     Log("Resuming mission…");
-    await Task.Run(() => {
-      var lastwpdata = _comPort.getWP((ushort)lastwpno);
-      var cmds = new System.Collections.Generic.List<MissionPlanner.Utilities.Locationwp>();
-      var wpcount = _comPort.getWPCount();
-      for (ushort a = 0; a < wpcount; a++) {
-        var wp = _comPort.getWP(a);
-        if (a < lastwpno && a != 0) {
-          if (wp.id != (ushort)MAVLink.MAV_CMD.TAKEOFF && wp.id < (ushort)MAVLink.MAV_CMD.LAST) {
-            continue;
-          }
-          if (wp.id > (ushort)MAVLink.MAV_CMD.DO_LAST) {
-            continue;
-          }
+    try {
+      bool completed = await Task.Run(() => {
+        var cmds = new System.Collections.Generic.List<MissionPlanner.Utilities.Locationwp>();
+        ushort wpcount = _comPort.getWPCount();
+        if (wpcount == 0 || lastwpno >= wpcount) {
+          throw new InvalidOperationException(
+              $"Waypoint {lastwpno} is not present in the vehicle mission ({wpcount} items).");
         }
-        cmds.Add(wp);
-      }
-      ushort wpno = 0;
-      _comPort.setWPTotal((ushort)cmds.Count);
-      foreach (var loc in cmds) {
-        if (_comPort.setWP(loc, wpno, (MAVLink.MAV_FRAME)loc.frame)
-            != MAVLink.MAV_MISSION_RESULT.MAV_MISSION_ACCEPTED) {
-          return;
+        var lastwpdata = _comPort.getWP((ushort)lastwpno);
+        for (ushort a = 0; a < wpcount; a++) {
+          var wp = _comPort.getWP(a);
+          if (a < lastwpno && a != 0) {
+            if (wp.id != (ushort)MAVLink.MAV_CMD.TAKEOFF
+                && wp.id < (ushort)MAVLink.MAV_CMD.LAST) {
+              continue;
+            }
+            if (wp.id > (ushort)MAVLink.MAV_CMD.DO_LAST) {
+              continue;
+            }
+          }
+          cmds.Add(wp);
         }
-        wpno++;
-      }
-      _comPort.setWPACK();
-      _comPort.setWPCurrent(_comPort.MAV.sysid, _comPort.MAV.compid, 1);
+        ushort wpno = 0;
+        _comPort.setWPTotal((ushort)cmds.Count);
+        foreach (var loc in cmds) {
+          if (_comPort.setWP(loc, wpno, (MAVLink.MAV_FRAME)loc.frame)
+              != MAVLink.MAV_MISSION_RESULT.MAV_MISSION_ACCEPTED) {
+            return false;
+          }
+          wpno++;
+        }
+        _comPort.setWPACK();
+        _comPort.setWPCurrent(_comPort.MAV.sysid, _comPort.MAV.compid, 1);
 
-      if (cs.firmware == MissionPlanner.ArduPilot.Firmwares.ArduCopter2) {
-        if (!SpinUntil(() => { _comPort.setMode("GUIDED"); return cs.mode.Equals("Guided", StringComparison.OrdinalIgnoreCase); })) {
-          return;
+        if (cs.firmware == MissionPlanner.ArduPilot.Firmwares.ArduCopter2) {
+          if (!SpinUntil(() => {
+                _comPort.setMode("GUIDED");
+                return cs.mode.Equals("Guided", StringComparison.OrdinalIgnoreCase);
+              })) {
+            return false;
+          }
+          if (!SpinUntil(() => { _comPort.doARM(true); return cs.armed; })) {
+            return false;
+          }
+          if (!SpinUntil(() => {
+                _comPort.doCommand(_comPort.MAV.sysid, _comPort.MAV.compid,
+                    MAVLink.MAV_CMD.TAKEOFF, 0, 0, 0, 0, 0, 0, lastwpdata.alt);
+                return cs.alt >= lastwpdata.alt - 2;
+              })) {
+            return false;
+          }
         }
-        if (!SpinUntil(() => { _comPort.doARM(true); return cs.armed; })) {
-          return;
-        }
-        if (!SpinUntil(() => {
-          _comPort.doCommand(_comPort.MAV.sysid, _comPort.MAV.compid, MAVLink.MAV_CMD.TAKEOFF,
-              0, 0, 0, 0, 0, 0, lastwpdata.alt);
-          return cs.alt >= lastwpdata.alt - 2;
-        })) {
-          return;
-        }
+        _comPort.setMode("AUTO");
+        return true;
+      });
+      if (!completed) {
+        const string message = "The vehicle did not complete the resume sequence.";
+        Log("Resume mission failed: " + message);
+        await Services.Dialogs.Alert("Resume Mission", message);
+        return;
       }
-      _comPort.setMode("AUTO");
-    });
-    Log("Resume mission");
+      Log("Resume mission");
+    } catch (Exception ex) {
+      await ReportVehicleActionFailure("Resume Mission", ex);
+    }
   }
 
   private static bool SpinUntil(Func<bool> tryStep) {
@@ -2084,9 +2141,18 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
 
   internal Views.JoystickSetupWindow? ActiveJoystickSetupWindow => _joystickSetupWindow;
 
+  internal static bool CanSendMessage(MAVLinkInterface? link) {
+    try {
+      return link?.BaseStream?.IsOpen == true;
+    } catch (ObjectDisposedException) {
+      return false;
+    }
+  }
+
   [RelayCommand]
   private async Task ShowMessage() {
-    if (!_comPort.BaseStream.IsOpen) {
+    if (!CanSendMessage(_comPort)) {
+      Log("Message not sent: no active vehicle connection.");
       return;
     }
     var txt = await Services.Dialogs.InputBox("Enter Message", "Enter Message to be logged");
@@ -2854,8 +2920,13 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
       return;
     }
     ushort idx = (ushort)(SelectedWaypoint?.Index ?? 0);
-    await Task.Run(() => _comPort.setWPCurrent(_comPort.MAV.sysid, _comPort.MAV.compid, idx));
-    Log($"Set current WP {idx}");
+    try {
+      await Task.Run(() =>
+          _comPort.setWPCurrent(_comPort.MAV.sysid, _comPort.MAV.compid, idx));
+      Log($"Set current WP {idx}");
+    } catch (Exception ex) {
+      await ReportVehicleActionFailure("Set WP", ex);
+    }
   }
 
   [RelayCommand]
@@ -2876,10 +2947,14 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
       Messages += "Not connected.\n";
       return;
     }
-    await Task.Run(() =>
-        _comPort.doCommand(_comPort.MAV.sysid, _comPort.MAV.compid, MAVLink.MAV_CMD.DO_GO_AROUND,
-            0, 0, 0, 0, 0, 0, 0));
-    Log("Abort landing (go-around) sent");
+    try {
+      await Task.Run(() =>
+          _comPort.doCommand(_comPort.MAV.sysid, _comPort.MAV.compid,
+              MAVLink.MAV_CMD.DO_GO_AROUND, 0, 0, 0, 0, 0, 0, 0));
+      Log("Abort landing (go-around) sent");
+    } catch (Exception ex) {
+      await ReportVehicleActionFailure("Abort Landing", ex);
+    }
   }
 
   [ObservableProperty]

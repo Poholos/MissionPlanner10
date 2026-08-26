@@ -109,6 +109,27 @@ public class FlightDataSafetyAndTabTests {
     Assert.Equal("High", FlightDataViewModel.AuxLevelName(2));
   }
 
+  [Fact]
+  public void Message_action_rejects_a_missing_transport_without_dereferencing_it() {
+    using var link = new MAVLinkInterface();
+
+    Assert.Null(link.BaseStream);
+    Assert.False(FlightDataViewModel.CanSendMessage(link));
+    Assert.False(FlightDataViewModel.CanSendMessage(null));
+  }
+
+  [Fact]
+  public void Vehicle_action_timeouts_have_a_safe_user_facing_result() {
+    Assert.Equal(
+        "Timed out waiting for a response from the vehicle.",
+        FlightDataViewModel.VehicleActionFailureMessage(
+            new TimeoutException("Timeout on read - getWP")));
+    Assert.Equal(
+        "The vehicle connection was closed while the command was running.",
+        FlightDataViewModel.VehicleActionFailureMessage(
+            new ObjectDisposedException("transport")));
+  }
+
   [Theory]
   [InlineData("34.1234567;33.7654321", 34.1234567, 33.7654321, null)]
   [InlineData(" 34.1 ; 33.2 ; 125.5 ", 34.1, 33.2, 125.5)]
@@ -171,6 +192,8 @@ public class FlightDataSafetyAndTabTests {
           view.FindControl<ComboBox>("ActionSelector"));
       var doAction = Assert.IsType<Button>(view.FindControl<Button>("DoActionButton"));
       var setup = Assert.IsType<Button>(view.FindControl<Button>("JoystickSetupButton"));
+      var arm = Assert.IsType<Button>(view.FindControl<Button>("ArmDisarmButton"));
+      var resume = Assert.IsType<Button>(view.FindControl<Button>("ResumeMissionButton"));
       var disable = Assert.IsType<Button>(view.FindControl<Button>("DisableJoystickButton"));
       var scroll = Assert.IsType<ScrollViewer>(
           view.FindControl<ScrollViewer>("ActionsScrollViewer"));
@@ -196,6 +219,12 @@ public class FlightDataSafetyAndTabTests {
       Assert.Equal("Joystick", setup.Content);
       Assert.Equal("Disable Joystick", disable.Content);
       Assert.NotSame(setup.Command, disable.Command);
+      Assert.NotNull(arm.Command);
+      Assert.NotNull(resume.Command);
+      Assert.True(arm.Command.CanExecute(null));
+      Assert.True(resume.Command.CanExecute(null));
+      Assert.True(arm.IsEnabled);
+      Assert.True(resume.IsEnabled);
 
       Assert.False(disable.IsVisible);
       vm.IsJoystickActive = true;
