@@ -1561,7 +1561,10 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
       Messages += "Not connected.\n";
       return;
     }
-    if (RequiresModeFailsafeConfirmation(_comPort.MAV.cs.failsafe)
+    MAVLinkInterface link = _comPort;
+    MAVState mav = link.MAV;
+    MissionPlanner.CurrentState currentState = mav.cs;
+    if (RequiresModeFailsafeConfirmation(currentState.failsafe)
         && !await Services.Dialogs.Confirm(
             "Failsafe",
             "The vehicle is currently in failsafe. Changing mode can override its automatic "
@@ -1570,19 +1573,131 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
       return;
     }
     string modeName = SelectedMode;
-    var request = new MAVLink.mavlink_set_mode_t();
-    if (!_comPort.translateMode(
-            _comPort.MAV.sysid, _comPort.MAV.compid, modeName, ref request)) {
-      Messages += $"Mode {modeName} is not available for {_comPort.MAV.cs.firmware}.\n";
+    string? readiness = AutoTuneReadinessMessage(
+        currentState.firmware,
+        modeName,
+        currentState.mode,
+        currentState.armed,
+        currentState.landed_state);
+    if (readiness != null) {
+      Messages += readiness + "\n";
+      await Services.Dialogs.Alert("Set Mode", readiness);
       return;
     }
+    var request = new MAVLink.mavlink_set_mode_t();
+    if (!link.translateMode(mav.sysid, mav.compid, modeName, ref request)) {
+      Messages += $"Mode {modeName} is not available for {currentState.firmware}.\n";
+      return;
+    }
+    var statusMessages = new System.Collections.Concurrent.ConcurrentQueue<string>();
+    int subscription = -1;
     try {
-      await Task.Run(() => _comPort.setMode(
-          _comPort.MAV.sysid, _comPort.MAV.compid, request));
-      Messages += $"Requested mode {modeName}\n";
+      subscription = link.SubscribeToPacketType(
+          MAVLink.MAVLINK_MSG_ID.STATUSTEXT,
+          message => {
+            statusMessages.Enqueue(System.Text.Encoding.ASCII.GetString(
+                message.ToStructure<MAVLink.mavlink_statustext_t>().text).TrimEnd('\0'));
+            return true;
+          },
+          mav.sysid,
+          mav.compid);
+      await Task.Run(() => link.setMode(mav.sysid, mav.compid, request));
+      var feedback = await WaitForModeChangeFeedback(
+          currentState, modeName, statusMessages, TimeSpan.FromSeconds(2));
+      if (feedback.Failure is { } failure) {
+        string explanation = ModeChangeFailureExplanation(
+            currentState.firmware, modeName, failure);
+        Messages += explanation + "\n";
+        await Services.Dialogs.Alert("Set Mode", explanation);
+      } else if (feedback.Accepted) {
+        Messages += $"Mode changed to {modeName}\n";
+      } else {
+        Messages += $"Requested mode {modeName}; no confirmation was received.\n";
+      }
     } catch (Exception ex) {
       await ReportVehicleActionFailure("Set Mode", ex);
+    } finally {
+      if (subscription >= 0) {
+        try {
+          link.UnSubscribeToPacketType(subscription);
+        } catch (Exception ex) {
+          Log("Unable to remove mode-status subscription: " + ex.Message);
+        }
+      }
     }
+  }
+
+  internal static bool IsCopterAutoTuneSourceMode(string? mode) =>
+      NormalizeModeName(mode) is "STABILIZE" or "ALTHOLD" or "POSHOLD" or "LOITER";
+
+  internal static string? AutoTuneReadinessMessage(
+      MissionPlanner.ArduPilot.Firmwares firmware,
+      string? requestedMode,
+      string? currentMode,
+      bool armed,
+      byte landedState) {
+    if (firmware != MissionPlanner.ArduPilot.Firmwares.ArduCopter2
+        || NormalizeModeName(requestedMode) != "AUTOTUNE") {
+      return null;
+    }
+    if (NormalizeModeName(currentMode) == "AUTOTUNE") {
+      return null;
+    }
+
+    bool sourceAllowed = IsCopterAutoTuneSourceMode(currentMode);
+    bool onGround = landedState == (byte)MAVLink.MAV_LANDED_STATE.ON_GROUND;
+    if (sourceAllowed && armed && !onGround) {
+      return null;
+    }
+
+    return "ArduCopter can enter AutoTune only while armed and airborne, with non-zero throttle, "
+        + "from Stabilize, AltHold, PosHold, or Loiter. "
+        + $"Current state: mode {currentMode ?? "unknown"}, "
+        + $"{(armed ? "armed" : "disarmed")}, "
+        + $"{(onGround ? "on ground" : "landed state " + landedState)}.";
+  }
+
+  internal static bool IsModeChangeFailureStatus(string? status) =>
+      !string.IsNullOrWhiteSpace(status)
+      && status.Contains("mode change", StringComparison.OrdinalIgnoreCase)
+      && status.Contains("failed", StringComparison.OrdinalIgnoreCase);
+
+  internal static string ModeChangeFailureExplanation(
+      MissionPlanner.ArduPilot.Firmwares firmware,
+      string? requestedMode,
+      string vehicleStatus) {
+    if (firmware == MissionPlanner.ArduPilot.Firmwares.ArduCopter2
+        && NormalizeModeName(requestedMode) == "AUTOTUNE"
+        && vehicleStatus.Contains("init failed", StringComparison.OrdinalIgnoreCase)) {
+      return vehicleStatus
+          + "\n\nArduCopter AutoTune must be entered while armed and airborne, with non-zero "
+          + "throttle, from Stabilize, AltHold, PosHold, or Loiter. Circle is not an allowed "
+          + "source mode.";
+    }
+    return vehicleStatus;
+  }
+
+  private static string NormalizeModeName(string? mode) => new(
+      (mode ?? "").Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
+
+  private static async Task<(bool Accepted, string? Failure)> WaitForModeChangeFeedback(
+      MissionPlanner.CurrentState currentState,
+      string requestedMode,
+      System.Collections.Concurrent.ConcurrentQueue<string> statusMessages,
+      TimeSpan timeout) {
+    long deadline = Environment.TickCount64 + Math.Max(0, (long)timeout.TotalMilliseconds);
+    do {
+      if (NormalizeModeName(currentState.mode) == NormalizeModeName(requestedMode)) {
+        return (true, null);
+      }
+      string? failure = statusMessages.FirstOrDefault(IsModeChangeFailureStatus);
+      if (failure != null) {
+        return (false, failure);
+      }
+      await Task.Delay(50);
+    } while (Environment.TickCount64 < deadline);
+
+    return (false, statusMessages.FirstOrDefault(IsModeChangeFailureStatus));
   }
 
   private void RefreshFlightOptions(MissionPlanner.CurrentState cs) {

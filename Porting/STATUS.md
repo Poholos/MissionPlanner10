@@ -2,6 +2,26 @@
 
 Updated: **2026-08-26**.
 
+## SITL AutoTune feedback and Copter Circle-overlay checkpoint
+
+- The reported Copter SITL `AutoTune` failure was traced through the live telemetry log rather
+  than inferred from the UI. MissionPlanner sent the correct ArduCopter custom mode `15`; SITL
+  `ArduCopter V4.8.0-dev (01a504b4)` answered `Mode change to Autotune failed: init failed`.
+  That firmware permits AutoTune entry only while armed/airborne with non-zero throttle and from
+  Stabilize, AltHold, PosHold or Loiter; Circle deliberately does not opt into AutoTune entry.
+- Set Mode now preserves a stable link/target for the request, watches the target's `STATUSTEXT`
+  and current mode for two seconds, and reports confirmed success, explicit vehicle rejection or
+  missing confirmation instead of always claiming only `Requested`. A Copter AutoTune request
+  whose known current state cannot satisfy the firmware contract is stopped with actionable
+  guidance before sending; ready airborne requests and Plane AutoTune remain unaffected.
+- The moving pink arcs seen behind a Copter in Circle mode were a real Avalonia parity bug. The
+  port applied `CurrentState.radius` to every vehicle, whereas official Mission Planner gives its
+  dynamic turn-radius arc only to fixed-wing/VTOL markers. Quad, helicopter and rover markers no
+  longer receive it. The retained fixed-wing/VTOL arc now also converts display-distance units
+  back to metres before creating Mapsui world geometry.
+- Focused mode/map checks pass 71/71; the complete suite passes 1478/1478 and the Release solution
+  builds with 0 warnings and 0 errors.
+
 ## Flight Data Actions and joystick-dialog parity checkpoint
 
 - Flight Data hardware Actions no longer terminate the process on a transport failure. `Message`

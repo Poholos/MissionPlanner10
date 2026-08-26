@@ -68,6 +68,18 @@ public class FlightMapOverlayTests {
         MapView.ShouldShowLegacyCircularFence(firmware, enabled, type, radius));
   }
 
+  [Theory]
+  [InlineData(MAVLink.MAV_TYPE.FIXED_WING, true)]
+  [InlineData(MAVLink.MAV_TYPE.VTOL_DUOROTOR, true)]
+  [InlineData(MAVLink.MAV_TYPE.VTOL_RESERVED5, true)]
+  [InlineData(MAVLink.MAV_TYPE.QUADROTOR, false)]
+  [InlineData(MAVLink.MAV_TYPE.HELICOPTER, false)]
+  [InlineData(MAVLink.MAV_TYPE.GROUND_ROVER, false)]
+  public void Dynamic_turn_radius_matches_the_upstream_fixed_wing_marker_contract(
+      MAVLink.MAV_TYPE vehicleType, bool expected) {
+    Assert.Equal(expected, MapView.SupportsTurnRadiusOverlay(vehicleType));
+  }
+
   [Fact]
   public void Oa_db_radius_builds_a_closed_red_map_polygon() {
     var feature = MapView.BuildTrafficRadius(33, 34, 25);

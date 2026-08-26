@@ -329,8 +329,8 @@ public class MapView : MapControl {
       return;
     }
     UpdateOtherVehicles();
-    var cs = AppState.comPort.MAV?.cs;
-    if (cs == null || (cs.lat == 0 && cs.lng == 0)) {
+    MAVState? mav = AppState.comPort.MAV;
+    if (mav?.cs is not { } cs || (cs.lat == 0 && cs.lng == 0)) {
       return;
     }
 
@@ -340,7 +340,7 @@ public class MapView : MapControl {
     _vehicle.Clear();
     _vehicle.Add(new PointFeature(pt));
 
-    DrawBearingOverlays(cs, pt);
+    DrawBearingOverlays(mav, pt);
     _vehicle.DataHasChanged();
 
     UpdateMapRotation(cs);
@@ -1120,7 +1120,8 @@ public class MapView : MapControl {
     Line = new Pen(new Color(255, 105, 180), 2),
   };
 
-  private void DrawBearingOverlays(MissionPlanner.CurrentState cs, MPoint pt) {
+  private void DrawBearingOverlays(MAVState mav, MPoint pt) {
+    MissionPlanner.CurrentState cs = mav.cs;
     double resMpp = Map.Navigator.Viewport.Resolution;
     if (resMpp <= 0) {
       return;
@@ -1142,10 +1143,17 @@ public class MapView : MapControl {
     if (s.GetBoolean("GMapMarkerBase_DisplayTarget", true)) {
       AddBearingLine(pt, cs.target_bearing, len, _targetStyle);
     }
-    if (s.GetBoolean("GMapMarkerBase_DisplayRadius", true)) {
-      AddRadiusArc(pt, cs.groundcourse, cs.radius, resMpp);
+    if (s.GetBoolean("GMapMarkerBase_DisplayRadius", true)
+        && SupportsTurnRadiusOverlay(mav.aptype)) {
+      AddRadiusArc(
+          pt, cs.groundcourse, MissionPlanner.CurrentState.fromDistDisplayUnit(cs.radius), resMpp);
     }
   }
+
+  internal static bool SupportsTurnRadiusOverlay(MAVLink.MAV_TYPE vehicleType) =>
+      vehicleType == MAVLink.MAV_TYPE.FIXED_WING
+      || vehicleType is >= MAVLink.MAV_TYPE.VTOL_DUOROTOR
+          and <= MAVLink.MAV_TYPE.VTOL_RESERVED5;
 
   private void AddBearingLine(MPoint pt, double bearingDeg, double len, VectorStyle style) {
     double rad = bearingDeg * Math.PI / 180.0;

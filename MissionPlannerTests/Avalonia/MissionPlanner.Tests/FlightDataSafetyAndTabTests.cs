@@ -48,6 +48,70 @@ public class FlightDataSafetyAndTabTests {
     Assert.DoesNotContain("ALT_HOLD", trackerModes);
   }
 
+  [Fact]
+  public void Copter_autotune_keeps_the_ardupilot_custom_mode_number() {
+    var mode = Assert.Single(
+        MissionPlanner.ArduPilot.Common
+            .getModesList(MissionPlanner.ArduPilot.Firmwares.ArduCopter2),
+        item => item.Value.Equals("AutoTune", StringComparison.OrdinalIgnoreCase));
+
+    Assert.Equal(15, mode.Key);
+  }
+
+  [Theory]
+  [InlineData("Stabilize", true)]
+  [InlineData("AltHold", true)]
+  [InlineData("ALT_HOLD", true)]
+  [InlineData("PosHold", true)]
+  [InlineData("Loiter", true)]
+  [InlineData("Circle", false)]
+  [InlineData("Guided", false)]
+  public void Copter_autotune_is_only_entered_from_modes_allowed_by_ardupilot(
+      string sourceMode, bool expected) {
+    Assert.Equal(expected, FlightDataViewModel.IsCopterAutoTuneSourceMode(sourceMode));
+  }
+
+  [Fact]
+  public void Copter_autotune_explains_a_circle_mode_init_rejection_before_sending() {
+    string? message = FlightDataViewModel.AutoTuneReadinessMessage(
+        MissionPlanner.ArduPilot.Firmwares.ArduCopter2,
+        "AutoTune",
+        "Circle",
+        armed: true,
+        landedState: (byte)MAVLink.MAV_LANDED_STATE.IN_AIR);
+
+    Assert.NotNull(message);
+    Assert.Contains("Stabilize, AltHold, PosHold, or Loiter", message);
+    Assert.Contains("mode Circle", message);
+  }
+
+  [Fact]
+  public void Ready_airborne_copter_autotune_request_is_not_blocked_by_the_gcs() {
+    Assert.Null(FlightDataViewModel.AutoTuneReadinessMessage(
+        MissionPlanner.ArduPilot.Firmwares.ArduCopter2,
+        "AutoTune",
+        "Loiter",
+        armed: true,
+        landedState: (byte)MAVLink.MAV_LANDED_STATE.IN_AIR));
+    Assert.Null(FlightDataViewModel.AutoTuneReadinessMessage(
+        MissionPlanner.ArduPilot.Firmwares.ArduCopter2,
+        "AutoTune",
+        "AutoTune",
+        armed: true,
+        landedState: (byte)MAVLink.MAV_LANDED_STATE.IN_AIR));
+  }
+
+  [Fact]
+  public void Autotune_init_failure_preserves_vehicle_text_and_adds_actionable_guidance() {
+    const string status = "Mode change to Autotune failed: init failed";
+
+    Assert.True(FlightDataViewModel.IsModeChangeFailureStatus(status));
+    string explanation = FlightDataViewModel.ModeChangeFailureExplanation(
+        MissionPlanner.ArduPilot.Firmwares.ArduCopter2, "AutoTune", status);
+    Assert.StartsWith(status, explanation);
+    Assert.Contains("Circle is not an allowed source mode", explanation);
+  }
+
   [Theory]
   [InlineData(false, false)]
   [InlineData(true, true)]
