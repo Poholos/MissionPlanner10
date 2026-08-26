@@ -174,6 +174,8 @@ public class FlightDataSafetyAndTabTests {
       var disable = Assert.IsType<Button>(view.FindControl<Button>("DisableJoystickButton"));
       var scroll = Assert.IsType<ScrollViewer>(
           view.FindControl<ScrollViewer>("ActionsScrollViewer"));
+      var messageRate = Assert.IsType<Expander>(
+          view.FindControl<Expander>("MessageRateExpander"));
 
       Assert.Equal(5, grid.ColumnDefinitions.Count);
       Assert.Equal(5, grid.RowDefinitions.Count);
@@ -182,10 +184,12 @@ public class FlightDataSafetyAndTabTests {
         Assert.Equal(1, definition.Width.Value);
       });
       Assert.Equal(0, grid.MinWidth);
-      Assert.Equal(620, grid.MaxWidth);
-      Assert.Equal(HorizontalAlignment.Left, grid.HorizontalAlignment);
+      Assert.True(double.IsPositiveInfinity(grid.MaxWidth));
+      Assert.Equal(HorizontalAlignment.Stretch, grid.HorizontalAlignment);
+      Assert.Equal(HorizontalAlignment.Stretch, messageRate.HorizontalAlignment);
       Assert.Equal(ScrollBarVisibility.Disabled, scroll.HorizontalScrollBarVisibility);
       Assert.Equal(HorizontalAlignment.Stretch, setup.HorizontalAlignment);
+      Assert.Equal(110, setup.MaxWidth);
       Assert.Equal((0, 0), (AvaloniaGrid.GetRow(actionSelector), AvaloniaGrid.GetColumn(actionSelector)));
       Assert.Equal((0, 1), (AvaloniaGrid.GetRow(doAction), AvaloniaGrid.GetColumn(doAction)));
       Assert.Equal((3, 2), (AvaloniaGrid.GetRow(setup), AvaloniaGrid.GetColumn(setup)));

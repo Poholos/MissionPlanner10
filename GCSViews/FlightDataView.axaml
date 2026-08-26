@@ -188,8 +188,8 @@
                         HorizontalContentAlignment="Stretch">
             <StackPanel Margin="6" Spacing="6">
               <!-- Keep the same five-column command placement as upstream FlightData.tabActions. -->
-              <Grid x:Name="OfficialActionsGrid" MinWidth="0" MaxWidth="620"
-                    HorizontalAlignment="Left"
+              <Grid x:Name="OfficialActionsGrid" MinWidth="0"
+                    HorizontalAlignment="Stretch"
                     ColumnDefinitions="*,*,*,*,*"
                     RowDefinitions="Auto,Auto,Auto,Auto,Auto"
                     ColumnSpacing="4" RowSpacing="4">
@@ -222,10 +222,10 @@
                 <ComboBox x:Name="ActionSelector" Grid.Row="0" Grid.Column="0"
                           ItemsSource="{Binding Actions}" SelectedItem="{Binding SelectedAction}" />
                 <Button x:Name="DoActionButton" Grid.Row="0" Grid.Column="1" Content="Do Action"
-                        Command="{Binding DoActionCommand}" />
-                <Button Grid.Row="0" Grid.Column="2" Content="Auto"
+                        MaxWidth="110" Command="{Binding DoActionCommand}" />
+                <Button Grid.Row="0" Grid.Column="2" Content="Auto" MaxWidth="110"
                         Command="{Binding QuickAutoCommand}" />
-                <Button Grid.Row="0" Grid.Column="3" Content="Set Home Alt"
+                <Button Grid.Row="0" Grid.Column="3" Content="Set Home Alt" MaxWidth="110"
                         Command="{Binding SetHomeCommand}" />
                 <WrapPanel Grid.Row="0" Grid.Column="4" Orientation="Horizontal"
                            ItemSpacing="3" LineSpacing="2">
@@ -238,11 +238,11 @@
 
                 <ComboBox Grid.Row="1" Grid.Column="0" ItemsSource="{Binding WpNumbers}"
                           SelectedItem="{Binding SelectedWaypoint}" />
-                <Button Grid.Row="1" Grid.Column="1" Content="Set WP"
+                <Button Grid.Row="1" Grid.Column="1" Content="Set WP" MaxWidth="110"
                         Command="{Binding SetWpCommand}" />
-                <Button Grid.Row="1" Grid.Column="2" Content="Loiter"
+                <Button Grid.Row="1" Grid.Column="2" Content="Loiter" MaxWidth="110"
                         Command="{Binding QuickLoiterCommand}" />
-                <Button Grid.Row="1" Grid.Column="3" Content="Restart Mission"
+                <Button Grid.Row="1" Grid.Column="3" Content="Restart Mission" MaxWidth="110"
                         Command="{Binding RestartMissionCommand}" />
                 <WrapPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal"
                            ItemSpacing="3" LineSpacing="2">
@@ -255,11 +255,11 @@
 
                 <ComboBox Grid.Row="2" Grid.Column="0" ItemsSource="{Binding Modes}"
                           SelectedItem="{Binding SelectedMode}" />
-                <Button Grid.Row="2" Grid.Column="1" Content="Set Mode"
+                <Button Grid.Row="2" Grid.Column="1" Content="Set Mode" MaxWidth="110"
                         Command="{Binding SetModeCommand}" />
-                <Button Grid.Row="2" Grid.Column="2" Content="RTL"
+                <Button Grid.Row="2" Grid.Column="2" Content="RTL" MaxWidth="110"
                         Command="{Binding QuickRtlCommand}" />
-                <Button Grid.Row="2" Grid.Column="3" Content="Raw Sensor View"
+                <Button Grid.Row="2" Grid.Column="3" Content="Raw Sensor View" MaxWidth="110"
                         Command="{Binding RawSensorViewCommand}" />
                 <WrapPanel Grid.Row="2" Grid.Column="4" Orientation="Horizontal"
                            ItemSpacing="3" LineSpacing="2">
@@ -272,26 +272,26 @@
 
                 <ComboBox Grid.Row="3" Grid.Column="0" ItemsSource="{Binding MountModes}"
                           SelectedItem="{Binding SelectedMountMode}" />
-                <Button Grid.Row="3" Grid.Column="1" Content="Set Mount"
+                <Button Grid.Row="3" Grid.Column="1" Content="Set Mount" MaxWidth="110"
                         Command="{Binding SetMountCommand}" />
                 <Button x:Name="JoystickSetupButton" Grid.Row="3" Grid.Column="2"
-                        Content="Joystick" Command="{Binding JoystickCommand}"
+                        Content="Joystick" MaxWidth="110" Command="{Binding JoystickCommand}"
                         ToolTip.Tip="Open the joystick setup dialog" />
-                <Button Grid.Row="3" Grid.Column="3" Content="Arm / Disarm"
+                <Button Grid.Row="3" Grid.Column="3" Content="Arm / Disarm" MaxWidth="110"
                         Command="{Binding ToggleArmCommand}" />
-                <Button Grid.Row="3" Grid.Column="4" Content="Clear Track"
+                <Button Grid.Row="3" Grid.Column="4" Content="Clear Track" MaxWidth="110"
                         Command="{Binding ClearTrackCommand}" />
 
-                <Button Grid.Row="4" Grid.Column="2" Content="Message"
+                <Button Grid.Row="4" Grid.Column="2" Content="Message" MaxWidth="110"
                         Command="{Binding ShowMessageCommand}" />
-                <Button Grid.Row="4" Grid.Column="3" Content="Resume Mission"
+                <Button Grid.Row="4" Grid.Column="3" Content="Resume Mission" MaxWidth="110"
                         Command="{Binding ResumeMissionCommand}" />
-                <Button Grid.Row="4" Grid.Column="4" Content="Abort Landing"
+                <Button Grid.Row="4" Grid.Column="4" Content="Abort Landing" MaxWidth="110"
                         Command="{Binding AbortLandCommand}" />
               </Grid>
 
-              <Expander Header="MAVLink Message Rate" IsExpanded="False"
-                        MinWidth="0" MaxWidth="620" HorizontalAlignment="Left">
+              <Expander x:Name="MessageRateExpander" Header="MAVLink Message Rate"
+                        IsExpanded="False" MinWidth="0" HorizontalAlignment="Stretch">
                 <StackPanel Margin="0,4,0,0" Spacing="3">
                   <Grid ColumnDefinitions="*,64,54,48,54" ColumnSpacing="3">
                     <ComboBox Grid.Column="0" ItemsSource="{Binding MessageOptions}"
