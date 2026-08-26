@@ -33,4 +33,13 @@ public class ProgressReporterTests {
     Assert.False(cancellationCallbackRan);
     Assert.Equal(token, reporter.Token);
   }
+
+  [AvaloniaFact]
+  public void Cancellation_action_can_describe_a_non_destructive_parameter_skip() {
+    var reporter = new ProgressReporter("Parameter loading");
+
+    reporter.SetCancellationText("Skip Parameters");
+
+    Assert.Equal("Skip Parameters", reporter.CancellationText);
+  }
 }

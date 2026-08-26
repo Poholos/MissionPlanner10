@@ -19,13 +19,15 @@ public partial class BackstagePage : ObservableObject {
       bool requiresConnection = false,
       Func<bool>? visibleWhen = null,
       bool isHeader = false,
-      string? badge = null
+      string? badge = null,
+      bool allowsPartialParameters = false
   ) {
     Header = header;
     _factory = factory;
     IsAdvanced = advanced;
     IsSub = sub;
     RequiresConnection = requiresConnection;
+    AllowsPartialParameters = allowsPartialParameters;
     VisibleWhen = visibleWhen;
     IsHeader = isHeader;
     Badge = badge;
@@ -35,6 +37,7 @@ public partial class BackstagePage : ObservableObject {
   public bool IsAdvanced { get; }
   public bool IsSub { get; }
   public bool RequiresConnection { get; }
+  public bool AllowsPartialParameters { get; }
 
   public string? Badge { get; }
   public bool HasBadge => !string.IsNullOrEmpty(Badge);
@@ -98,7 +101,9 @@ public partial class BackstageViewModel : ViewModelBase, IDeactivationAware, IDi
     _paramLoadTimer.Tick += (_, _) => {
       bool wasLoading = ShowParamLoading;
       bool connected = AppState.IsConnected;
-      ShowParamLoading = connected && !ParamLoading.ParametersReady;
+      ShowParamLoading = ShouldShowParameterLoading(
+          connected, ParamLoading.ParametersReady,
+          SelectedPage?.AllowsPartialParameters == true);
       if (connected && wasLoading && !ShowParamLoading
           && CurrentContent is IActivationAware activation) {
         activation.Activate();
@@ -171,7 +176,14 @@ public partial class BackstageViewModel : ViewModelBase, IDeactivationAware, IDi
         MissionPlanner.Utilities.Settings.Instance[_persistKey] = newValue.Header;
       }
     }
+    ShowParamLoading = ShouldShowParameterLoading(
+        AppState.IsConnected, ParamLoading.ParametersReady,
+        newValue?.AllowsPartialParameters == true);
   }
+
+  internal static bool ShouldShowParameterLoading(
+      bool connected, bool parametersReady, bool allowsPartialParameters) =>
+      connected && !parametersReady && !allowsPartialParameters;
 
   public void Deactivate() {
     if (CurrentContent is IDeactivationAware lifecycle) {
@@ -240,10 +252,13 @@ public partial class BackstageViewModel : ViewModelBase, IDeactivationAware, IDi
       bool sub = false,
       bool requiresConnection = false,
       Func<bool>? visibleWhen = null,
-      string? badge = null
+      string? badge = null,
+      bool allowsPartialParameters = false
   ) {
     bool isHeader = header.StartsWith(">>", StringComparison.Ordinal);
-    var p = new BackstagePage(header, factory, advanced, sub, requiresConnection, visibleWhen, isHeader, badge);
+    var p = new BackstagePage(
+        header, factory, advanced, sub, requiresConnection, visibleWhen, isHeader, badge,
+        allowsPartialParameters);
     if (isHeader) {
       _currentGroup = p;
     } else if (sub) {

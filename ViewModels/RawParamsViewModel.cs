@@ -39,11 +39,15 @@ public partial class RawParamsViewModel : ViewModelBase, IDisposable {
   private MAVLinkInterface _comPort => AppState.comPort;
 
   private readonly FrameDefaultCatalogService _frameDefaultCatalog;
+  private readonly DispatcherTimer _parameterProgressTimer;
   private readonly List<ParamRow> _all = new();
   private readonly object _targetGate = new();
   private CancellationTokenSource? _frameDefaultCancellation;
   private ParameterTarget? _currentTarget;
   private long _targetRevision;
+  private ParameterTarget? _lastProgressTarget;
+  private int _lastProgressReceived = -1;
+  private int _lastProgressReported = -1;
   private bool _disposed;
 
   public ObservableCollection<ParamRow> Params { get; } = new();
@@ -76,6 +80,12 @@ public partial class RawParamsViewModel : ViewModelBase, IDisposable {
   [ObservableProperty]
   private string _status = "Not connected. Use Load from file / Load Demo to preview, or connect a vehicle.";
 
+  [ObservableProperty]
+  private bool _hasIncompleteParameterWarning;
+
+  [ObservableProperty]
+  private string _incompleteParameterWarning = "";
+
   public bool IsConnected => _comPort.BaseStream?.IsOpen == true;
 
   public RawParamsViewModel() : this(FrameDefaultCatalogService.Shared) { }
@@ -83,6 +93,11 @@ public partial class RawParamsViewModel : ViewModelBase, IDisposable {
   internal RawParamsViewModel(FrameDefaultCatalogService frameDefaultCatalog) {
     _frameDefaultCatalog = frameDefaultCatalog;
     AppState.ConnectionChanged += OnConnectionChanged;
+    _parameterProgressTimer = new DispatcherTimer {
+      Interval = TimeSpan.FromMilliseconds(500),
+    };
+    _parameterProgressTimer.Tick += (_, _) => PollParameterProgress();
+    _parameterProgressTimer.Start();
     SynchronizeSelectedVehicle();
   }
 
@@ -106,6 +121,8 @@ public partial class RawParamsViewModel : ViewModelBase, IDisposable {
     }
 
     try {
+      ConnectionViewModel.ResetSelectedVehicleParameters(_comPort.MAV);
+      SynchronizeSelectedVehicle();
       bool loaded = await AppState.ParameterLoads.LoadLatestAsync(
           _comPort.MAV.sysid, _comPort.MAV.compid);
       if (!loaded) {
@@ -188,35 +205,18 @@ public partial class RawParamsViewModel : ViewModelBase, IDisposable {
       await Services.Dialogs.Alert("Write parameters",
           $"Wrote {ok} of {pending.Count}. The rest were not acknowledged — try again.");
     }
-    await ReconcileParameterCountAfterWrite();
+    await WarnIfParameterListIncompleteAfterWrite();
   }
 
-  private async Task ReconcileParameterCountAfterWrite() {
+  private async Task WarnIfParameterListIncompleteAfterWrite() {
     var parameters = _comPort.MAV.param;
     if (parameters.TotalReceived == parameters.TotalReported) {
       return;
     }
-    if (_comPort.MAV.cs.armed) {
-      await Services.Dialogs.Alert("Params",
-          "The number of available parameters changed. A full refresh is unsafe while armed, "
-          + "so some parameters may remain hidden until the vehicle is disarmed and refreshed.");
-      parameters.TotalReported = parameters.TotalReceived;
-      return;
-    }
-
     await Services.Dialogs.Alert("Params",
-        "The number of available parameters changed. The complete list will now be refreshed.");
-    try {
-      bool loaded = await AppState.ParameterLoads.LoadLatestAsync(
-          _comPort.MAV.sysid, _comPort.MAV.compid);
-      if (!loaded) {
-        return;
-      }
-      LoadFromMav();
-      AppState.RaiseConnectionChanged();
-    } catch (Exception ex) {
-      await Services.Dialogs.Alert("Refresh failed", ex.Message);
-    }
+        $"The parameter write completed, but this is still an incomplete list "
+        + $"({parameters.TotalReceived} / {parameters.TotalReported}). Parameters not shown were "
+        + "not changed. Use Refresh Params when the complete list is needed.");
   }
 
   internal static string BuildWriteConfirmation(
@@ -585,14 +585,23 @@ public partial class RawParamsViewModel : ViewModelBase, IDisposable {
     Settings.Instance.SetList("fav_params", favs);
   }
 
-  private void LoadFromMav() {
+  private void LoadFromMav(bool preserveStagedValues = false) {
     var fw = _comPort.MAV.cs.firmware.ToString();
     var favs = Settings.Instance.GetList("fav_params").ToHashSet();
+    var staged = preserveStagedValues
+        ? _all.Where(row => row.IsDirty).ToDictionary(
+            row => row.Name, row => row.ValueText, StringComparer.OrdinalIgnoreCase)
+        : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-    var snapshot = _comPort.MAV.param.ToArray();
+    var snapshot = _comPort.MAV.param.Snapshot();
     var rows = snapshot.Select(p =>
         BuildRow(p.Name, p.Value, p.default_value, fw, favs, p.TypeAP)).ToList();
-    LoadFrom(rows);
+    foreach (ParamRow row in rows) {
+      if (staged.TryGetValue(row.Name, out string? value)) {
+        row.ValueText = value;
+      }
+    }
+    LoadFrom(rows, preserveCategory: preserveStagedValues);
   }
 
   private void OnConnectionChanged() {
@@ -601,16 +610,21 @@ public partial class RawParamsViewModel : ViewModelBase, IDisposable {
     }
     // Observe the change before posting UI work. This preserves a monotonic selection revision
     // even if the user switches away and back before the dispatcher processes either callback.
+    ParameterTarget? target = CaptureCurrentTarget();
+    bool preserveStagedValues = target != null && target == _lastProgressTarget;
     ObserveTargetChange();
-    Dispatcher.UIThread.Post(SynchronizeSelectedVehicle);
+    Dispatcher.UIThread.Post(() => SynchronizeSelectedVehicle(
+        preserveStagedValues && CaptureCurrentTarget() == target));
   }
 
-  internal void SynchronizeSelectedVehicle() {
+  internal void SynchronizeSelectedVehicle(bool preserveStagedValues = false) {
     if (_disposed) {
       return;
     }
     ObserveTargetChange();
     if (!IsConnected) {
+      HasIncompleteParameterWarning = false;
+      IncompleteParameterWarning = "";
       LoadFrom([]);
       Status = "Not connected. Connect a vehicle or explicitly load a parameter file.";
       return;
@@ -618,26 +632,52 @@ public partial class RawParamsViewModel : ViewModelBase, IDisposable {
 
     int received = _comPort.MAV.param.TotalReceived;
     int reported = _comPort.MAV.param.TotalReported;
+    _lastProgressTarget = CaptureCurrentTarget();
+    _lastProgressReceived = received;
+    _lastProgressReported = reported;
     if (!CanExposeLiveParameters(received, reported)) {
-      // PARAM_VALUE packets update MAVState incrementally. Keep the editor empty until the exact
-      // selected vehicle has supplied a complete list, otherwise a partial response can look like
-      // a valid configuration and invite unsafe writes.
+      HasIncompleteParameterWarning = false;
+      IncompleteParameterWarning = "";
       LoadFrom([]);
-      Status = reported == 0
-          ? $"Waiting for parameters from {_comPort.MAV.sysid}:{_comPort.MAV.compid}…"
-          : $"Loading parameters from {_comPort.MAV.sysid}:{_comPort.MAV.compid} "
-            + $"({received} / {reported}); values remain hidden until complete.";
+      Status = $"Waiting for parameters from {_comPort.MAV.sysid}:{_comPort.MAV.compid}…";
       return;
     }
 
-    LoadFromMav();
-    Status = $"Loaded {_comPort.MAV.param.Count} parameters from "
-        + $"{_comPort.MAV.sysid}:{_comPort.MAV.compid}.";
+    bool complete = reported > 0 && received >= reported;
+    HasIncompleteParameterWarning = !complete;
+    IncompleteParameterWarning = complete
+        ? ""
+        : BuildIncompleteParameterWarning(received, reported);
+    LoadFromMav(preserveStagedValues);
+    Status = complete
+        ? $"Loaded {received} parameters from {_comPort.MAV.sysid}:{_comPort.MAV.compid}."
+        : $"Showing {received} of {(reported > 0 ? reported.ToString() : "unknown")} parameters from "
+          + $"{_comPort.MAV.sysid}:{_comPort.MAV.compid}.";
   }
 
   internal static bool CanExposeLiveParameters(int received, int reported) =>
-      GCSViews.ConfigurationView.ConfigParamLoadingViewModel.HasAllParameters(
-          received, reported);
+      received > 0;
+
+  internal static string BuildIncompleteParameterWarning(int received, int reported) =>
+      reported > 0
+          ? $"WARNING: incomplete parameter list — received {received} of {reported}. "
+            + "Only displayed parameters can be edited; use Refresh Params for the full list."
+          : $"WARNING: incomplete parameter list — received {received}; total is unknown. "
+            + "Only displayed parameters can be edited; use Refresh Params for the full list.";
+
+  private void PollParameterProgress() {
+    if (_disposed || !IsConnected) {
+      return;
+    }
+    ParameterTarget? target = CaptureCurrentTarget();
+    int received = _comPort.MAV.param.TotalReceived;
+    int reported = _comPort.MAV.param.TotalReported;
+    if (target == _lastProgressTarget && received == _lastProgressReceived
+        && reported == _lastProgressReported) {
+      return;
+    }
+    SynchronizeSelectedVehicle(preserveStagedValues: true);
+  }
 
   private ParameterTarget? CaptureCurrentTarget() => IsConnected
       ? new ParameterTarget(_comPort, _comPort.MAV.sysid, _comPort.MAV.compid)
@@ -703,6 +743,7 @@ public partial class RawParamsViewModel : ViewModelBase, IDisposable {
       return;
     }
     _disposed = true;
+    _parameterProgressTimer.Stop();
     AppState.ConnectionChanged -= OnConnectionChanged;
     CancellationTokenSource? cancellation;
     lock (_targetGate) {
@@ -739,13 +780,14 @@ public partial class RawParamsViewModel : ViewModelBase, IDisposable {
     return BuildRow(name, value, def, fw, favs);
   }
 
-  private void LoadFrom(IEnumerable<ParamRow> rows) {
+  private void LoadFrom(IEnumerable<ParamRow> rows, bool preserveCategory = false) {
+    string previousCategory = SelectedCategory;
     void Apply() {
       _all.Clear();
       _all.AddRange(rows);
       HasDefaults = _all.Any(r => r.DefaultValue.HasValue);
       Sort();
-      RebuildCategories();
+      RebuildCategories(preserveCategory ? previousCategory : null);
       ApplyFilter();
     }
     if (Dispatcher.UIThread.CheckAccess()) {
@@ -766,7 +808,7 @@ public partial class RawParamsViewModel : ViewModelBase, IDisposable {
     );
   }
 
-  private void RebuildCategories() {
+  private void RebuildCategories(string? preferredCategory = null) {
     var prefixes = _all
         .Select(r => r.Prefix)
         .Where(p => p.Length > 0)
@@ -778,7 +820,9 @@ public partial class RawParamsViewModel : ViewModelBase, IDisposable {
     foreach (var p in prefixes) {
       Categories.Add(p);
     }
-    SelectedCategory = "All";
+    SelectedCategory = preferredCategory != null && Categories.Contains(preferredCategory)
+        ? preferredCategory
+        : "All";
   }
 
   private void ApplyFilter() {

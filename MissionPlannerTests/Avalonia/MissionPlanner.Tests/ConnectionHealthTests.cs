@@ -199,6 +199,27 @@ public class ConnectionHealthTests {
   }
 
   [Fact]
+  public async Task Explicit_parameter_cancel_waits_until_the_reader_has_stopped() {
+    var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    var stopped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    var coordinator = new VehicleParameterLoadCoordinator(async (_, _, token, _) => {
+      started.TrySetResult();
+      try {
+        await Task.Delay(Timeout.InfiniteTimeSpan, token);
+      } finally {
+        stopped.TrySetResult();
+      }
+    });
+    VehicleParameterLoadCoordinator.Operation operation = coordinator.Start(1, 1);
+    await started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+    await coordinator.CancelCurrentAndWaitAsync().WaitAsync(TimeSpan.FromSeconds(1));
+
+    await stopped.Task.WaitAsync(TimeSpan.FromSeconds(1));
+    await Assert.ThrowsAnyAsync<OperationCanceledException>(() => operation.Completion);
+  }
+
+  [Fact]
   public void Cancellation_reporter_forwards_token_to_upstream_contract() {
     using var source = new CancellationTokenSource();
     var reporter = new CancellationProgressReporter(source.Token);
@@ -267,12 +288,31 @@ public class ConnectionHealthTests {
   [Theory]
   [InlineData(0, 0, false)]
   [InlineData(0, 10, false)]
-  [InlineData(9, 10, false)]
+  [InlineData(9, 10, true)]
   [InlineData(10, 10, true)]
   [InlineData(11, 10, true)]
-  public void Parameter_editor_exposes_only_a_complete_live_list(
+  public void Parameter_editor_exposes_any_fresh_received_values(
       int received, int reported, bool expected) {
     Assert.Equal(expected, RawParamsViewModel.CanExposeLiveParameters(received, reported));
+  }
+
+  [Fact]
+  public void Partial_parameter_warning_reports_received_and_expected_counts() {
+    string warning = RawParamsViewModel.BuildIncompleteParameterWarning(9, 10);
+
+    Assert.Contains("received 9 of 10", warning);
+    Assert.Contains("Only displayed parameters can be edited", warning);
+  }
+
+  [Theory]
+  [InlineData(true, false, false, true)]
+  [InlineData(true, false, true, false)]
+  [InlineData(true, true, false, false)]
+  [InlineData(false, false, false, false)]
+  public void Full_parameter_page_can_bypass_the_complete_list_loading_overlay(
+      bool connected, bool ready, bool allowsPartial, bool expected) {
+    Assert.Equal(expected, BackstageViewModel.ShouldShowParameterLoading(
+        connected, ready, allowsPartial));
   }
 
   [Fact]
@@ -343,6 +383,17 @@ public class ConnectionHealthTests {
         pointToPoint, configured: false));
     Assert.True(ConnectionViewModel.ShouldLoadParametersInBackground(
         pointToPoint, configured: true));
+  }
+
+  [Theory]
+  [InlineData((int)ConnectionInitializationStage.OpeningTransport, true)]
+  [InlineData((int)ConnectionInitializationStage.LoadingParameters, false)]
+  [InlineData((int)ConnectionInitializationStage.Connected, false)]
+  public void Initialization_cancel_only_releases_a_transport_before_mavlink_is_open(
+      int stage, bool expected) {
+    Assert.Equal(
+        expected, ConnectionViewModel.ShouldReleaseTransportOnInitializationCancel(
+            (ConnectionInitializationStage)stage));
   }
 
   [Theory]

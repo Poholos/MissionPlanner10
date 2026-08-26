@@ -10,6 +10,10 @@ namespace MissionPlanner.ViewModels.GCSViews.ConfigurationView;
 public partial class ConfigParamLoadingViewModel : ViewModelBase, IDisposable {
   private MAVLinkInterface _comPort => AppState.comPort;
   private readonly DispatcherTimer _timer;
+  private MAVLinkInterface? _lastLink;
+  private byte _lastSystemId;
+  private byte _lastComponentId;
+  private bool _loadingCancelled;
 
   [ObservableProperty]
   private int _progressPercent;
@@ -36,13 +40,29 @@ public partial class ConfigParamLoadingViewModel : ViewModelBase, IDisposable {
   }
 
   private void Tick() {
+    MAVLinkInterface link = _comPort;
+    byte systemId = link.MAV.sysid;
+    byte componentId = link.MAV.compid;
+    if (!ReferenceEquals(_lastLink, link) || _lastSystemId != systemId
+        || _lastComponentId != componentId) {
+      _lastLink = link;
+      _lastSystemId = systemId;
+      _lastComponentId = componentId;
+      _loadingCancelled = false;
+    }
     var reported = _comPort.MAV.param.TotalReported;
     var received = _comPort.MAV.param.TotalReceived;
 
     ProgressPercent = reported > 0 ? (int)Math.Min(100, received * 100.0 / reported) : 0;
     Count = received + " / " + reported;
     if (GotAllParams && reported > 0) {
+      _loadingCancelled = false;
       Status = "All parameters loaded.";
+    } else if (_loadingCancelled) {
+      Status = $"Parameter loading stopped at {received} / "
+          + $"{(reported > 0 ? reported.ToString() : "unknown")}. The connection remains active. "
+          + "Received values are available in Full Parameter List; select Retry Now for a "
+          + "complete list.";
     } else if (reported == 0) {
       Status = "Waiting for the first parameter response. Select another device or retry; "
           + "old-device values remain hidden.";
@@ -53,10 +73,21 @@ public partial class ConfigParamLoadingViewModel : ViewModelBase, IDisposable {
 
   [RelayCommand]
   private async Task Retry() {
+    _loadingCancelled = false;
     Status = "Requesting parameters…";
+    ConnectionViewModel.ResetSelectedVehicleParameters(_comPort.MAV);
 
     await AppState.ParameterLoads.LoadLatestAsync(
         _comPort.MAV.sysid, _comPort.MAV.compid);
+    AppState.RaiseConnectionChanged();
+  }
+
+  [RelayCommand]
+  private async Task CancelLoading() {
+    _loadingCancelled = true;
+    Status = "Stopping parameter loading; the connection remains active…";
+    await AppState.ParameterLoads.CancelCurrentAndWaitAsync();
+    Tick();
     AppState.RaiseConnectionChanged();
   }
 

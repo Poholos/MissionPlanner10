@@ -14,7 +14,33 @@ public partial class MAVLink
 
         public int TotalReceived
         {
-            get { return this.Count; }
+            get
+            {
+                try
+                {
+                    locker.AcquireReaderLock(1000);
+                    return Count;
+                }
+                finally
+                {
+                    if (locker.IsReaderLockHeld)
+                        locker.ReleaseReaderLock();
+                }
+            }
+        }
+
+        public MAVLinkParam[] Snapshot()
+        {
+            try
+            {
+                locker.AcquireReaderLock(1000);
+                return base.ToArray();
+            }
+            finally
+            {
+                if (locker.IsReaderLockHeld)
+                    locker.ReleaseReaderLock();
+            }
         }
 
         public MAVLinkParam this[string name]

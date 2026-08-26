@@ -14,6 +14,8 @@ internal sealed class VehicleParameterLoadCoordinator {
   private readonly Func<byte, byte, CancellationToken, Action<int, string>?, Task> _loader;
   private readonly SemaphoreSlim _gate = new(1, 1);
   private readonly LatestOperationController _operations = new();
+  private readonly object _currentSync = new();
+  private Operation? _current;
 
   internal VehicleParameterLoadCoordinator(MAVLinkInterface comPort) =>
       _loader = (sysid, compid, token, progress) =>
@@ -28,13 +30,39 @@ internal sealed class VehicleParameterLoadCoordinator {
       byte compid,
       CancellationToken lifetimeToken = default,
       Action<int, string>? progress = null) {
-    var lease = _operations.Begin(lifetimeToken);
-    var operation = new Operation(lease);
-    operation.Completion = Run(operation, sysid, compid, progress);
+    Operation operation;
+    lock (_currentSync) {
+      var lease = _operations.Begin(lifetimeToken);
+      operation = new Operation(lease);
+      operation.Completion = Run(operation, sysid, compid, progress);
+      _current = operation;
+    }
+    _ = ForgetWhenComplete(operation);
     return operation;
   }
 
-  internal void CancelCurrent() => _operations.CancelCurrent();
+  internal void CancelCurrent() {
+    lock (_currentSync) {
+      _operations.CancelCurrent();
+    }
+  }
+
+  internal async Task CancelCurrentAndWaitAsync() {
+    Operation? operation;
+    lock (_currentSync) {
+      operation = _current;
+      _operations.CancelCurrent();
+    }
+    if (operation == null) {
+      return;
+    }
+    try {
+      await operation.Completion.ConfigureAwait(false);
+    } catch (OperationCanceledException) when (operation.Token.IsCancellationRequested) {
+    } catch {
+      // A failed read is just as terminal as a cancelled one for this stop-and-clear operation.
+    }
+  }
 
   internal async Task<bool> LoadLatestAsync(
       byte sysid,
@@ -67,6 +95,20 @@ internal sealed class VehicleParameterLoadCoordinator {
         _gate.Release();
       }
       operation.CompleteLease();
+    }
+  }
+
+  private async Task ForgetWhenComplete(Operation operation) {
+    try {
+      await operation.Completion.ConfigureAwait(false);
+    } catch {
+      // The caller observes the original completion task. This observer only clears ownership.
+    } finally {
+      lock (_currentSync) {
+        if (ReferenceEquals(_current, operation)) {
+          _current = null;
+        }
+      }
     }
   }
 

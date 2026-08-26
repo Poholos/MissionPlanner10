@@ -10,7 +10,7 @@
   x:Class="MissionPlanner.Views.RawParamsView"
   x:DataType="vm:RawParamsViewModel"
 >
-  <Grid RowDefinitions="Auto,Auto,*" Margin="8">
+  <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="8">
     <WrapPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
       <Button Content="Load from file" Name="LoadBtn" Margin="0,0,6,4" />
       <Button Content="Save to file" Name="SaveBtn" Margin="0,0,6,4" />
@@ -69,5 +69,10 @@
         </DataGrid.Columns>
       </DataGrid>
     </Grid>
+
+    <TextBlock Grid.Row="3" Text="{Binding IncompleteParameterWarning}"
+               IsVisible="{Binding HasIncompleteParameterWarning}"
+               Foreground="#FF7777" FontWeight="SemiBold" TextWrapping="Wrap"
+               Margin="0,8,0,0" />
   </Grid>
 </UserControl>

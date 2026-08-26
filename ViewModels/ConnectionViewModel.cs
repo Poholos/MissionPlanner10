@@ -21,6 +21,12 @@ public sealed record MavSystemChoice(
   public override string ToString() => Label;
 }
 
+internal enum ConnectionInitializationStage {
+  OpeningTransport,
+  LoadingParameters,
+  Connected,
+}
+
 public partial class ConnectionViewModel : ViewModelBase, IDisposable {
   private readonly MAVLinkInterface _primaryPort = AppState.PrimaryComPort;
   private MAVLinkInterface _comPort => _primaryPort;
@@ -1200,22 +1206,33 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
       AppState.ActiveConnectReporter = dlg;
       dlg.Set(0, $"Connecting {endpoint}…");
 
+      int initializationStage = (int)ConnectionInitializationStage.OpeningTransport;
       using CancellationTokenRegistration cancelRegistration = dlg.Token.Register(() => {
-        _ = _transportRelease.Begin(_comPort);
-        AppState.Connections.Primary.MarkClosed();
+        var stage = (ConnectionInitializationStage)Volatile.Read(ref initializationStage);
+        bool releaseTransport = ShouldReleaseTransportOnInitializationCancel(stage);
+        if (releaseTransport) {
+          _ = _transportRelease.Begin(_comPort);
+          AppState.Connections.Primary.MarkClosed();
+        }
         Avalonia.Threading.Dispatcher.UIThread.Post(() => {
           dlg.Close();
-          CloseLogs();
-          IsConnected = false;
-          ConnectText = "CONNECT";
-          Status = "";
+          if (releaseTransport) {
+            CloseLogs();
+            IsConnected = false;
+            ConnectText = "CONNECT";
+            Status = "";
+          } else if (stage == ConnectionInitializationStage.LoadingParameters) {
+            Status = "Stopping parameter loading; the connection will remain active…";
+          }
           AppState.RaiseConnectionChanged();
         });
       });
       dlg.Show2();
 
       Exception? openError = null;
+      Exception? parameterError = null;
       bool backgroundParamLoad = false;
+      bool parameterLoadSkipped = false;
       try {
 
         Task open = Task.Factory.StartNew(
@@ -1224,26 +1241,51 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
             TaskCreationOptions.LongRunning,
             TaskScheduler.Default);
         await open.WaitAsync(dlg.Token);
+        if (_comPort.BaseStream.IsOpen) {
+          Volatile.Write(
+              ref initializationStage, (int)ConnectionInitializationStage.LoadingParameters);
+        }
         if (_comPort.BaseStream.IsOpen && !dlg.CancelRequested &&
             _comPort.MAV.compid != (byte)MAVLink.MAV_COMPONENT.MAV_COMP_ID_PERIPHERAL) {
           backgroundParamLoad = ShouldLoadParametersInBackground(
               stream, Settings.Instance.GetBoolean("Params_BG", false));
           if (!backgroundParamLoad) {
-            Task parameters = Task.Factory.StartNew(
-                () => _comPort.getParamList(),
-                CancellationToken.None,
-                TaskCreationOptions.LongRunning,
-                TaskScheduler.Default);
-            await parameters.WaitAsync(dlg.Token);
+            dlg.SetCancellationText("Skip Parameters");
+            var operation = AppState.ParameterLoads.Start(
+                _comPort.MAV.sysid, _comPort.MAV.compid, dlg.Token, OnProgress);
+            try {
+              await operation.Completion;
+            } catch (OperationCanceledException) when (operation.Token.IsCancellationRequested) {
+              parameterLoadSkipped = true;
+            } catch (Exception ex) {
+              parameterError = ex;
+            }
           }
         }
+      } catch (OperationCanceledException) when (
+          dlg.CancelRequested && _comPort.BaseStream.IsOpen &&
+          !ShouldReleaseTransportOnInitializationCancel(
+              (ConnectionInitializationStage)Volatile.Read(ref initializationStage))) {
+        parameterLoadSkipped = true;
       } catch (Exception ex) {
         openError = ex;
+      }
+      if (dlg.CancelRequested && _comPort.BaseStream.IsOpen &&
+          !ShouldReleaseTransportOnInitializationCancel(
+              (ConnectionInitializationStage)Volatile.Read(ref initializationStage))) {
+        parameterLoadSkipped = true;
+        backgroundParamLoad = false;
+      }
+      if (openError == null && _comPort.BaseStream.IsOpen) {
+        Volatile.Write(ref initializationStage, (int)ConnectionInitializationStage.Connected);
       }
       _connectDialog = null;
       AppState.ActiveConnectReporter = null;
 
-      if (dlg.CancelRequested) {
+      var completedStage =
+          (ConnectionInitializationStage)Volatile.Read(ref initializationStage);
+      if (dlg.CancelRequested &&
+          ShouldReleaseTransportOnInitializationCancel(completedStage)) {
         dlg.Close();
         _ = _transportRelease.Begin(_comPort);
         AppState.Connections.Primary.MarkClosed();
@@ -1279,26 +1321,38 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
         if (IsSerialEndpoint(endpoint) && !IsBleEndpoint(endpoint)) {
           Settings.Instance[PortBaudKey(endpoint)] = SelectedBaud.ToString();
         }
-        Status = backgroundParamLoad
-            ? "Connected. Loading parameters in background…"
-            : $"Connected. {_comPort.MAV.param.Count} params.";
+        int receivedParameters = _comPort.MAV.param.TotalReceived;
+        int reportedParameters = _comPort.MAV.param.TotalReported;
+        string parameterCount = reportedParameters > 0
+            ? $"{receivedParameters} of {reportedParameters} parameters"
+            : $"{receivedParameters} parameters (total unknown)";
+        Status = parameterLoadSkipped
+            ? $"Connected with {parameterCount}. Loading was cancelled; use Retry Now when needed."
+            : parameterError != null
+                ? $"Connected with {parameterCount}, but loading failed: {parameterError.Message}"
+                : backgroundParamLoad
+                    ? "Connected. Loading parameters in background…"
+                    : $"Connected. {_comPort.MAV.param.Count} params.";
         _connectedAtUtc = DateTime.UtcNow;
         int generation = StartReader();
         RefreshVehicleChoices();
         StartPostConnectMetadataCheck(generation);
 
-        if (backgroundParamLoad) {
+        if (backgroundParamLoad && !dlg.CancelRequested) {
           StartBackgroundParameterLoad(generation);
-        } else {
+        } else if (!parameterLoadSkipped && parameterError == null) {
           StartCubeServiceBulletinChecks(_comPort, _comPort.MAV);
         }
         RaiseConnected();
 
         dlg.Set(100, Status);
-        await Task.Delay(1200);
-        // Closing a progress window normally means Cancel. This is the successful completion path,
-        // so do not fire the transport-release callback registered on the dialog token.
-        dlg.Complete();
+        dlg.SetCancellationText("Close");
+        if (!dlg.CancelRequested) {
+          await Task.Delay(1200);
+          // Closing a progress window normally means Cancel. This is the successful completion
+          // path, so do not fire the callback registered on the dialog token.
+          dlg.Complete();
+        }
       } else {
         dlg.Close();
         _ = _transportRelease.Begin(_comPort);
@@ -1426,6 +1480,10 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
     // NV Modem from discovering the other live broadcast endpoints.
     return configured || stream is UdpSerial;
   }
+
+  internal static bool ShouldReleaseTransportOnInitializationCancel(
+      ConnectionInitializationStage stage) =>
+      stage == ConnectionInitializationStage.OpeningTransport;
 
   private async Task<ICommsSerial?> ScanForStreamAsync(bool interactive) {
     var dlg = new Services.ProgressReporter("Scanning serial ports");

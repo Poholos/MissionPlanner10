@@ -15,6 +15,9 @@
     <TextBlock Classes="fieldlbl" Text="{Binding Status}" TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center" />
     <ProgressBar Minimum="0" Maximum="100" Value="{Binding ProgressPercent}" Height="20" />
     <TextBlock Classes="fieldlbl" Text="{Binding Count}" HorizontalAlignment="Center" />
-    <Button Content="Retry Now" Command="{Binding RetryCommand}" HorizontalAlignment="Center" />
+    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+      <Button Content="Stop Loading" Command="{Binding CancelLoadingCommand}" />
+      <Button Content="Retry Now" Command="{Binding RetryCommand}" />
+    </StackPanel>
   </StackPanel>
 </UserControl>

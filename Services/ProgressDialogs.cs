@@ -44,6 +44,11 @@ public class LoadingBox : Window {
 public class ProgressReporter : Window {
   private readonly ProgressBar _bar = new() { Maximum = 100, Height = 18, Margin = new Thickness(0, 8, 0, 8) };
   private readonly TextBlock _status = new() { Foreground = Brushes.WhiteSmoke };
+  private readonly Button _cancel = new() {
+    Content = "Cancel",
+    MinWidth = 80,
+    HorizontalAlignment = HorizontalAlignment.Right,
+  };
   private readonly CancellationTokenSource _cts = new();
   private readonly CancellationToken _token;
   private int _cancellationDisposed;
@@ -61,15 +66,10 @@ public class ProgressReporter : Window {
     WindowStartupLocation = WindowStartupLocation.CenterOwner;
     Background = new SolidColorBrush(Color.Parse("#262728"));
     Closed += (_, _) => DisposeCancellation();
-    var cancel = new Button {
-      Content = "Cancel",
-      MinWidth = 80,
-      HorizontalAlignment = HorizontalAlignment.Right,
-    };
-    cancel.Click += (_, _) => RequestCancellation();
+    _cancel.Click += (_, _) => RequestCancellation();
     Content = new StackPanel {
       Margin = new Thickness(16),
-      Children = { _status, _bar, cancel },
+      Children = { _status, _bar, _cancel },
     };
   }
 
@@ -77,6 +77,16 @@ public class ProgressReporter : Window {
     _bar.Value = Math.Clamp(percent, 0, 100);
     _status.Text = status;
   });
+
+  public void SetCancellationText(string text) {
+    if (Dispatcher.UIThread.CheckAccess()) {
+      _cancel.Content = text;
+    } else {
+      Dispatcher.UIThread.Post(() => _cancel.Content = text);
+    }
+  }
+
+  internal string CancellationText => _cancel.Content?.ToString() ?? "";
 
   public void Show2() {
     var owner = Dialogs.Owner;

@@ -50,6 +50,7 @@ public class ConfigViewModel : BackstageViewModel {
     Add("User Params", () => new ConfigUserDefinedViewModel(), requiresConnection: true,
         visibleWhen: When(profile => profile.displayUserParam));
     Add("Full Parameter List", () => new RawParamsViewModel(),
+        allowsPartialParameters: true,
         visibleWhen: When(profile => profile.displayFullParamList));
     Add("Planner", () => new ConfigPlannerViewModel(),
         visibleWhen: When(profile => profile.displayPlannerSettings));
