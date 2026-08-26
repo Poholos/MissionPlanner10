@@ -27,6 +27,27 @@ internal enum ConnectionInitializationStage {
   Connected,
 }
 
+internal sealed class ConnectionInitializationState {
+  private int _stage = (int)ConnectionInitializationStage.OpeningTransport;
+
+  internal ConnectionInitializationStage Stage =>
+      (ConnectionInitializationStage)Volatile.Read(ref _stage);
+
+  internal void OpenTransport(Action openTransport, Func<bool> isTransportOpen) {
+    openTransport();
+
+    // This transition must happen on the opening worker before its Task completes. Otherwise a
+    // user can cancel the parameter dialog after MAVLink.Open returned but before the awaiting UI
+    // continuation runs, and the already-open transport is incorrectly treated as half-open.
+    if (isTransportOpen()) {
+      Volatile.Write(ref _stage, (int)ConnectionInitializationStage.LoadingParameters);
+    }
+  }
+
+  internal void MarkConnected() =>
+      Volatile.Write(ref _stage, (int)ConnectionInitializationStage.Connected);
+}
+
 public partial class ConnectionViewModel : ViewModelBase, IDisposable {
   private readonly MAVLinkInterface _primaryPort = AppState.PrimaryComPort;
   private MAVLinkInterface _comPort => _primaryPort;
@@ -1206,9 +1227,9 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
       AppState.ActiveConnectReporter = dlg;
       dlg.Set(0, $"Connecting {endpoint}…");
 
-      int initializationStage = (int)ConnectionInitializationStage.OpeningTransport;
+      var initialization = new ConnectionInitializationState();
       using CancellationTokenRegistration cancelRegistration = dlg.Token.Register(() => {
-        var stage = (ConnectionInitializationStage)Volatile.Read(ref initializationStage);
+        var stage = initialization.Stage;
         bool releaseTransport = ShouldReleaseTransportOnInitializationCancel(stage);
         if (releaseTransport) {
           _ = _transportRelease.Begin(_comPort);
@@ -1236,15 +1257,14 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
       try {
 
         Task open = Task.Factory.StartNew(
-            () => _comPort.Open(getparams: false, skipconnectedcheck: true, showui: true),
+            () => initialization.OpenTransport(
+                () => _comPort.Open(
+                    getparams: false, skipconnectedcheck: true, showui: true),
+                () => _comPort.BaseStream.IsOpen),
             CancellationToken.None,
             TaskCreationOptions.LongRunning,
             TaskScheduler.Default);
         await open.WaitAsync(dlg.Token);
-        if (_comPort.BaseStream.IsOpen) {
-          Volatile.Write(
-              ref initializationStage, (int)ConnectionInitializationStage.LoadingParameters);
-        }
         if (_comPort.BaseStream.IsOpen && !dlg.CancelRequested &&
             _comPort.MAV.compid != (byte)MAVLink.MAV_COMPONENT.MAV_COMP_ID_PERIPHERAL) {
           backgroundParamLoad = ShouldLoadParametersInBackground(
@@ -1265,25 +1285,24 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
       } catch (OperationCanceledException) when (
           dlg.CancelRequested && _comPort.BaseStream.IsOpen &&
           !ShouldReleaseTransportOnInitializationCancel(
-              (ConnectionInitializationStage)Volatile.Read(ref initializationStage))) {
+              initialization.Stage)) {
         parameterLoadSkipped = true;
       } catch (Exception ex) {
         openError = ex;
       }
       if (dlg.CancelRequested && _comPort.BaseStream.IsOpen &&
           !ShouldReleaseTransportOnInitializationCancel(
-              (ConnectionInitializationStage)Volatile.Read(ref initializationStage))) {
+              initialization.Stage)) {
         parameterLoadSkipped = true;
         backgroundParamLoad = false;
       }
       if (openError == null && _comPort.BaseStream.IsOpen) {
-        Volatile.Write(ref initializationStage, (int)ConnectionInitializationStage.Connected);
+        initialization.MarkConnected();
       }
       _connectDialog = null;
       AppState.ActiveConnectReporter = null;
 
-      var completedStage =
-          (ConnectionInitializationStage)Volatile.Read(ref initializationStage);
+      var completedStage = initialization.Stage;
       if (dlg.CancelRequested &&
           ShouldReleaseTransportOnInitializationCancel(completedStage)) {
         dlg.Close();

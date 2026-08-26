@@ -396,6 +396,32 @@ public class ConnectionHealthTests {
             (ConnectionInitializationStage)stage));
   }
 
+  [Fact]
+  public async Task Successful_transport_open_enters_parameter_phase_before_worker_completes() {
+    var initialization = new ConnectionInitializationState();
+    bool transportOpen = false;
+
+    Task open = Task.Run(() => initialization.OpenTransport(
+        () => transportOpen = true,
+        () => transportOpen));
+    await open;
+
+    Assert.Equal(ConnectionInitializationStage.LoadingParameters, initialization.Stage);
+    Assert.False(ConnectionViewModel.ShouldReleaseTransportOnInitializationCancel(
+        initialization.Stage));
+  }
+
+  [Fact]
+  public void Failed_transport_open_remains_cancellable() {
+    var initialization = new ConnectionInitializationState();
+
+    initialization.OpenTransport(() => { }, () => false);
+
+    Assert.Equal(ConnectionInitializationStage.OpeningTransport, initialization.Stage);
+    Assert.True(ConnectionViewModel.ShouldReleaseTransportOnInitializationCancel(
+        initialization.Stage));
+  }
+
   [Theory]
   [InlineData("/dev/ttyUSB0", true)]
   [InlineData("COM3", true)]
