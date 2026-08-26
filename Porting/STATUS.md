@@ -16,9 +16,10 @@ Updated: **2026-08-26**.
   rate tool remains available in a collapsed expander below the official surface.
 - The layout follow-up also restores upstream's five equal 20-percent columns. Avalonia buttons
   explicitly stretch to fill each table cell, the speed/altitude/loiter value editors use bounded
-  subcolumns, and the whole surface keeps a stable minimum width with horizontal scrolling only
-  when the user narrows the resizable Flight Data pane below it. This removes the irregular gaps,
-  mixed button widths and displaced numeric fields seen in the first parity implementation.
+  controls that wrap like upstream's `FlowLayoutPanel`, and the surface shrinks with the resizable
+  Flight Data pane without horizontal scrolling. Its maximum width is capped so a wide pane does
+  not produce oversized buttons. This removes the irregular gaps, mixed button widths and
+  displaced numeric fields seen in the first parity implementation.
 - `Joystick` now opens a separate modeless `JoystickSetupWindow`, matching upstream
   `ShowUserControl()` behavior instead of navigating to Setup. The window directly hosts the full
   native port of `JoystickSetup` (`ConfigJoystickView` plus `ConfigJoystickViewModel`), keeps an

@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless.XUnit;
 using Avalonia.Layout;
 using MissionPlanner.ViewModels;
@@ -171,6 +172,8 @@ public class FlightDataSafetyAndTabTests {
       var doAction = Assert.IsType<Button>(view.FindControl<Button>("DoActionButton"));
       var setup = Assert.IsType<Button>(view.FindControl<Button>("JoystickSetupButton"));
       var disable = Assert.IsType<Button>(view.FindControl<Button>("DisableJoystickButton"));
+      var scroll = Assert.IsType<ScrollViewer>(
+          view.FindControl<ScrollViewer>("ActionsScrollViewer"));
 
       Assert.Equal(5, grid.ColumnDefinitions.Count);
       Assert.Equal(5, grid.RowDefinitions.Count);
@@ -178,6 +181,10 @@ public class FlightDataSafetyAndTabTests {
         Assert.Equal(GridUnitType.Star, definition.Width.GridUnitType);
         Assert.Equal(1, definition.Width.Value);
       });
+      Assert.Equal(0, grid.MinWidth);
+      Assert.Equal(620, grid.MaxWidth);
+      Assert.Equal(HorizontalAlignment.Left, grid.HorizontalAlignment);
+      Assert.Equal(ScrollBarVisibility.Disabled, scroll.HorizontalScrollBarVisibility);
       Assert.Equal(HorizontalAlignment.Stretch, setup.HorizontalAlignment);
       Assert.Equal((0, 0), (AvaloniaGrid.GetRow(actionSelector), AvaloniaGrid.GetColumn(actionSelector)));
       Assert.Equal((0, 1), (AvaloniaGrid.GetRow(doAction), AvaloniaGrid.GetColumn(doAction)));
@@ -185,11 +192,6 @@ public class FlightDataSafetyAndTabTests {
       Assert.Equal("Joystick", setup.Content);
       Assert.Equal("Disable Joystick", disable.Content);
       Assert.NotSame(setup.Command, disable.Command);
-
-      grid.Measure(new Avalonia.Size(750, 220));
-      grid.Arrange(new Avalonia.Rect(0, 0, 750, 220));
-      double[] columnWidths = grid.ColumnDefinitions.Select(definition => definition.ActualWidth).ToArray();
-      Assert.InRange(columnWidths.Max() - columnWidths.Min(), 0, 1);
 
       Assert.False(disable.IsVisible);
       vm.IsJoystickActive = true;

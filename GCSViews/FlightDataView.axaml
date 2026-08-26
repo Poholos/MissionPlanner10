@@ -184,27 +184,36 @@
         <TabItem Header="Actions">
           <ScrollViewer x:Name="ActionsScrollViewer"
                         VerticalScrollBarVisibility="Auto"
-                        HorizontalScrollBarVisibility="Auto"
+                        HorizontalScrollBarVisibility="Disabled"
                         HorizontalContentAlignment="Stretch">
             <StackPanel Margin="6" Spacing="6">
               <!-- Keep the same five-column command placement as upstream FlightData.tabActions. -->
-              <Grid x:Name="OfficialActionsGrid" MinWidth="700"
+              <Grid x:Name="OfficialActionsGrid" MinWidth="0" MaxWidth="620"
+                    HorizontalAlignment="Left"
                     ColumnDefinitions="*,*,*,*,*"
                     RowDefinitions="Auto,Auto,Auto,Auto,Auto"
                     ColumnSpacing="4" RowSpacing="4">
                 <Grid.Styles>
                   <Style Selector="Grid#OfficialActionsGrid Button">
+                    <Setter Property="MinWidth" Value="0" />
                     <Setter Property="MinHeight" Value="32" />
                     <Setter Property="FontSize" Value="11" />
+                    <Setter Property="Padding" Value="4,2" />
                     <Setter Property="HorizontalAlignment" Value="Stretch" />
                     <Setter Property="HorizontalContentAlignment" Value="Center" />
                   </Style>
+                  <Style Selector="Grid#OfficialActionsGrid Button /template/ ContentPresenter">
+                    <Setter Property="TextWrapping" Value="Wrap" />
+                    <Setter Property="TextAlignment" Value="Center" />
+                  </Style>
                   <Style Selector="Grid#OfficialActionsGrid ComboBox">
+                    <Setter Property="MinWidth" Value="0" />
                     <Setter Property="MinHeight" Value="32" />
                     <Setter Property="FontSize" Value="11" />
                     <Setter Property="HorizontalAlignment" Value="Stretch" />
                   </Style>
                   <Style Selector="Grid#OfficialActionsGrid NumericUpDown">
+                    <Setter Property="MinWidth" Value="0" />
                     <Setter Property="MinHeight" Value="32" />
                     <Setter Property="FontSize" Value="11" />
                   </Style>
@@ -218,11 +227,14 @@
                         Command="{Binding QuickAutoCommand}" />
                 <Button Grid.Row="0" Grid.Column="3" Content="Set Home Alt"
                         Command="{Binding SetHomeCommand}" />
-                <Grid Grid.Row="0" Grid.Column="4" ColumnDefinitions="*,56" ColumnSpacing="3">
-                  <Button Grid.Column="0" Content="Change Speed" Command="{Binding ChangeSpeedCommand}" />
-                  <NumericUpDown Grid.Column="1" ShowButtonSpinner="False"
+                <WrapPanel Grid.Row="0" Grid.Column="4" Orientation="Horizontal"
+                           ItemSpacing="3" LineSpacing="2">
+                  <NumericUpDown Width="46" ShowButtonSpinner="False"
                                  FormatString="0.0" Value="{Binding ChangeSpeedValue}" />
-                </Grid>
+                  <Button Width="56" HorizontalAlignment="Left" Command="{Binding ChangeSpeedCommand}">
+                    <TextBlock Text="Change Speed" TextWrapping="Wrap" TextAlignment="Center" />
+                  </Button>
+                </WrapPanel>
 
                 <ComboBox Grid.Row="1" Grid.Column="0" ItemsSource="{Binding WpNumbers}"
                           SelectedItem="{Binding SelectedWaypoint}" />
@@ -232,11 +244,14 @@
                         Command="{Binding QuickLoiterCommand}" />
                 <Button Grid.Row="1" Grid.Column="3" Content="Restart Mission"
                         Command="{Binding RestartMissionCommand}" />
-                <Grid Grid.Row="1" Grid.Column="4" ColumnDefinitions="*,56" ColumnSpacing="3">
-                  <Button Grid.Column="0" Content="Change Alt" Command="{Binding ChangeAltCommand}" />
-                  <NumericUpDown Grid.Column="1" ShowButtonSpinner="False"
+                <WrapPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal"
+                           ItemSpacing="3" LineSpacing="2">
+                  <NumericUpDown Width="46" ShowButtonSpinner="False"
                                  FormatString="0.0" Value="{Binding ChangeAltValue}" />
-                </Grid>
+                  <Button Width="56" HorizontalAlignment="Left" Command="{Binding ChangeAltCommand}">
+                    <TextBlock Text="Change Alt" TextWrapping="Wrap" TextAlignment="Center" />
+                  </Button>
+                </WrapPanel>
 
                 <ComboBox Grid.Row="2" Grid.Column="0" ItemsSource="{Binding Modes}"
                           SelectedItem="{Binding SelectedMode}" />
@@ -246,11 +261,14 @@
                         Command="{Binding QuickRtlCommand}" />
                 <Button Grid.Row="2" Grid.Column="3" Content="Raw Sensor View"
                         Command="{Binding RawSensorViewCommand}" />
-                <Grid Grid.Row="2" Grid.Column="4" ColumnDefinitions="*,56" ColumnSpacing="3">
-                  <Button Grid.Column="0" Content="Set Loiter Rad" Command="{Binding SetLoiterRadCommand}" />
-                  <NumericUpDown Grid.Column="1" ShowButtonSpinner="False"
+                <WrapPanel Grid.Row="2" Grid.Column="4" Orientation="Horizontal"
+                           ItemSpacing="3" LineSpacing="2">
+                  <NumericUpDown Width="46" ShowButtonSpinner="False"
                                  FormatString="0" Value="{Binding LoiterRadValue}" />
-                </Grid>
+                  <Button Width="56" HorizontalAlignment="Left" Command="{Binding SetLoiterRadCommand}">
+                    <TextBlock Text="Set Loiter Rad" TextWrapping="Wrap" TextAlignment="Center" />
+                  </Button>
+                </WrapPanel>
 
                 <ComboBox Grid.Row="3" Grid.Column="0" ItemsSource="{Binding MountModes}"
                           SelectedItem="{Binding SelectedMountMode}" />
@@ -272,8 +290,8 @@
                         Command="{Binding AbortLandCommand}" />
               </Grid>
 
-              <Expander Header="MAVLink Message Rate" IsExpanded="False" MinWidth="700"
-                        HorizontalAlignment="Stretch">
+              <Expander Header="MAVLink Message Rate" IsExpanded="False"
+                        MinWidth="0" MaxWidth="620" HorizontalAlignment="Left">
                 <StackPanel Margin="0,4,0,0" Spacing="3">
                   <Grid ColumnDefinitions="*,64,54,48,54" ColumnSpacing="3">
                     <ComboBox Grid.Column="0" ItemsSource="{Binding MessageOptions}"
