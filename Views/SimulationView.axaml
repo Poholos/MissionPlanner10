@@ -104,7 +104,7 @@
             <TextBlock Classes="lbl" Text="Advanced users — SITL swarm" />
             <TextBlock Classes="lbl" Text="Instances" />
             <NumericUpDown
-              Width="80"
+              Width="110"
               Minimum="2"
               Maximum="50"
               Increment="1"

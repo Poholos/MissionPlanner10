@@ -1,4 +1,4 @@
-# Mission Planner Avalonia migration instructions
+# Mission Planner — agent instructions
 
 Read `Porting/README.md`, `Porting/BASELINE.md`, `Porting/NATIVE_SURFACE.tsv` and
 `Porting/PORT_SOURCE_IMPORT.tsv` before changing the migration architecture.
@@ -12,6 +12,10 @@ Preserve upstream resources and translations until their replacement has been ma
 main-project source/resource must remain represented in `Porting/NATIVE_SURFACE.tsv` as `retain`,
 `replace`, `merge`, `remove`, or `unported-blocker`. A compiling allow-list is only a transition
 mechanism and is not evidence that excluded features have been ported.
+
+Check control widths at the window's `MinWidth`, not its default size: Avalonia's `Grid` silently
+paints an overflowing child across its neighbours, and a `NumericUpDown` spends 82px on spinner
+chrome and padding before its first glyph.
 
 The source/reference repository is `/home/alex/src/MP/MissionPlanner-Avalonia` at the exact commit
 recorded in `Porting/BASELINE.md`. Keep it read-only unless the user explicitly asks to maintain it
