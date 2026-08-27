@@ -24,7 +24,7 @@
       <TextBlock Text="{Binding Status}" Foreground="{DynamicResource MpAccentBrush}" VerticalAlignment="Center" />
     </StackPanel>
 
-    <Grid Grid.Row="2" ColumnDefinitions="*,300">
+    <Grid Grid.Row="2" ColumnDefinitions="*,320">
 
       <Border
         Grid.Column="0"
@@ -85,8 +85,8 @@
                   VerticalAlignment="Center"
                   TextTrimming="CharacterEllipsis"
                 />
-                <NumericUpDown Grid.Column="2" Width="90" Minimum="0" Value="{Binding X}" FormatString="0" />
-                <NumericUpDown Grid.Column="3" Width="90" Minimum="0" Value="{Binding Y}" FormatString="0" />
+                <NumericUpDown Grid.Column="2" Width="100" Minimum="0" Value="{Binding X}" FormatString="0" />
+                <NumericUpDown Grid.Column="3" Width="100" Minimum="0" Value="{Binding Y}" FormatString="0" />
               </Grid>
             </DataTemplate>
           </ItemsControl.ItemTemplate>

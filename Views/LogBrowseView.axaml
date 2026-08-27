@@ -24,12 +24,12 @@
       <Border Width="1" Background="#666" Margin="4,0" />
       <TextBlock Text="×" Foreground="#BBB" VerticalAlignment="Center"
                  ToolTip.Tip="Multiplicative scale applied to the next graphed curve" />
-      <NumericUpDown x:Name="ScaleBox" Width="110" Value="1" Increment="0.1"
+      <NumericUpDown x:Name="ScaleBox" Width="125" Value="1" Increment="0.1"
                      FormatString="0.###"
                      ToolTip.Tip="Scale: y = y × scale + offset" />
       <TextBlock Text="+" Foreground="#BBB" VerticalAlignment="Center"
                  ToolTip.Tip="Additive offset applied to the next graphed curve" />
-      <NumericUpDown x:Name="OffsetBox" Width="110" Value="0" Increment="1"
+      <NumericUpDown x:Name="OffsetBox" Width="125" Value="0" Increment="1"
                      FormatString="0.###"
                      ToolTip.Tip="Offset: y = y × scale + offset" />
       <Border Width="1" Background="#666" Margin="4,0" />

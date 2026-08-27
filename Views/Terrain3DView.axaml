@@ -14,28 +14,36 @@
 >
   <Grid RowDefinitions="Auto,*,Auto,Auto">
     <Border Grid.Row="0" Background="#292D2B" Padding="10,7">
-      <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-          <CheckBox Content="Lock to MAV" IsChecked="{Binding LockToVehicle, Mode=TwoWay}" />
-          <CheckBox Content="Fog" IsChecked="{Binding FogEnabled, Mode=TwoWay}" />
-          <CheckBox Content="Imagery" IsChecked="{Binding ImageryEnabled, Mode=TwoWay}" />
+      <WrapPanel Orientation="Horizontal" ItemSpacing="12" LineSpacing="6" VerticalAlignment="Center">
+        <CheckBox Content="Lock to MAV" IsChecked="{Binding LockToVehicle, Mode=TwoWay}" />
+        <CheckBox Content="Fog" IsChecked="{Binding FogEnabled, Mode=TwoWay}" />
+        <CheckBox Content="Imagery" IsChecked="{Binding ImageryEnabled, Mode=TwoWay}" />
+        <!-- Each label travels with its own field: a WrapPanel breaks between children, so a bare
+             TextBlock can end a line while the input it names opens the next one. -->
+        <StackPanel Orientation="Horizontal" Spacing="6">
           <TextBlock Text="Range" VerticalAlignment="Center" />
-          <NumericUpDown Width="90" Minimum="250" Maximum="5000" Increment="250"
+          <NumericUpDown Width="136" Minimum="250" Maximum="5000" Increment="250"
                          FormatString="0 m" Value="{Binding RangeM, Mode=TwoWay}" />
-          <TextBlock Text="Grid" VerticalAlignment="Center" />
-          <NumericUpDown Width="72" Minimum="17" Maximum="65" Increment="8"
-                         FormatString="0" Value="{Binding GridSize, Mode=TwoWay}" />
-          <TextBlock Text="Imagery min/max" VerticalAlignment="Center" />
-          <NumericUpDown Width="68" Minimum="1" Maximum="20" Increment="1"
-                         FormatString="0" Value="{Binding TextureMinZoom, Mode=TwoWay}" />
-          <NumericUpDown Width="68" Minimum="1" Maximum="20" Increment="1"
-                         FormatString="0" Value="{Binding TextureMaxZoom, Mode=TwoWay}" />
-          <TextBlock Text="Vertical ×" VerticalAlignment="Center" />
-          <NumericUpDown Width="72" Minimum="0.25" Maximum="8" Increment="0.25"
-                         FormatString="0.##" Value="{Binding VerticalExaggeration, Mode=TwoWay}" />
-          <Button Name="ReloadTerrain" Content="Reload terrain" Command="{Binding ReloadCommand}" />
         </StackPanel>
-      </ScrollViewer>
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <TextBlock Text="Grid" VerticalAlignment="Center" />
+          <NumericUpDown Width="100" Minimum="17" Maximum="65" Increment="8"
+                         FormatString="0" Value="{Binding GridSize, Mode=TwoWay}" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <TextBlock Text="Imagery min/max" VerticalAlignment="Center" />
+          <NumericUpDown Width="100" Minimum="1" Maximum="20" Increment="1"
+                         FormatString="0" Value="{Binding TextureMinZoom, Mode=TwoWay}" />
+          <NumericUpDown Width="100" Minimum="1" Maximum="20" Increment="1"
+                         FormatString="0" Value="{Binding TextureMaxZoom, Mode=TwoWay}" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <TextBlock Text="Vertical ×" VerticalAlignment="Center" />
+          <NumericUpDown Width="120" Minimum="0.25" Maximum="8" Increment="0.25"
+                         FormatString="0.##" Value="{Binding VerticalExaggeration, Mode=TwoWay}" />
+        </StackPanel>
+        <Button Name="ReloadTerrain" Content="Reload terrain" Command="{Binding ReloadCommand}" />
+      </WrapPanel>
     </Border>
 
     <Border Grid.Row="1" Background="Black" ClipToBounds="True">

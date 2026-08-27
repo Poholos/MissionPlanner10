@@ -94,7 +94,7 @@
       <Button Grid.Column="5" Content="Take Off" Command="{Binding TakeoffFollowersCommand}" />
       <NumericUpDown Grid.Column="6" Value="{Binding TakeoffAltitudeM, Mode=TwoWay}"
                      Minimum="1" Maximum="10000" Increment="1" FormatString="0.0"
-                     Width="85" ToolTip.Tip="Takeoff altitude in metres" />
+                     Width="140" ToolTip.Tip="Takeoff altitude in metres" />
       <Button Grid.Column="7" Content="LAND" Command="{Binding LandFollowersCommand}" />
     </Grid>
 

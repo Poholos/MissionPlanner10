@@ -41,7 +41,7 @@
     <WrapPanel Grid.Row="3" Orientation="Horizontal" ItemSpacing="14" LineSpacing="6" Margin="0,0,0,6">
       <StackPanel Orientation="Horizontal" Spacing="4">
         <TextBlock Text="Shutter lag (ms):" Foreground="#DDD" VerticalAlignment="Center" />
-        <NumericUpDown Width="100" Minimum="-60000" Maximum="60000" Increment="10"
+        <NumericUpDown Width="130" Minimum="-60000" Maximum="60000" Increment="10"
                        Value="{Binding ShutterLagMilliseconds}" />
       </StackPanel>
       <CheckBox Content="Use AMSL altitude" IsChecked="{Binding UseAmslAltitude}"
@@ -51,7 +51,7 @@
       <StackPanel Orientation="Horizontal" Spacing="4">
         <TextBlock Text="Base altitude adjustment (m):" Foreground="#DDD"
                    VerticalAlignment="Center" />
-        <NumericUpDown Width="110" Minimum="-10000" Maximum="10000" Increment="1"
+        <NumericUpDown Width="160" Minimum="-10000" Maximum="10000" Increment="1"
                        FormatString="0.###"
                        Value="{Binding BaseAltitudeAdjustmentMeters, Mode=TwoWay}" />
       </StackPanel>

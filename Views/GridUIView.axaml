@@ -131,7 +131,7 @@
                 <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal" Spacing="8">
                   <CheckBox Content="Hold heading" IsChecked="{Binding HoldHeading}"
                             VerticalAlignment="Center" />
-                  <NumericUpDown Width="100" Minimum="0" Maximum="359" Increment="1"
+                  <NumericUpDown Width="110" Minimum="0" Maximum="359" Increment="1"
                                  Value="{Binding Heading}" />
                   <TextBlock Text="deg" VerticalAlignment="Center" />
                 </StackPanel>
@@ -158,9 +158,9 @@
                     <TextBlock Grid.Row="1" Grid.Column="0" Classes="fieldlbl" Text="Repeat PWM / seconds"
                                VerticalAlignment="Center" />
                     <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                      <NumericUpDown Width="100" Minimum="800" Maximum="2200"
+                      <NumericUpDown Width="120" Minimum="800" Maximum="2200"
                                      Value="{Binding ServoPwm}" />
-                      <NumericUpDown Width="100" Minimum="0" Maximum="60" Increment="0.1"
+                      <NumericUpDown Width="120" Minimum="0" Maximum="60" Increment="0.1"
                                      Value="{Binding ServoRepeatSeconds}" />
                     </StackPanel>
                     <TextBlock Grid.Row="2" Grid.Column="0" Classes="fieldlbl" Text="Strip start PWM"
@@ -191,8 +191,8 @@
 
                 <TextBlock Grid.Row="1" Grid.Column="0" Classes="fieldlbl" Text="Overshoot (m)" VerticalAlignment="Center" />
                 <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="6">
-                  <NumericUpDown Width="110" Minimum="0" Maximum="1000" Value="{Binding Overshoot1}" />
-                  <NumericUpDown Width="110" Minimum="0" Maximum="1000" Value="{Binding Overshoot2}" />
+                  <NumericUpDown Width="120" Minimum="0" Maximum="1000" Value="{Binding Overshoot1}" />
+                  <NumericUpDown Width="120" Minimum="0" Maximum="1000" Value="{Binding Overshoot2}" />
                 </StackPanel>
 
                 <TextBlock Grid.Row="2" Grid.Column="0" Classes="fieldlbl" Text="Overlap %" VerticalAlignment="Center" />
@@ -205,8 +205,8 @@
 
                 <TextBlock Grid.Row="4" Grid.Column="0" Classes="fieldlbl" Text="Lead-in (m)" VerticalAlignment="Center" />
                 <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Spacing="6">
-                  <NumericUpDown Width="110" Minimum="0" Maximum="1000" Value="{Binding Leadin}" />
-                  <NumericUpDown Width="110" Minimum="0" Maximum="1000" Value="{Binding Leadin2}" />
+                  <NumericUpDown Width="120" Minimum="0" Maximum="1000" Value="{Binding Leadin}" />
+                  <NumericUpDown Width="120" Minimum="0" Maximum="1000" Value="{Binding Leadin2}" />
                 </StackPanel>
 
                 <TextBlock Grid.Row="5" Grid.Column="0" Classes="fieldlbl" Text="Start From" VerticalAlignment="Center" />

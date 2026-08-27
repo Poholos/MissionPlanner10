@@ -42,9 +42,9 @@
       <Button Content="Refresh Params" Command="{Binding RefreshCommand}" />
       <Button Content="FFT" Name="FftBtn" />
       <TextBlock Text="Bins" Classes="fieldlbl" VerticalAlignment="Center" />
-      <NumericUpDown Minimum="4" Maximum="14" Increment="1" Width="90" Value="{Binding Bins}" />
+      <NumericUpDown Minimum="4" Maximum="14" Increment="1" Width="100" Value="{Binding Bins}" />
       <TextBlock Text="Start Freq" Classes="fieldlbl" VerticalAlignment="Center" />
-      <NumericUpDown Minimum="0" Maximum="1000" Increment="1" Width="100" Value="{Binding StartFreq}" />
+      <NumericUpDown Minimum="0" Maximum="1000" Increment="1" Width="120" Value="{Binding StartFreq}" />
       <CheckBox Content="Magnitude" IsChecked="{Binding Magnitude}" VerticalAlignment="Center" />
       <TextBlock Name="FftStatus" Foreground="{DynamicResource MpAccentBrush}" VerticalAlignment="Center" />
     </StackPanel>

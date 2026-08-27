@@ -41,7 +41,7 @@
 
         <StackPanel Spacing="4">
           <TextBlock Text="Servo Outputs" Classes="fieldlbl" FontWeight="Bold" />
-          <Grid ColumnDefinitions="60,80,200,110,110,110">
+          <Grid ColumnDefinitions="60,80,200,125,125,125">
             <TextBlock Grid.Column="0" Text="Servo" Classes="fieldlbl" />
             <TextBlock Grid.Column="1" Text="Reverse" Classes="fieldlbl" />
             <TextBlock Grid.Column="2" Text="Function" Classes="fieldlbl" />
@@ -52,18 +52,18 @@
           <ItemsControl ItemsSource="{Binding Servos}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="cv:HeliServoRow">
-                <Grid ColumnDefinitions="60,80,200,110,110,110" Margin="0,2">
+                <Grid ColumnDefinitions="60,80,200,125,125,125" Margin="0,2">
                   <TextBlock Grid.Column="0" Text="{Binding Index}" Classes="fieldlbl" VerticalAlignment="Center" />
                   <CheckBox Grid.Column="1" IsChecked="{Binding Reversed.Checked}" />
                   <ComboBox Grid.Column="2" MinWidth="180" ItemsSource="{Binding Function.Options}"
                             SelectedItem="{Binding Function.SelectedOption}" />
-                  <NumericUpDown Grid.Column="3" Width="100" Value="{Binding Min.Value}"
+                  <NumericUpDown Grid.Column="3" Width="120" Value="{Binding Min.Value}"
                                  Minimum="{Binding Min.Min}" Maximum="{Binding Min.Max}"
                                  Increment="1" FormatString="0" />
-                  <NumericUpDown Grid.Column="4" Width="100" Value="{Binding Trim.Value}"
+                  <NumericUpDown Grid.Column="4" Width="120" Value="{Binding Trim.Value}"
                                  Minimum="{Binding Trim.Min}" Maximum="{Binding Trim.Max}"
                                  Increment="1" FormatString="0" />
-                  <NumericUpDown Grid.Column="5" Width="100" Value="{Binding Max.Value}"
+                  <NumericUpDown Grid.Column="5" Width="120" Value="{Binding Max.Value}"
                                  Minimum="{Binding Max.Min}" Maximum="{Binding Max.Max}"
                                  Increment="1" FormatString="0" />
                 </Grid>

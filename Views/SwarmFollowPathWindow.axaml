@@ -18,7 +18,7 @@
                  Text="BETA / USE AT OWN RISK — port of official Mission Planner FollowPath. Explicitly selected ArduPlane/Copter/Rover followers receive 5 Hz GUIDED targets at ordered distances along the recorded leader trail. A stale, missing or replaced modem/vehicle, GPS jump, plan edit or insufficient group validation stops or withholds the entire target batch. ArduPlane followers require at least 30 m separation." />
     </Border>
 
-    <Grid Grid.Row="1" ColumnDefinitions="Auto,300,Auto,Auto,110,*" ColumnSpacing="8">
+    <Grid Grid.Row="1" ColumnDefinitions="Auto,300,Auto,Auto,125,*" ColumnSpacing="8">
       <TextBlock Text="Leader" VerticalAlignment="Center" />
       <ComboBox Grid.Column="1" ItemsSource="{Binding Vehicles}"
                 SelectedItem="{Binding SelectedLeader, Mode=TwoWay}">
@@ -72,7 +72,7 @@
       <Button Grid.Column="3" Content="Take Off" Command="{Binding TakeoffFollowersCommand}" />
       <NumericUpDown Grid.Column="4" Value="{Binding TakeoffAltitudeM, Mode=TwoWay}"
                      Minimum="1" Maximum="10000" Increment="1" FormatString="0.0"
-                     Width="90" ToolTip.Tip="Takeoff altitude in metres" />
+                     Width="140" ToolTip.Tip="Takeoff altitude in metres" />
       <Button Grid.Column="5" Content="LAND Followers" Command="{Binding LandFollowersCommand}"
               HorizontalAlignment="Left" />
     </Grid>
