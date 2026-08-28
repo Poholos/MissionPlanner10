@@ -1,6 +1,30 @@
 # Avalonia in-place migration status
 
-Updated: **2026-08-26**.
+Updated: **2026-08-28**.
+
+## Log download hardening checkpoint (branch fix/log-download-cancel-tests)
+
+- `MAVLinkInterface.GetLog` gained cancellation (`CancellationToken`, threaded through the
+  download loop and the view model, with a Cancel button in the download window), repair-request
+  chaining (the next missing-range request is issued the moment the current one is satisfied,
+  gated on actual coverage progress so duplicated packets cannot multiply requests), and a
+  time-based silence budget (`retryLimit x LogRetryDelayMs`, so short repair windows no longer
+  shrink the total tolerance a flaky link is allowed). Data beyond the known log end is ignored.
+- `LogDownloadTracker` only trusts a short packet as the log end at the highest offset seen, and
+  only frontier-near packets raise that bar - a stale short retransmit cannot truncate the
+  download and a corrupt far offset cannot poison end inference.
+- The download window toolbar wraps (`WrapPanel` with `ItemSpacing`/`LineSpacing`, window
+  `MinWidth` 420): six items need ~830 px in one row and previously painted past the 540 px
+  default width. A `LayoutOverflowTests` theory guards it at 420 and 540 px.
+- New coverage: `GetLogProtocolTests` (12 fake-vehicle protocol tests: ordering, loss recovery,
+  stray retransmits, duplicate storms, silence budget, beyond-end data, cancel, timeout), tracker
+  unit tests, and a manual SITL end-to-end harness with a 5% lossy proxy
+  (`MissionPlannerTests/Avalonia/MissionPlanner.SitlTests`, registered as retained tooling in
+  `PROJECT_ARTIFACT_AUDIT.tsv`). SITL reference results: clean 2.3 MB byte-identical in 0.44 s;
+  5% loss byte-identical in 72.9 s (previously did not complete - repair served one gap per 3 s
+  silence window).
+- Remaining blocker: none for this checkpoint. Next executable step: rerun the SITL harness
+  (clean + lossy) after any further `GetLog`/tracker change, per its README.
 
 ## Ten-second Flight Data action bounds and compact Actions layout
 

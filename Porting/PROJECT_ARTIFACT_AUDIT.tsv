@@ -56,3 +56,4 @@ Properties/DataSources	remove	MissionPlanner.csproj	Generated WinForms designer 
 Properties/app.manifest	remove	app.manifest	Unused legacy manifest superseded by the active cross-platform application manifest.
 vs2019.vsconfig	remove	global.json	Obsolete IDE workload snapshot for the retired net472/Xamarin/UWP graph.
 vs2022.vsconfig	remove	global.json	Obsolete IDE workload snapshot for the retired net472/Xamarin/UWP graph.
+MissionPlannerTests/Avalonia/MissionPlanner.SitlTests/MissionPlanner.SitlTests.csproj	retain	MissionPlannerTests/Avalonia/MissionPlanner.SitlTests/README.md	Manual SITL end-to-end harness for the MAVLink log download protocol; operational test tooling rather than an alternate application.
