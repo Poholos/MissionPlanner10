@@ -13,6 +13,7 @@ namespace MissionPlanner
         internal const uint PacketSize = 90;
 
         private readonly List<ByteRange> _ranges = new List<ByteRange>();
+        private ulong _highestEnd;
 
         public uint? TotalLength { get; private set; }
 
@@ -39,6 +40,9 @@ namespace MissionPlanner
         /// <summary>
         /// Records a valid LOG_DATA payload. A short packet from the initial unbounded request
         /// identifies the end of the log; callers must stop inferring the end after it is known.
+        /// A short packet is only trusted as the end when it sits at the highest offset seen so
+        /// far - a delayed or duplicated short retransmit of an earlier block must not set a
+        /// too-small total and silently truncate the download.
         /// </summary>
         public bool Add(uint offset, byte count, bool inferTotalLength)
         {
@@ -46,8 +50,10 @@ namespace MissionPlanner
             if (end > uint.MaxValue)
                 return false;
 
-            if (inferTotalLength && count < PacketSize)
+            if (inferTotalLength && count < PacketSize && end >= _highestEnd)
                 TotalLength = (uint)end;
+
+            _highestEnd = Math.Max(_highestEnd, end);
 
             if (count == 0)
                 return true;

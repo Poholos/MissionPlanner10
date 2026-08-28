@@ -27,6 +27,8 @@
                 VerticalAlignment="Center" />
       <Button Content="Erase All…" Command="{Binding EraseAllCommand}"
               IsEnabled="{Binding !IsBusy}" Foreground="#FF7777" />
+      <Button Content="Cancel" Command="{Binding CancelDownloadCommand}"
+              IsEnabled="{Binding IsBusy}" />
     </StackPanel>
 
     <Border Grid.Row="1" BorderBrush="#666" BorderThickness="1">

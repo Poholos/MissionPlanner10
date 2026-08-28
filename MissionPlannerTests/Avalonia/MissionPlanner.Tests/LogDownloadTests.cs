@@ -21,6 +21,22 @@ public class LogDownloadTests {
   }
 
   [Fact]
+  public void Tracker_ignores_a_short_packet_below_the_highest_offset_seen() {
+    var tracker = new LogDownloadTracker();
+
+    Assert.True(tracker.Add(0, 90, true));
+    Assert.True(tracker.Add(90, 90, true));
+
+    // a stale short retransmit of an earlier block must not set the total
+    Assert.True(tracker.Add(0, 40, true));
+    Assert.Null(tracker.TotalLength);
+
+    // the true end, at the highest offset seen, still does
+    Assert.True(tracker.Add(180, 30, true));
+    Assert.Equal(210u, tracker.TotalLength);
+  }
+
+  [Fact]
   public void Tracker_counts_out_of_order_and_duplicate_data_only_once() {
     var tracker = new LogDownloadTracker();
 

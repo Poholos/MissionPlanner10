@@ -6212,7 +6212,10 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
             return new FileStream(await GetLog(MAV.sysid, MAV.compid, no), FileMode.Open, FileAccess.ReadWrite);
         }
 
-        public async Task<string> GetLog(byte sysid, byte compid, ushort no)
+        /// <summary>GetLog: ms of LOG_DATA silence before a request is retried (test seam).</summary>
+        internal int LogRetryDelayMs { get; set; } = 3000;
+
+        public async Task<string> GetLog(byte sysid, byte compid, ushort no, CancellationToken cancel = default)
         {
             var filename = Path.GetTempFileName();
             try
@@ -6220,7 +6223,7 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
                 using (FileStream ms = new FileStream(filename, FileMode.Create, FileAccess.ReadWrite))
                 {
                     const int retryLimit = 10;
-                    const int retryDelayMilliseconds = 3000;
+                    int retryDelayMilliseconds = LogRetryDelayMs;
                     const uint maximumRepairRequest = LogDownloadTracker.PacketSize * 50;
 
                     giveComport = false;
@@ -6256,6 +6259,8 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
 
                         while ((BaseStream != null && BaseStream.IsOpen) || logreadmode)
                         {
+                            cancel.ThrowIfCancellationRequested();
+
                             DateTime now = DateTime.UtcNow;
                             if (now >= nextRetryAt)
                             {
@@ -6280,7 +6285,7 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
                             MAVLinkMessage buffer;
                             if (!queue.TryDequeue(out buffer))
                             {
-                                await Task.Delay(10).ConfigureAwait(false);
+                                await Task.Delay(10, cancel).ConfigureAwait(false);
                                 continue;
                             }
 

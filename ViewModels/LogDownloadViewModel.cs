@@ -49,6 +49,17 @@ public partial class LogDownloadViewModel : ViewModelBase {
   [ObservableProperty]
   private bool _createKmlAfterDownload;
 
+  private CancellationTokenSource? _downloadCts;
+
+  [RelayCommand]
+  private void CancelDownload() {
+    try {
+      _downloadCts?.Cancel();
+    } catch (ObjectDisposedException) {
+      // the download finished and disposed the source just as we canceled
+    }
+  }
+
   [RelayCommand]
   [Obsolete]
   private async Task Refresh() {
@@ -177,6 +188,8 @@ public partial class LogDownloadViewModel : ViewModelBase {
     }
     IsBusy = true;
     Progress = 0;
+    _downloadCts = new CancellationTokenSource();
+    CancellationToken cancel = _downloadCts.Token;
     long total = rows.Sum(row => (long)row.SizeBytes);
     long completed = 0;
     int saved = 0;
@@ -194,7 +207,7 @@ public partial class LogDownloadViewModel : ViewModelBase {
         string destination = destinationFor(row);
         Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
         Status = $"Downloading log {row.Id} ({saved + 1}/{rows.Count})…";
-        await DownloadOne(row.Id, destination);
+        await DownloadOne(row.Id, destination, cancel);
         long completedNow = Interlocked.Add(ref completed, row.SizeBytes);
         saved++;
         Progress = total > 0 ? Math.Min(100.0, 100.0 * completedNow / total) : 100;
@@ -214,18 +227,23 @@ public partial class LogDownloadViewModel : ViewModelBase {
                        ? " KML track(s) created."
                        : $" KML failed for {kmlErrors.Count}: {string.Join("; ", kmlErrors)}"
                    : "");
+    } catch (OperationCanceledException) {
+      Status = $"Download canceled after {saved}/{rows.Count}.";
     } catch (Exception ex) {
       Status = $"Download failed after {saved}/{rows.Count}: {ex.Message}";
     } finally {
+      // this batch owns the token source; Cancel racing this is handled there
+      var cts = Interlocked.Exchange(ref _downloadCts, null);
+      cts?.Dispose();
       _comPort.Progress -= OnProgress;
       IsBusy = false;
     }
   }
 
-  private async Task DownloadOne(ushort id, string destination) {
+  private async Task DownloadOne(ushort id, string destination, CancellationToken cancel) {
     string? tempPath = null;
     try {
-      tempPath = await _comPort.GetLog(_comPort.MAV.sysid, _comPort.MAV.compid, id);
+      tempPath = await _comPort.GetLog(_comPort.MAV.sysid, _comPort.MAV.compid, id, cancel);
       await using var temp = new FileStream(
           tempPath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
       await using var output = new FileStream(
