@@ -20,19 +20,20 @@
   <Grid Margin="12" RowDefinitions="Auto,*,Auto,Auto">
     <!-- WrapPanel, not StackPanel: six items need ~830px in one row, and a
          horizontal StackPanel silently paints the tail past the window edge -->
-    <WrapPanel Grid.Row="0" Orientation="Horizontal">
+    <WrapPanel Grid.Row="0" Orientation="Horizontal" ItemSpacing="8" LineSpacing="8"
+               Margin="0,0,0,8">
       <Button Content="Refresh List" Command="{Binding RefreshCommand}"
-              IsEnabled="{Binding !IsBusy}" Margin="0,0,8,8" />
+              IsEnabled="{Binding !IsBusy}" />
       <Button Content="Download Selected" Command="{Binding DownloadCommand}"
-              IsEnabled="{Binding !IsBusy}" Margin="0,0,8,8" />
+              IsEnabled="{Binding !IsBusy}" />
       <Button Content="Download All…" Command="{Binding DownloadAllCommand}"
-              IsEnabled="{Binding !IsBusy}" Margin="0,0,8,8" />
+              IsEnabled="{Binding !IsBusy}" />
       <CheckBox Content="Create KML" IsChecked="{Binding CreateKmlAfterDownload}"
-                VerticalAlignment="Center" Margin="0,0,8,8" />
+                VerticalAlignment="Center" />
       <Button Content="Erase All…" Command="{Binding EraseAllCommand}"
-              IsEnabled="{Binding !IsBusy}" Foreground="#FF7777" Margin="0,0,8,8" />
+              IsEnabled="{Binding !IsBusy}" Foreground="#FF7777" />
       <Button Content="Cancel" Command="{Binding CancelDownloadCommand}"
-              IsEnabled="{Binding IsBusy}" Margin="0,0,8,8" />
+              IsEnabled="{Binding IsDownloading}" />
     </WrapPanel>
 
     <Border Grid.Row="1" BorderBrush="#666" BorderThickness="1">
