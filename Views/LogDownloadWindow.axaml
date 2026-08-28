@@ -12,24 +12,28 @@
   Background="{DynamicResource MpControlBg}"
   Width="540"
   Height="440"
+  MinWidth="420"
+  MinHeight="320"
   WindowStartupLocation="CenterOwner"
   Title="Download Logs (MAVLink)"
 >
   <Grid Margin="12" RowDefinitions="Auto,*,Auto,Auto">
-    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+    <!-- WrapPanel, not StackPanel: six items need ~830px in one row, and a
+         horizontal StackPanel silently paints the tail past the window edge -->
+    <WrapPanel Grid.Row="0" Orientation="Horizontal">
       <Button Content="Refresh List" Command="{Binding RefreshCommand}"
-              IsEnabled="{Binding !IsBusy}" />
+              IsEnabled="{Binding !IsBusy}" Margin="0,0,8,8" />
       <Button Content="Download Selected" Command="{Binding DownloadCommand}"
-              IsEnabled="{Binding !IsBusy}" />
+              IsEnabled="{Binding !IsBusy}" Margin="0,0,8,8" />
       <Button Content="Download All…" Command="{Binding DownloadAllCommand}"
-              IsEnabled="{Binding !IsBusy}" />
+              IsEnabled="{Binding !IsBusy}" Margin="0,0,8,8" />
       <CheckBox Content="Create KML" IsChecked="{Binding CreateKmlAfterDownload}"
-                VerticalAlignment="Center" />
+                VerticalAlignment="Center" Margin="0,0,8,8" />
       <Button Content="Erase All…" Command="{Binding EraseAllCommand}"
-              IsEnabled="{Binding !IsBusy}" Foreground="#FF7777" />
+              IsEnabled="{Binding !IsBusy}" Foreground="#FF7777" Margin="0,0,8,8" />
       <Button Content="Cancel" Command="{Binding CancelDownloadCommand}"
-              IsEnabled="{Binding IsBusy}" />
-    </StackPanel>
+              IsEnabled="{Binding IsBusy}" Margin="0,0,8,8" />
+    </WrapPanel>
 
     <Border Grid.Row="1" BorderBrush="#666" BorderThickness="1">
       <DataGrid ItemsSource="{Binding Logs}" SelectedItem="{Binding SelectedLog}"

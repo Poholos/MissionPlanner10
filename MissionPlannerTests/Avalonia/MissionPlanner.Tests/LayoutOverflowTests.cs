@@ -52,13 +52,52 @@ public class LayoutOverflowTests {
     }
   }
 
-  private static string Report(List<string> problems, double width) {
+  /// <summary>
+  /// Six toolbar items need ~830px in a single row - far past the 540px default - so the toolbar
+  /// wraps. A WrapPanel's own bounds stay inside its Grid cell while its children overflow it,
+  /// which is why CollectGridProblems alone cannot catch a toolbar regression: every child is
+  /// asserted against the window's client area directly.
+  /// </summary>
+  [AvaloniaTheory]
+  [InlineData(420)]
+  [InlineData(540)]
+  public void Log_download_window_toolbar_stays_inside_the_window(double width) {
+    LogDownloadWindow? window = null;
+
+    try {
+      window = new LogDownloadWindow { Width = width, Height = 440 };
+      window.Show();
+      Dispatcher.UIThread.RunJobs();
+
+      List<string> problems = new();
+      CollectGridProblems(window, problems);
+      CollectCollapsedInputs(window, problems);
+
+      WrapPanel toolbar = window.GetVisualDescendants().OfType<WrapPanel>().First();
+      foreach (Control child in toolbar.Children.OfType<Control>().Where(c => c.IsVisible)) {
+        Point topLeft = child.TranslatePoint(new Point(0, 0), window) ?? new Point(0, 0);
+        double right = topLeft.X + child.Bounds.Width;
+        if (right > window.ClientSize.Width + Tolerance) {
+          problems.Add(
+              $"{Describe(child)} ends at {right:0.#}px, past the {window.ClientSize.Width}px "
+              + "window edge");
+        }
+      }
+
+      Assert.True(problems.Count == 0, Report(problems, width, nameof(LogDownloadWindow)));
+    } finally {
+      window?.Close();
+    }
+  }
+
+  private static string Report(List<string> problems, double width,
+      string view = nameof(JoystickSetupWindow)) {
     string body = string.Join(Environment.NewLine, problems.Take(MaxReported));
     string more = problems.Count > MaxReported
         ? $"{Environment.NewLine}... and {problems.Count - MaxReported} more"
         : string.Empty;
 
-    return $"Layout problems in JoystickSetupWindow at {width}px:{Environment.NewLine}{body}{more}";
+    return $"Layout problems in {view} at {width}px:{Environment.NewLine}{body}{more}";
   }
 
   private static void CollectGridProblems(Visual root, List<string> problems) {
