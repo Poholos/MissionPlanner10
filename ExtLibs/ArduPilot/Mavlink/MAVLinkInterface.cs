@@ -6215,6 +6215,9 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
         /// <summary>GetLog: ms of LOG_DATA silence before a request is retried (test seam).</summary>
         internal int LogRetryDelayMs { get; set; } = 3000;
 
+        /// <summary>GetLog: ms of silence between repair requests once the log length is known (test seam).</summary>
+        internal int LogRepairDelayMs { get; set; } = 500;
+
         public async Task<string> GetLog(byte sysid, byte compid, ushort no, CancellationToken cancel = default)
         {
             var filename = Path.GetTempFileName();
@@ -6254,6 +6257,7 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
                     {
                         generatePacket((byte) MAVLINK_MSG_ID.LOG_REQUEST_DATA, request);
                         int retriesRemaining = retryLimit;
+                        ulong requestEnd = ulong.MaxValue;
                         DateTime nextRetryAt = DateTime.UtcNow.AddMilliseconds(retryDelayMilliseconds);
                         DateTime nextProgressAt = DateTime.UtcNow;
 
@@ -6278,7 +6282,9 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
                                              ? "/" + tracker.TotalLength.Value
                                              : "/unknown"));
                                 generatePacket((byte) MAVLINK_MSG_ID.LOG_REQUEST_DATA, request);
-                                nextRetryAt = now.AddMilliseconds(retryDelayMilliseconds);
+                                requestEnd = (ulong)request.ofs + request.count;
+                                nextRetryAt = now.AddMilliseconds(
+                                    tracker.TotalLength.HasValue ? LogRepairDelayMs : retryDelayMilliseconds);
                                 continue;
                             }
 
@@ -6310,7 +6316,22 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
                             if (madeProgress)
                             {
                                 retriesRemaining = retryLimit;
-                                nextRetryAt = now.AddMilliseconds(retryDelayMilliseconds);
+                                nextRetryAt = now.AddMilliseconds(
+                                    tracker.TotalLength.HasValue ? LogRepairDelayMs : retryDelayMilliseconds);
+                            }
+
+                            // chain the next repair request the moment the current one is
+                            // satisfied - waiting out a silence window per gap makes a lossy
+                            // stream, which leaves thousands of scattered gaps, take hours
+                            if (tracker.TotalLength.HasValue && !tracker.IsComplete &&
+                                (ulong)data.ofs + data.count >= requestEnd)
+                            {
+                                LogDownloadRequest missing = tracker.NextRequest(maximumRepairRequest);
+                                request.ofs = missing.Offset;
+                                request.count = missing.Count;
+                                generatePacket((byte) MAVLINK_MSG_ID.LOG_REQUEST_DATA, request);
+                                requestEnd = (ulong)request.ofs + request.count;
+                                nextRetryAt = now.AddMilliseconds(LogRepairDelayMs);
                             }
 
                             if (now >= nextProgressAt || tracker.IsComplete)

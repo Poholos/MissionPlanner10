@@ -66,8 +66,9 @@ public class GetLogProtocolTests {
 
       Mav.BaseStream = Link;
 
-      // real-time retry delay scaled down so the suite stays fast
+      // real-time delays scaled down so the suite stays fast
       Mav.LogRetryDelayMs = 100;
+      Mav.LogRepairDelayMs = 50;
 
       // GetLog consumes packets via OnPacketReceived, which fires from the
       // receive loop - pump it the same way the serial reader does
@@ -220,6 +221,26 @@ public class GetLogProtocolTests {
     Assert.True(log.Length == result.Length,
         $"stray short packet truncated the download to {result.Length} of {log.Length} bytes");
     Assert.Equal(log, result);
+  }
+
+  [Fact]
+  public async Task Scattered_gaps_recover_by_chained_repair_requests() {
+    byte[] log = MakeLog(300 * BlockSize);
+    using var vehicle = new FakeLogVehicle(log);
+    // every 6th block dropped on first delivery: 50 scattered single-block gaps
+    var drop = new HashSet<uint>(Enumerable.Range(0, 50).Select(i => (uint)(i * 6)));
+    vehicle.OnRequest = req => vehicle.Serve(req, drop);
+
+    // at this delay, waiting out one silence window per gap needs 25+ seconds;
+    // chaining the next repair request on completion finishes in about a second
+    vehicle.Mav.LogRepairDelayMs = 500;
+
+    Task<byte[]> download = Download(vehicle);
+    Task finished = await Task.WhenAny(download, Task.Delay(10_000));
+
+    Assert.True(finished == download,
+        "repair phase crawled - gaps must be re-requested by chaining, not one per silence window");
+    Assert.Equal(log, await download);
   }
 
   [Fact]
