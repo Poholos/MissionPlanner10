@@ -37,6 +37,22 @@ public class LogDownloadTests {
   }
 
   [Fact]
+  public void Tracker_end_inference_survives_a_corrupt_far_offset() {
+    var tracker = new LogDownloadTracker();
+
+    Assert.True(tracker.Add(0, 90, true));
+    Assert.True(tracker.Add(90, 90, true));
+
+    // a corrupt-but-plausible packet at a far offset must not raise the bar
+    // the genuine end marker has to clear
+    Assert.True(tracker.Add(0x40000000, 90, true));
+    Assert.Null(tracker.TotalLength);
+
+    Assert.True(tracker.Add(180, 30, true));
+    Assert.Equal(210u, tracker.TotalLength);
+  }
+
+  [Fact]
   public void Tracker_counts_out_of_order_and_duplicate_data_only_once() {
     var tracker = new LogDownloadTracker();
 

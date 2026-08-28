@@ -244,6 +244,85 @@ public class GetLogProtocolTests {
   }
 
   [Fact]
+  public async Task Repair_phase_keeps_the_full_silence_time_budget() {
+    byte[] log = MakeLog(1000);
+    using var vehicle = new FakeLogVehicle(log);
+    // stream with one gap, then never answer repair requests: the abort must
+    // honor the time budget (10 x LogRetryDelayMs), not 10 short repair windows
+    var first = true;
+    vehicle.OnRequest = req => {
+      if (!first) {
+        return;
+      }
+      first = false;
+      vehicle.Serve(req, new HashSet<uint> { 3 });
+    };
+
+    var sw = System.Diagnostics.Stopwatch.StartNew();
+    await Assert.ThrowsAsync<TimeoutException>(
+        () => vehicle.Mav.GetLog(VehicleSysid, VehicleCompid, LogId));
+    sw.Stop();
+
+    // budget = 10 x 100 ms; a window-count budget of 10 x 50 ms repair windows
+    // would abort at ~500 ms
+    Assert.True(sw.ElapsedMilliseconds >= 800,
+        $"aborted after {sw.ElapsedMilliseconds} ms - repair windows consumed the retry "
+        + "budget by count instead of by time");
+  }
+
+  [Fact]
+  public async Task Stale_duplicate_packets_do_not_multiply_repair_requests() {
+    byte[] log = MakeLog(1000);
+    using var vehicle = new FakeLogVehicle(log);
+    var drop = new HashSet<uint> { 3 };
+    var repairsSeen = 0;
+    vehicle.OnRequest = req => {
+      if (Interlocked.Increment(ref repairsSeen) > 1) {
+        // before serving the gap, flood stale duplicates of the stream tail -
+        // they add no coverage and must not each trigger a chained request
+        for (int i = 0; i < 30; i++) {
+          vehicle.SendBlock(810, 90);
+          vehicle.SendBlock(720, 90);
+        }
+      }
+      vehicle.Serve(req, drop);
+    };
+
+    byte[] result = await Download(vehicle);
+
+    Assert.Equal(log, result);
+    lock (vehicle.Requests) {
+      Assert.True(vehicle.Requests.Count <= 8,
+          $"{vehicle.Requests.Count} requests for one dropped block - stale duplicates "
+          + "are multiplying repair requests");
+    }
+  }
+
+  [Fact]
+  public async Task Data_beyond_the_known_log_end_is_ignored() {
+    byte[] log = MakeLog(1000);
+    using var vehicle = new FakeLogVehicle(log);
+    var drop = new HashSet<uint> { 3 };
+    var bogusSent = false;
+    vehicle.OnRequest = req => {
+      if (req.ofs == 3 * BlockSize && !bogusSent) {
+        // a packet past the end marker's total must not grow the file
+        bogusSent = true;
+        vehicle.Send(MAVLink.MAVLINK_MSG_ID.LOG_DATA,
+            new MAVLink.mavlink_log_data_t((uint)(log.Length + 10 * BlockSize), LogId,
+                BlockSize, new byte[BlockSize]));
+      }
+      vehicle.Serve(req, drop);
+    };
+
+    byte[] result = await Download(vehicle);
+
+    Assert.True(result.Length == log.Length,
+        $"bogus beyond-end packet changed the file length: {result.Length} != {log.Length}");
+    Assert.Equal(log, result);
+  }
+
+  [Fact]
   public async Task Oversized_count_is_ignored() {
     byte[] log = MakeLog(1234);
     using var vehicle = new FakeLogVehicle(log);

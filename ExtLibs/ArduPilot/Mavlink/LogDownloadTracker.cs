@@ -12,6 +12,13 @@ namespace MissionPlanner
     {
         internal const uint PacketSize = 90;
 
+        /// <summary>
+        /// How far past the contiguous frontier a packet may sit and still raise the bar an end
+        /// marker must clear. Genuine streams are near-contiguous (reordering spans a few packets),
+        /// so real packets always qualify; a corrupt far offset must not.
+        /// </summary>
+        private const ulong InferenceSlack = PacketSize * 100;
+
         private readonly List<ByteRange> _ranges = new List<ByteRange>();
         private ulong _highestEnd;
 
@@ -53,7 +60,11 @@ namespace MissionPlanner
             if (inferTotalLength && count < PacketSize && end >= _highestEnd)
                 TotalLength = (uint)end;
 
-            _highestEnd = Math.Max(_highestEnd, end);
+            // A corrupt far offset must not permanently poison end inference: only packets near
+            // the contiguous frontier raise the bar. End markers past a stalled frontier still
+            // set TotalLength above - they compare against the bar, they do not need to raise it.
+            if (offset <= FrontierEnd() + InferenceSlack)
+                _highestEnd = Math.Max(_highestEnd, end);
 
             if (count == 0)
                 return true;
@@ -95,6 +106,12 @@ namespace MissionPlanner
             ulong remaining = missingEnd - cursor;
             uint count = (uint)Math.Min(remaining, maximumKnownLength);
             return new LogDownloadRequest(offset, count);
+        }
+
+        /// <summary>End of the contiguous range starting at offset 0, or 0 before it exists.</summary>
+        private ulong FrontierEnd()
+        {
+            return _ranges.Count > 0 && _ranges[0].Start == 0 ? _ranges[0].End : 0;
         }
 
         private void Merge(ByteRange incoming)
