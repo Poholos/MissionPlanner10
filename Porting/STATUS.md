@@ -2,42 +2,77 @@
 
 Updated: **2026-08-30**.
 
+## NV4 parameter-catalog synchronization and Debian handoff
+
+- The Hermes source checkpoint is clean GTU `master == origin/master`
+  `3eebb35d6d35be5b5fb4c1a753017baff107b082` (`Support legacy NV4 refresh parameter`). Its exact
+  change from `310ca309` in the three `NV5Settings` source/test files has SHA-256
+  `8cb610d33eebeac454c336eafec77fd7b374fb7c85ab61561a7c9b8cb0d22d66`; Mission Planner did not
+  modify the GTU tree. The canonical 56-name NV4 sketch catalog and its parameter-specific
+  descriptions are now pinned locally, including the real automatic-watchdog, SBUS routing,
+  network-octet, RF-statistics, radio-role and currently unused legacy-field semantics.
+- Both firmware apply spellings are supported end to end. `REFRESH_SETTING` and the older
+  `REFRESH_SETTINGS` are recognized as NV4 signatures, hidden/read-only controls and documented
+  aliases. Ordinary saves and 32-byte key transactions write the exact parameter name and MAVLink
+  type advertised by the selected modem; when unusual firmware advertises both, the newer singular
+  name wins deterministically. The runtime table still follows the connected modem's advertised
+  catalog rather than fabricating parameters from the pinned reference list.
+- Code/documentation/test commit `f73d0ef44` and local-sequence commit `69886aeab` are published on
+  `master` and `origin/master`. Focused NV modem tests pass **60/60**, focused version/updater tests
+  pass **48/48**, and the complete Release suite passes **1544/1544**. `MissionPlanner.slnx` and the
+  standalone SITL harness both build with **0 warnings / 0 errors**. All six
+  migration/retirement/artifact gates pass (1623 native rows, 0 blockers, 708/708 pinned paths,
+  clean WinForms, project, binary and key audits); the optional live-source form of the 708-path
+  check could not be repeated because the pinned `MissionPlanner-Avalonia` worktree is no longer
+  present locally, while its committed digest check passes.
+- The first earlier `make linux-deb` attempt encountered the known local logical/physical checkout
+  alias (`/home/alex/src` versus `/home/alex/SRC`) in stale MSBuild intermediates. A standard Release
+  clean followed by the physical-path package script resolved it without source changes. The final
+  clean-tree package is
+  `out/packages/missionplanner10_1.3.83.1-69886aea_amd64.deb`: 60,129,156 bytes, Debian version
+  `1:1.3.83.1+69886aea`, installed size 193,776 KiB, SHA-256
+  `833c5b6536bda483d088d13e4482e7f6999acef4dd83c692280e42d0fce38cd3`. `lintian`, launcher,
+  executable, resource and forbidden-native-library payload checks pass; isolated Xvfb startup
+  reaches the normal event loop (status 124 is the expected 12-second timeout). Earlier local
+  `.7202` packages are superseded test artifacts and were never tagged or released.
+- The only change after the published code/package checkpoint is this status/provenance record.
+  After its push, `HEAD == origin/master` and the worktree is clean. Remaining acceptance boundary:
+  exercise both refresh spellings on representative physical NV4 hardware; GTU's per-endpoint
+  direct/HUB failover remains a separate parity item because Mission Planner's shared parser does
+  not expose sender/listener metadata. GitHub CI/package run `33326289139` and CodeQL run
+  `33326289105` both pass on `69886aeab`; the code-scanning API reports zero open alerts. Manual
+  cross-platform release build `33326726258` also passes on that exact commit and retains four
+  downloadable Actions artifacts (`dist-linux-x64`, `dist-win-x64`, `dist-osx-x64` and
+  `dist-osx-arm64`) with signed update manifests. Because it was a `workflow_dispatch` rather than
+  a tag build, it did not create a tag or public GitHub Release. Next executable step: perform the
+  physical NV4 save/key roundtrip before a tagged release.
+
 ## Explicit local build sequence and completed integration handoff
 
-- The upstream version remains `1.3.83` from `Properties/AssemblyInfo.cs`. A new tracked,
-  repository-global local sequence lives in `build/local-build-number.txt` and starts at **7202**,
-  immediately after the old implicit Git revision 7201. `make bump-local-build` performs one
-  guarded atomic increment; ordinary developer builds never modify the counter, and it must not
-  be reset when the upstream version changes.
-- Code commit `a8e060d41` applies the contract consistently: product/file and UI version
-  `1.3.83.7202+<8-char-hash>`, artifact/tag identity `1.3.83.7202-<hash>`, Debian version
-  `1:1.3.83.7202+<hash>`, MSI product version `1.3.7202`, and macOS short/build versions
-  `1.3.83` / `7202`. Release tags are rejected unless upstream version, tracked local number and
-  tagged commit hash all match. The updater now compares the fourth numeric field, retains the
-  date-based compatibility path, and no longer truncates an eight-character hash to seven before
-  comparing builds.
-- Local verification on the combined PR #24 + ModelCal + version tree: focused version/updater
-  tests **48/48**, complete Release suite **1542/1542**, `MissionPlanner.slnx` and the standalone
-  SITL harness both **0 warnings / 0 errors**, all six migration/retirement/artifact gates pass
-  (1623 native rows, 0 blockers, 708/708 pinned paths), shell/YAML/version-contract checks pass,
-  and a generated macOS plist contains the expected short/build values. The guarded bump helper
-  was exercised from a clean tree (`7202 -> 7203`) and the test change was restored to 7202.
-- Published code checkpoint `master == origin/master == a8e060d41` passed the complete
-  Linux/Windows/macOS-x64/macOS-arm64 CI/package run `33324097392` and CodeQL run `33324097344`;
-  the code-scanning API reports zero open alerts. A first local publish encountered stale MSBuild
-  intermediates recorded through both `/home/alex/src` and `/home/alex/SRC`; a normal Release
-  `dotnet clean` followed by a physical-path rebuild resolved that local cache condition without
-  source changes.
-- The required local Debian build then succeeded at
-  `out/packages/missionplanner10_1.3.83.7202-a8e060d4_amd64.deb`: 60,130,894 bytes,
-  SHA-256 `a95ad678b3eaadeb6055cd1477482365fbb97ad2a28eb5784843f359d4f29a64`. Its control
-  version is `1:1.3.83.7202+a8e060d4`; `lintian`, executable/resource/native-library payload
-  checks and isolated Xvfb startup pass (status 124 is the expected 12-second timeout).
+- The upstream version remains `1.3.83` from `Properties/AssemblyInfo.cs`. The tracked,
+  repository-global local sequence lives in `build/local-build-number.txt` and now starts at **1**
+  by explicit user decision. The provisional value `7202` came from taking the next number after
+  the old implicit `git rev-list --count HEAD` result of 7201; it was a compatibility bridge, not a
+  meaningful local release number, and is superseded. `make bump-local-build` performs one guarded
+  atomic increment; ordinary developer builds never modify the counter, and it must not be reset
+  when the upstream version changes.
+- Version-contract commit `a8e060d41` and sequence correction `69886aeab` apply the contract
+  consistently: product/file and UI version `1.3.83.1+<8-char-hash>`, artifact/tag identity
+  `1.3.83.1-<hash>`, Debian version `1:1.3.83.1+<hash>`, MSI product version `1.3.1`, and macOS
+  short/build versions `1.3.83` / `1`. Release tags are rejected unless upstream version, tracked
+  local number and tagged commit hash all match. The updater compares the fourth numeric field,
+  retains the date-based compatibility path and compares the full eight-character build hash.
+- The guarded bump helper was exercised from a clean counter (`1 -> 2`) and restored to `1` after
+  verification. The next intentional local release therefore starts by committing `2`; upstream
+  version changes remain independent of this sequence. The earlier version-contract checkpoint
+  passed complete CI/package run `33324097392`, CodeQL run `33324097344` and the zero-alert API
+  audit; the final `69886aeab` CI, CodeQL and manually dispatched release matrix pass as recorded
+  above.
 - Git state for handoff: the only commit after the published code/package checkpoint is this
   status-only record; after its push, `HEAD == origin/master` and the worktree is clean. PR #24 is
   closed as merged with its review/follow-up comment, and `feature/model-calibration-support-20260830`
   is an ancestor of `master`. No tag or GitHub Release was created. Remaining blocker: none. Next
-  executable release step: run and commit `make bump-local-build`, then tag the resulting commit
+  executable release step: run and commit `make bump-local-build` (`1 -> 2`), then tag the resulting commit
   using `v<upstream>.<local-build>-<8-char-hash>`.
 
 ## Log download hardening checkpoint (branch fix/log-download-cancel-tests)
@@ -634,23 +669,18 @@ Updated: **2026-08-30**.
 
 ## GTU synchronization checkpoint
 
-- NV modem behavior was last compared with `/home/alex/src/AgroSky/GTU` at fetched
-  `origin/master` `d74f43087fa591d7ac43f690e0eda5ef654373ea`; local `master` is one unrelated
-  D3D11/package commit ahead and has no additional `NV5Settings` changes. Earlier GTU refinement
-  `77af510a47f8cbe7ea02fcc047019b07fb2c0c26` keeps selected-radio key targeting independent of
-  `DIVERSITY`, and **Revert selected** restores one staged parameter locally without sending
-  MAVLink. Both behaviors and their regression tests are ported. Checkpoint `f196ea689` additionally
-  supplies current unlocked-channel RSSI semantics, now ported with matching tests. Newer GTU
-  changes through `d74f4308` add current LoRa/FLRC acquisition presets, 64..496/step-16 frame
-  validation, typed rejection diagnostics, attached-modem HUB management and UID2-based identity
-  migration. Mission Planner ports those semantics using the exact observed `MAVLinkInterface` as
-  its management-route boundary because its parser does not expose GTU's per-datagram sender IP and
-  scope metadata. Strict passport capability checks, offline/requested address migration and live
-  duplicate/conflict guards have matching regression coverage. `REFRESH_SETTING` remains a typed
-  `UINT32`; NV5 key words remain signed `INT32` values preserving the same raw bytes.
-- The `d74f4308` synchronization passes all 58 focused NV modem tests and the complete
-  **1506/1506** Avalonia port suite. The Release solution build completes with zero warnings and
-  zero errors before native Linux packaging.
+- NV modem behavior was most recently compared with clean
+  `/home/alex/src/AgroSky/GTU` `master == origin/master` at `3eebb35d6d35be5b5fb4c1a753017baff107b082`.
+  Earlier checkpoints remain represented: `77af510a` keeps key targeting independent of
+  `DIVERSITY` and supplies **Revert selected**; `f196ea689` supplies unlocked-channel RSSI
+  semantics; and changes through `d74f4308` supply acquisition presets, frame validation, typed
+  rejection diagnostics, attached-modem management and UID2 identity migration.
+- GTU `263218e8` adds redundant per-endpoint management routes and pre-write identity/IP collision
+  checks without changing the parameter catalog. Mission Planner continues to use the exact
+  observed `MAVLinkInterface` as its route boundary because its shared parser does not expose GTU's
+  per-datagram sender/listener metadata. The later `3eebb35d` NV4 catalog, descriptions and both
+  advertised refresh spellings are synchronized and verified as recorded in the current handoff
+  above. NV5 key words remain signed `INT32` values preserving the same raw bytes.
 - Before each later NV modem change and before a release, recheck both committed and uncommitted
   GTU changes with `git status`, then compare every newer change to `hermes-gui/include/nv5settings.h`,
   `hermes-gui/src/nv5settings.cpp` and `hermes-gui/test/testnv5settings.cpp`. Update this commit and
