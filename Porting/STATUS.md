@@ -2,6 +2,44 @@
 
 Updated: **2026-08-30**.
 
+## Explicit local build sequence and completed integration handoff
+
+- The upstream version remains `1.3.83` from `Properties/AssemblyInfo.cs`. A new tracked,
+  repository-global local sequence lives in `build/local-build-number.txt` and starts at **7202**,
+  immediately after the old implicit Git revision 7201. `make bump-local-build` performs one
+  guarded atomic increment; ordinary developer builds never modify the counter, and it must not
+  be reset when the upstream version changes.
+- Code commit `a8e060d41` applies the contract consistently: product/file and UI version
+  `1.3.83.7202+<8-char-hash>`, artifact/tag identity `1.3.83.7202-<hash>`, Debian version
+  `1:1.3.83.7202+<hash>`, MSI product version `1.3.7202`, and macOS short/build versions
+  `1.3.83` / `7202`. Release tags are rejected unless upstream version, tracked local number and
+  tagged commit hash all match. The updater now compares the fourth numeric field, retains the
+  date-based compatibility path, and no longer truncates an eight-character hash to seven before
+  comparing builds.
+- Local verification on the combined PR #24 + ModelCal + version tree: focused version/updater
+  tests **48/48**, complete Release suite **1542/1542**, `MissionPlanner.slnx` and the standalone
+  SITL harness both **0 warnings / 0 errors**, all six migration/retirement/artifact gates pass
+  (1623 native rows, 0 blockers, 708/708 pinned paths), shell/YAML/version-contract checks pass,
+  and a generated macOS plist contains the expected short/build values. The guarded bump helper
+  was exercised from a clean tree (`7202 -> 7203`) and the test change was restored to 7202.
+- Published code checkpoint `master == origin/master == a8e060d41` passed the complete
+  Linux/Windows/macOS-x64/macOS-arm64 CI/package run `33324097392` and CodeQL run `33324097344`;
+  the code-scanning API reports zero open alerts. A first local publish encountered stale MSBuild
+  intermediates recorded through both `/home/alex/src` and `/home/alex/SRC`; a normal Release
+  `dotnet clean` followed by a physical-path rebuild resolved that local cache condition without
+  source changes.
+- The required local Debian build then succeeded at
+  `out/packages/missionplanner10_1.3.83.7202-a8e060d4_amd64.deb`: 60,130,894 bytes,
+  SHA-256 `a95ad678b3eaadeb6055cd1477482365fbb97ad2a28eb5784843f359d4f29a64`. Its control
+  version is `1:1.3.83.7202+a8e060d4`; `lintian`, executable/resource/native-library payload
+  checks and isolated Xvfb startup pass (status 124 is the expected 12-second timeout).
+- Git state for handoff: the only commit after the published code/package checkpoint is this
+  status-only record; after its push, `HEAD == origin/master` and the worktree is clean. PR #24 is
+  closed as merged with its review/follow-up comment, and `feature/model-calibration-support-20260830`
+  is an ancestor of `master`. No tag or GitHub Release was created. Remaining blocker: none. Next
+  executable release step: run and commit `make bump-local-build`, then tag the resulting commit
+  using `v<upstream>.<local-build>-<8-char-hash>`.
+
 ## Log download hardening checkpoint (branch fix/log-download-cancel-tests)
 
 - `MAVLinkInterface.GetLog` gained cancellation (`CancellationToken`, threaded through the
@@ -60,9 +98,9 @@ Updated: **2026-08-30**.
   the standalone log-download SITL harness build with **0 warnings / 0 errors**. All six porting
   gates pass (1623 native rows, 0 blockers, 708/708 pinned paths, clean WinForms and artifact
   audits). No package, tag or release was created.
-- Remaining blocker before this handoff: none locally. Next executable step: push the combined
-  merge/status commits to `origin/master` and require the new master CI/package and CodeQL runs
-  on that final head before treating the merge as remotely verified.
+- The combined merge/status commits were pushed to `origin/master`. CI/package run `33323244170`
+  and CodeQL run `33323244173` both passed on `adedcf62b`; the later version-contract checkpoint
+  above provides the final combined verification.
 ## Ten-second Flight Data action bounds and compact Actions layout
 
 - The Flight Data `Arm / Disarm` action now uses an explicit ten-second total MAVLink ACK bound
