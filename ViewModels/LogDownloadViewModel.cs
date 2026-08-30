@@ -49,6 +49,22 @@ public partial class LogDownloadViewModel : ViewModelBase {
   [ObservableProperty]
   private bool _createKmlAfterDownload;
 
+  /// <summary>True only while a download batch runs - unlike IsBusy, which also covers
+  /// the log list and erase operations, where there is nothing to cancel.</summary>
+  [ObservableProperty]
+  private bool _isDownloading;
+
+  private CancellationTokenSource? _downloadCts;
+
+  [RelayCommand]
+  private void CancelDownload() {
+    try {
+      _downloadCts?.Cancel();
+    } catch (ObjectDisposedException) {
+      // the download finished and disposed the source just as we canceled
+    }
+  }
+
   [RelayCommand]
   [Obsolete]
   private async Task Refresh() {
@@ -99,8 +115,12 @@ public partial class LogDownloadViewModel : ViewModelBase {
       return;
     }
 
+    // claim the busy gate before awaiting the picker, so a second download
+    // command cannot interleave into a concurrent batch
+    IsBusy = true;
     var dest = await PickSaveAsync($"log_{sel.Id}.bin");
     if (dest == null) {
+      IsBusy = false;
       return;
     }
 
@@ -124,8 +144,12 @@ public partial class LogDownloadViewModel : ViewModelBase {
       }
     }
 
+    // claim the busy gate before awaiting the picker, so a second download
+    // command cannot interleave into a concurrent batch
+    IsBusy = true;
     string? folder = await PickFolderAsync();
     if (folder == null) {
+      IsBusy = false;
       return;
     }
     Directory.CreateDirectory(folder);
@@ -176,7 +200,10 @@ public partial class LogDownloadViewModel : ViewModelBase {
       return;
     }
     IsBusy = true;
+    IsDownloading = true;
     Progress = 0;
+    _downloadCts = new CancellationTokenSource();
+    CancellationToken cancel = _downloadCts.Token;
     long total = rows.Sum(row => (long)row.SizeBytes);
     long completed = 0;
     int saved = 0;
@@ -191,14 +218,18 @@ public partial class LogDownloadViewModel : ViewModelBase {
     _comPort.Progress += OnProgress;
     try {
       foreach (var row in rows) {
+        // a cancel that lands between rows (or during the copy/KML tail of the
+        // previous row) must stop the batch, not report success
+        cancel.ThrowIfCancellationRequested();
         string destination = destinationFor(row);
         Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
         Status = $"Downloading log {row.Id} ({saved + 1}/{rows.Count})…";
-        await DownloadOne(row.Id, destination);
+        await DownloadOne(row.Id, destination, cancel);
         long completedNow = Interlocked.Add(ref completed, row.SizeBytes);
         saved++;
         Progress = total > 0 ? Math.Min(100.0, 100.0 * completedNow / total) : 100;
         if (CreateKmlAfterDownload) {
+          cancel.ThrowIfCancellationRequested();
           try {
             string kml = Path.ChangeExtension(destination, ".kml");
             await Task.Run(() => DataFlashLog.ExportKml(destination, kml));
@@ -214,23 +245,29 @@ public partial class LogDownloadViewModel : ViewModelBase {
                        ? " KML track(s) created."
                        : $" KML failed for {kmlErrors.Count}: {string.Join("; ", kmlErrors)}"
                    : "");
+    } catch (OperationCanceledException) {
+      Status = $"Download canceled after {saved}/{rows.Count}.";
     } catch (Exception ex) {
       Status = $"Download failed after {saved}/{rows.Count}: {ex.Message}";
     } finally {
+      // this batch owns the token source; Cancel racing this is handled there
+      var cts = Interlocked.Exchange(ref _downloadCts, null);
+      cts?.Dispose();
       _comPort.Progress -= OnProgress;
+      IsDownloading = false;
       IsBusy = false;
     }
   }
 
-  private async Task DownloadOne(ushort id, string destination) {
+  private async Task DownloadOne(ushort id, string destination, CancellationToken cancel) {
     string? tempPath = null;
     try {
-      tempPath = await _comPort.GetLog(_comPort.MAV.sysid, _comPort.MAV.compid, id);
+      tempPath = await _comPort.GetLog(_comPort.MAV.sysid, _comPort.MAV.compid, id, cancel);
       await using var temp = new FileStream(
           tempPath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
       await using var output = new FileStream(
           destination, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true);
-      await temp.CopyToAsync(output);
+      await temp.CopyToAsync(output, cancel);
     } finally {
       if (tempPath != null) {
         try {

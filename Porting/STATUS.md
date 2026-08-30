@@ -1,6 +1,38 @@
 # Avalonia in-place migration status
 
-Updated: **2026-08-26**.
+Updated: **2026-08-29**.
+
+## Log download hardening checkpoint (branch fix/log-download-cancel-tests)
+
+- `MAVLinkInterface.GetLog` gained cancellation (`CancellationToken`, threaded through the
+  download loop and the view model, with a Cancel button in the download window), repair-request
+  chaining (the next missing-range request is issued the moment the current one is satisfied,
+  gated on actual coverage progress so duplicated packets cannot multiply requests), and a
+  time-based silence budget (`retryLimit x LogRetryDelayMs`, so short repair windows no longer
+  shrink the total tolerance a flaky link is allowed). Data beyond the known log end is ignored.
+- `LogDownloadTracker` only trusts a short packet as the log end at the highest offset seen, and
+  only frontier-near packets raise that bar - a stale short retransmit cannot truncate the
+  download and a corrupt far offset cannot poison end inference.
+- A short packet past the trusted frontier is a deferred end candidate, promoted by `GetLog`
+  only once the stream goes quiet (`AcceptPendingTotalLength`): a corrupt packet both short and
+  far cleared the old bar trivially and ended the download at a phantom length - below the true
+  end it silently truncated the returned file. A genuine end packet still lands far past a
+  frontier stalled by packet loss, so rejecting far end packets outright is not an option (that
+  variant never completed the lossy SITL run - every recovered gap forced a full re-stream).
+  Found via review of the equivalent upstream change (ArduPilot/MissionPlanner#3764).
+- The download window toolbar wraps (`WrapPanel` with `ItemSpacing`/`LineSpacing`, window
+  `MinWidth` 420): six items need ~830 px in one row and previously painted past the 540 px
+  default width. A `LayoutOverflowTests` theory guards it at 420 and 540 px.
+- New coverage: `GetLogProtocolTests` (15 fake-vehicle protocol tests: ordering, loss recovery,
+  stray retransmits, corrupt short-far packets, duplicate storms, silence budget, beyond-end
+  data, cancel, timeout), tracker unit tests, and a manual SITL end-to-end harness with a 5%
+  lossy proxy (`MissionPlannerTests/Avalonia/MissionPlanner.SitlTests`, registered as retained
+  tooling in `PROJECT_ARTIFACT_AUDIT.tsv`). SITL reference results: clean 2.3 MB byte-identical
+  in 0.44 s; 5% loss byte-identical in 77.3 s, one streaming pass (~3 s of that is the silence
+  window confirming a deferred end candidate; previously the lossy run did not complete - repair
+  served one gap per 3 s silence window).
+- Remaining blocker: none for this checkpoint. Next executable step: rerun the SITL harness
+  (clean + lossy) after any further `GetLog`/tracker change, per its README.
 
 ## Ten-second Flight Data action bounds and compact Actions layout
 

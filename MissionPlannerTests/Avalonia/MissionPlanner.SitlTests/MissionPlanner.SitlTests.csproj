@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsPublishable>false</IsPublishable>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../../ExtLibs/ArduPilot/MissionPlanner.ArduPilot.csproj" />
+    <ProjectReference Include="../../../ExtLibs/Comms/MissionPlanner.Comms.csproj" />
+    <ProjectReference Include="../../../ExtLibs/Mavlink/MAVLink.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="lossy_proxy.py" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

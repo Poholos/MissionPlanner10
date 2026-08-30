@@ -12,11 +12,16 @@
   Background="{DynamicResource MpControlBg}"
   Width="540"
   Height="440"
+  MinWidth="420"
+  MinHeight="320"
   WindowStartupLocation="CenterOwner"
   Title="Download Logs (MAVLink)"
 >
   <Grid Margin="12" RowDefinitions="Auto,*,Auto,Auto">
-    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+    <!-- WrapPanel, not StackPanel: six items need ~830px in one row, and a
+         horizontal StackPanel silently paints the tail past the window edge -->
+    <WrapPanel Grid.Row="0" Orientation="Horizontal" ItemSpacing="8" LineSpacing="8"
+               Margin="0,0,0,8">
       <Button Content="Refresh List" Command="{Binding RefreshCommand}"
               IsEnabled="{Binding !IsBusy}" />
       <Button Content="Download Selected" Command="{Binding DownloadCommand}"
@@ -27,7 +32,9 @@
                 VerticalAlignment="Center" />
       <Button Content="Erase All…" Command="{Binding EraseAllCommand}"
               IsEnabled="{Binding !IsBusy}" Foreground="#FF7777" />
-    </StackPanel>
+      <Button Content="Cancel" Command="{Binding CancelDownloadCommand}"
+              IsEnabled="{Binding IsDownloading}" />
+    </WrapPanel>
 
     <Border Grid.Row="1" BorderBrush="#666" BorderThickness="1">
       <DataGrid ItemsSource="{Binding Logs}" SelectedItem="{Binding SelectedLog}"

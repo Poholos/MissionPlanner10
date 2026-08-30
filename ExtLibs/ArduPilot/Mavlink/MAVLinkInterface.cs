@@ -6212,7 +6212,13 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
             return new FileStream(await GetLog(MAV.sysid, MAV.compid, no), FileMode.Open, FileAccess.ReadWrite);
         }
 
-        public async Task<string> GetLog(byte sysid, byte compid, ushort no)
+        /// <summary>GetLog: ms of LOG_DATA silence before a request is retried (test seam).</summary>
+        internal int LogRetryDelayMs { get; set; } = 3000;
+
+        /// <summary>GetLog: ms of silence between repair requests once the log length is known (test seam).</summary>
+        internal int LogRepairDelayMs { get; set; } = 500;
+
+        public async Task<string> GetLog(byte sysid, byte compid, ushort no, CancellationToken cancel = default)
         {
             var filename = Path.GetTempFileName();
             try
@@ -6220,7 +6226,7 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
                 using (FileStream ms = new FileStream(filename, FileMode.Create, FileAccess.ReadWrite))
                 {
                     const int retryLimit = 10;
-                    const int retryDelayMilliseconds = 3000;
+                    int retryDelayMilliseconds = LogRetryDelayMs;
                     const uint maximumRepairRequest = LogDownloadTracker.PacketSize * 50;
 
                     giveComport = false;
@@ -6250,37 +6256,64 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
                     try
                     {
                         generatePacket((byte) MAVLINK_MSG_ID.LOG_REQUEST_DATA, request);
-                        int retriesRemaining = retryLimit;
+                        int silenceMsRemaining = retryLimit * retryDelayMilliseconds;
                         DateTime nextRetryAt = DateTime.UtcNow.AddMilliseconds(retryDelayMilliseconds);
                         DateTime nextProgressAt = DateTime.UtcNow;
 
+                        int SilenceWindowMs() =>
+                            tracker.TotalLength.HasValue ? LogRepairDelayMs : retryDelayMilliseconds;
+
+                        void IssueNextRequest(DateTime issuedAt)
+                        {
+                            LogDownloadRequest missing = tracker.NextRequest(maximumRepairRequest);
+                            request.ofs = missing.Offset;
+                            request.count = missing.Count;
+                            generatePacket((byte) MAVLINK_MSG_ID.LOG_REQUEST_DATA, request);
+                            nextRetryAt = issuedAt.AddMilliseconds(SilenceWindowMs());
+                        }
+
                         while ((BaseStream != null && BaseStream.IsOpen) || logreadmode)
                         {
+                            cancel.ThrowIfCancellationRequested();
+
                             DateTime now = DateTime.UtcNow;
                             if (now >= nextRetryAt)
                             {
-                                if (retriesRemaining-- <= 0)
+                                // silence right after an end candidate from past the trusted
+                                // frontier is the missing evidence: a corrupt packet is followed
+                                // by more stream, the real end of log is not. promote it and
+                                // start the bounded repair phase
+                                if (tracker.AcceptPendingTotalLength())
+                                {
+                                    silenceMsRemaining = retryLimit * retryDelayMilliseconds;
+                                    IssueNextRequest(now);
+                                    log.Info("GetLog end past stalled frontier: " +
+                                             tracker.TotalLength.Value + " bytes");
+                                    continue;
+                                }
+
+                                // a time budget, not a window count: repair windows are much
+                                // shorter than streaming windows, and must not shrink the total
+                                // silence a flaky link is allowed before the download aborts
+                                if (silenceMsRemaining <= 0)
                                     throw new TimeoutException(
                                         "Log download stopped responding before every byte was received.");
+                                silenceMsRemaining -= SilenceWindowMs();
 
-                                LogDownloadRequest missing = tracker.NextRequest(maximumRepairRequest);
-                                request.ofs = missing.Offset;
-                                request.count = missing.Count;
-                                log.Info("GetLog retry " + (retryLimit - retriesRemaining) +
+                                IssueNextRequest(now);
+                                log.Info("GetLog retry (" + silenceMsRemaining + " ms silence budget left)" +
                                          " requesting offset " + request.ofs + " count " + request.count +
                                          " received " + tracker.CoveredBytes +
                                          (tracker.TotalLength.HasValue
                                              ? "/" + tracker.TotalLength.Value
                                              : "/unknown"));
-                                generatePacket((byte) MAVLINK_MSG_ID.LOG_REQUEST_DATA, request);
-                                nextRetryAt = now.AddMilliseconds(retryDelayMilliseconds);
                                 continue;
                             }
 
                             MAVLinkMessage buffer;
                             if (!queue.TryDequeue(out buffer))
                             {
-                                await Task.Delay(10).ConfigureAwait(false);
+                                await Task.Delay(10, cancel).ConfigureAwait(false);
                                 continue;
                             }
 
@@ -6288,8 +6321,13 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
                             if (data.id != no || data.data == null || data.count > data.data.Length)
                                 continue;
 
-                            ulong coveredBefore = tracker.CoveredBytes;
                             bool totalWasKnown = tracker.TotalLength.HasValue;
+                            // once the length is known, data beyond it cannot be real - a
+                            // bogus offset must not grow the file or the tracker
+                            if (totalWasKnown && (ulong)data.ofs + data.count > tracker.TotalLength.Value)
+                                continue;
+
+                            ulong coveredBefore = tracker.CoveredBytes;
                             if (!tracker.Add(data.ofs, data.count, !totalWasKnown))
                                 continue;
 
@@ -6302,19 +6340,32 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
                             ulong covered = tracker.CoveredBytes;
                             bool madeProgress = covered > coveredBefore ||
                                                 (!totalWasKnown && tracker.TotalLength.HasValue);
+                            bool complete = tracker.TotalLength.HasValue &&
+                                            covered >= tracker.TotalLength.Value;
                             if (madeProgress)
                             {
-                                retriesRemaining = retryLimit;
-                                nextRetryAt = now.AddMilliseconds(retryDelayMilliseconds);
+                                silenceMsRemaining = retryLimit * retryDelayMilliseconds;
+                                nextRetryAt = now.AddMilliseconds(SilenceWindowMs());
                             }
 
-                            if (now >= nextProgressAt || tracker.IsComplete)
+                            // chain the next repair request the moment the current one is
+                            // satisfied - waiting out a silence window per gap makes a lossy
+                            // stream, which leaves thousands of scattered gaps, take hours.
+                            // gated on madeProgress: stale or duplicated packets add no
+                            // coverage and must not re-request
+                            if (madeProgress && !complete && tracker.TotalLength.HasValue &&
+                                (ulong)data.ofs + data.count >= (ulong)request.ofs + request.count)
+                            {
+                                IssueNextRequest(now);
+                            }
+
+                            if (now >= nextProgressAt || complete)
                             {
                                 Progress?.Invoke((int) Math.Min(covered, int.MaxValue), "");
                                 nextProgressAt = now.AddMilliseconds(250);
                             }
 
-                            if (tracker.IsComplete)
+                            if (complete)
                             {
                                 ms.SetLength(tracker.TotalLength.Value);
                                 ms.Flush();
