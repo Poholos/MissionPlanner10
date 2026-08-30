@@ -171,6 +171,31 @@
     </Content>
   </ItemGroup>
 
+  <PropertyGroup>
+    <!-- The native dataflash log parser (rust/) is built from source when a
+         Rust toolchain is available; without one the app builds normally and
+         the managed parser is used at runtime. Built under obj/ so manual and
+         MSBuild-driven cargo runs never dirty the build-identity check. -->
+    <DflogRustTriple Condition="'$(RuntimeIdentifier)' == 'win-x64'">x86_64-pc-windows-msvc</DflogRustTriple>
+    <DflogRustTriple Condition="'$(RuntimeIdentifier)' == 'linux-x64'">x86_64-unknown-linux-gnu</DflogRustTriple>
+    <DflogRustTriple Condition="'$(RuntimeIdentifier)' == 'osx-x64'">x86_64-apple-darwin</DflogRustTriple>
+    <DflogRustTriple Condition="'$(RuntimeIdentifier)' == 'osx-arm64'">aarch64-apple-darwin</DflogRustTriple>
+    <DflogNativeDir>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/$(BaseIntermediateOutputPath)dflog'))</DflogNativeDir>
+    <DflogReleaseDir Condition="'$(DflogRustTriple)' != ''">$(DflogNativeDir)/$(DflogRustTriple)/release</DflogReleaseDir>
+    <DflogReleaseDir Condition="'$(DflogRustTriple)' == ''">$(DflogNativeDir)/release</DflogReleaseDir>
+    <DflogCargoTargetArg Condition="'$(DflogRustTriple)' != ''"> --target $(DflogRustTriple)</DflogCargoTargetArg>
+    <DflogLibraryName Condition="'$(RuntimeIdentifier)' == 'win-x64' Or
+                                 ('$(RuntimeIdentifier)' == '' And
+                                  $([MSBuild]::IsOSPlatform('Windows')))">dflog_ffi.dll</DflogLibraryName>
+    <DflogLibraryName Condition="'$(RuntimeIdentifier)' == 'linux-x64' Or
+                                 ('$(RuntimeIdentifier)' == '' And
+                                  $([MSBuild]::IsOSPlatform('Linux')))">libdflog_ffi.so</DflogLibraryName>
+    <DflogLibraryName Condition="'$(RuntimeIdentifier)' == 'osx-x64' Or
+                                 '$(RuntimeIdentifier)' == 'osx-arm64' Or
+                                 ('$(RuntimeIdentifier)' == '' And
+                                  $([MSBuild]::IsOSPlatform('OSX')))">libdflog_ffi.dylib</DflogLibraryName>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="ExtLibs/ArduPilot/MissionPlanner.ArduPilot.csproj" />
     <ProjectReference Include="ExtLibs/Arduino/Arduino.csproj" />
@@ -283,6 +308,36 @@
                       '$(SimpleBleMacRid)' != 'osx-arm64'"
            Text="Unsupported macOS SimpleBLE runtime identifier: $(SimpleBleMacRid)" />
     <Exec Command="bash &quot;$(MSBuildProjectDirectory)/build/simpleble/fetch-macos.sh&quot; &quot;$(SimpleBleMacRid)&quot; &quot;$(SimpleBleMacNativeDir)&quot;" />
+  </Target>
+
+  <Target Name="BuildDflogNative"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(DflogLibraryName)' != '' And '$(DesignTimeBuild)' != 'true'">
+    <Exec Command="cargo --version"
+          IgnoreExitCode="true"
+          EchoOff="true"
+          StandardOutputImportance="low"
+          StandardErrorImportance="low">
+      <Output TaskParameter="ExitCode" PropertyName="DflogCargoProbeExitCode" />
+    </Exec>
+    <Message Condition="'$(DflogCargoProbeExitCode)' != '0'"
+             Importance="high"
+             Text="dflog: cargo not found on PATH; skipping the native log parser build (the managed parser is used at runtime)" />
+    <Exec Condition="'$(DflogCargoProbeExitCode)' == '0'"
+          Command="cargo build --release --package dflog-ffi --target-dir &quot;$(DflogNativeDir)&quot;$(DflogCargoTargetArg)"
+          WorkingDirectory="$(MSBuildProjectDirectory)/rust" />
+  </Target>
+
+  <Target Name="IncludeDflogNativeContent"
+          BeforeTargets="AssignTargetPaths"
+          DependsOnTargets="BuildDflogNative"
+          Condition="'$(DflogLibraryName)' != ''">
+    <ItemGroup Condition="Exists('$(DflogReleaseDir)/$(DflogLibraryName)')">
+      <Content Include="$(DflogReleaseDir)/$(DflogLibraryName)" Link="$(DflogLibraryName)">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </Content>
+    </ItemGroup>
   </Target>
 
   <Target Name="RemoveWindowsNativeBinariesFromNonWindowsPublish"

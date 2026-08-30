@@ -2,6 +2,36 @@
 
 Updated: **2026-08-30**.
 
+## Native dataflash log core, phase 1: vendored Rust workspace and build plumbing (branch feature/dflog-native-log-core)
+
+- Vendored the dflog parser core from the upstream fork (userepo/MissionPlanner
+  `rust/dflog-core` branch, crates 0.7.1) into the top-level `rust/` directory: `dflog-core`
+  (parser/index/columnar access, bug-for-bug compatible with `DFLogBuffer`/`BinaryLog`) and
+  `dflog-ffi` (`dflog_ffi` cdylib, C ABI v5, panic-safe boundary), plus the SITL corpus in
+  `rust/testdata` that the golden characterization tests pin exact values against. The CLI,
+  Python bindings and fuzz targets stay upstream; parser changes land there first and are
+  re-vendored. `cargo test` (24+2), `cargo fmt --check` and `cargo clippy --workspace
+  --all-targets` are clean in this tree.
+- `MissionPlanner.csproj` builds the cdylib from source when `cargo` is on the PATH
+  (`BuildDflogNative` before `PrepareForBuild`, mirroring `FetchMacSimpleBle`): RID-mapped
+  `--target` triples for win-x64/linux-x64/osx-x64/osx-arm64, host-native build when no RID is
+  set, output under `obj/dflog/` so neither MSBuild nor manual cargo runs (`rust/target/` now
+  gitignored) can dirty the build-identity check. Without cargo the build prints one notice and
+  produces today's app unchanged - the managed parser remains the runtime fallback. The built
+  library is injected as `Content` before `AssignTargetPaths`, so it flows into output, publish,
+  and every package payload; verified end to end with a `win-x64` self-contained publish carrying
+  `dflog_ffi.dll` (191 KB, `strip = true` release profile for the lintian gate).
+- No binaries are checked in and no new project files exist: `check-project-artifacts.sh`,
+  `check-binary-artifacts.sh` and `check-native-surface.sh` all pass unchanged. Third-party
+  notice added as `LICENSES/dflog-NOTICE.txt` (memmap2 and the Rust standard library,
+  Apache-2.0; version-free filename since the vendored source re-syncs from upstream). Full C# suite: 1532/1544 locally, the failures being the known
+  environment-dependent set, unchanged from master.
+- Remaining blocker: none for this phase. Next executable step: phase 2 - port `DfLogNative`
+  P/Invoke bindings into `ExtLibs/Utilities` on the `NativeGdalApi` availability pattern, add the
+  `DFLogBuffer` native fast paths, and cover them with synthesized-log parity tests that skip
+  when the native library is absent. CI wiring for the four RIDs (rustup targets on the macOS
+  runner) is phase 4.
+
 ## NV4 parameter-catalog synchronization and Debian handoff
 
 - The Hermes source checkpoint is clean GTU `master == origin/master`
