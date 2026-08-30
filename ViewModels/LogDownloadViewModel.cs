@@ -118,7 +118,14 @@ public partial class LogDownloadViewModel : ViewModelBase {
     // claim the busy gate before awaiting the picker, so a second download
     // command cannot interleave into a concurrent batch
     IsBusy = true;
-    var dest = await PickSaveAsync($"log_{sel.Id}.bin");
+    string? dest;
+    try {
+      dest = await PickSaveAsync($"log_{sel.Id}.bin");
+    } catch (Exception ex) {
+      Status = "Could not select a download destination: " + ex.Message;
+      IsBusy = false;
+      return;
+    }
     if (dest == null) {
       IsBusy = false;
       return;
@@ -147,12 +154,21 @@ public partial class LogDownloadViewModel : ViewModelBase {
     // claim the busy gate before awaiting the picker, so a second download
     // command cannot interleave into a concurrent batch
     IsBusy = true;
-    string? folder = await PickFolderAsync();
+    string? folder;
+    try {
+      folder = await PickFolderAsync();
+      if (folder != null) {
+        Directory.CreateDirectory(folder);
+      }
+    } catch (Exception ex) {
+      Status = "Could not select a download folder: " + ex.Message;
+      IsBusy = false;
+      return;
+    }
     if (folder == null) {
       IsBusy = false;
       return;
     }
-    Directory.CreateDirectory(folder);
     await DownloadRows(Logs.ToList(), row => Path.Combine(folder, SuggestedFileName(row)));
   }
 
@@ -197,6 +213,7 @@ public partial class LogDownloadViewModel : ViewModelBase {
       IReadOnlyList<LogDownloadRow> rows, Func<LogDownloadRow, string> destinationFor) {
     if (rows.Count == 0) {
       Status = "No logs to download.";
+      IsBusy = false;
       return;
     }
     IsBusy = true;
@@ -232,8 +249,15 @@ public partial class LogDownloadViewModel : ViewModelBase {
           cancel.ThrowIfCancellationRequested();
           try {
             string kml = Path.ChangeExtension(destination, ".kml");
-            await Task.Run(() => DataFlashLog.ExportKml(destination, kml));
+            await Task.Run(() => DataFlashLog.ExportKml(destination, kml), cancel);
+            // ExportKml is synchronous and cannot stop in the middle, but a cancel
+            // that arrived while it ran must still cancel the batch instead of
+            // reporting a successful download once the export returns.
+            cancel.ThrowIfCancellationRequested();
           } catch (Exception ex) {
+            if (ex is OperationCanceledException) {
+              throw;
+            }
             kmlErrors.Add($"log {row.Id}: {ex.Message}");
           }
         }
