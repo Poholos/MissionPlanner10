@@ -42,12 +42,12 @@ The hardware-free acceptance workflow is documented in the [SITL checklist](SITL
 
 The application version combines the upstream value from `Properties/AssemblyInfo.cs`, the tracked
 local build number in `build/local-build-number.txt` and the repository commit. For example,
-upstream Mission Planner `1.3.83`, local build `7202` and commit `c5945b02` produce
-`1.3.83.7202+c5945b02`; a package made from uncommitted changes adds `.dirty`. Run
+upstream Mission Planner `1.3.83`, local build `1` and commit `c5945b02` produce
+`1.3.83.1+c5945b02`; a package made from uncommitted changes adds `.dirty`. Run
 `make bump-local-build` and commit the changed counter before producing the next local release.
 The counter is global and monotonic: do not reset it when the upstream version changes. The
 composite version appears in the window title and Help page and is shared by release archives and
-update manifests. Filesystem/release names use `1.3.83.7202-c5945b02`, and release tags add a
+update manifests. Filesystem/release names use `1.3.83.1-c5945b02`, and release tags add a
 leading `v`. Debian control metadata adds epoch 1. MSI uses `major.minor.local-build` because
 Windows Installer accepts only three numeric product-version fields.
 Signed beta tags append `-beta` or `-beta.N`; they are published as GitHub prereleases and are

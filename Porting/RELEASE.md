@@ -32,13 +32,13 @@ monotonic local build number from `build/local-build-number.txt`, and the canoni
 emits one contract for assemblies, UI, archives, Debian metadata, MSI and updater manifests:
 
 ```text
-product/file:  1.3.83.7202
-informational: 1.3.83.7202+0123abcd
-artifact:      1.3.83.7202-0123abcd
-release tag:   v1.3.83.7202-0123abcd
-beta tag:      v1.3.83.7202-0123abcd-beta[.N]
-Debian:        1:1.3.83.7202+0123abcd
-MSI:           1.3.7202
+product/file:  1.3.83.1
+informational: 1.3.83.1+0123abcd
+artifact:      1.3.83.1-0123abcd
+release tag:   v1.3.83.1-0123abcd
+beta tag:      v1.3.83.1-0123abcd-beta[.N]
+Debian:        1:1.3.83.1+0123abcd
+MSI:           1.3.1
 ```
 
 Developer packages made with tracked or untracked source changes append `.dirty`. Ordinary builds
@@ -49,9 +49,9 @@ version is `major.minor.local-build`; the complete informational version remains
 metadata. macOS uses the upstream `major.minor.patch` as `CFBundleShortVersionString` and the local
 build number as `CFBundleVersion`.
 
-The explicit sequence starts at `7202`, immediately after the last implicit Git revision `7201`.
-This prevents an installed MSI or Debian package from treating the first explicit-counter build as
-older than packages produced by the previous version pipeline.
+The explicit local sequence starts at `1` from the point where this repository adopted the tracked
+counter. It intentionally does not inherit the old implicit Git commit count (`7201`) and remains
+independent of the upstream version, so it must not be reset when upstream moves to `1.3.84`.
 
 ## Local commands
 

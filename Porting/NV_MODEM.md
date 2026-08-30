@@ -2,11 +2,11 @@
 
 Setup > NV Modem is the Avalonia port of the `NV5Settings` widget from the local AgroSky GTU tree.
 The latest parameter-catalog comparison used GTU `master == origin/master`
-`310ca309b3c877e3ed012e5039fd2f084e625fe4` and the pre-existing uncommitted NV4 draft in
-`hermes-gui/include/nv5settings.h`, `hermes-gui/src/nv5settings.cpp` and
-`hermes-gui/test/testnv5settings.cpp` (diff SHA-256
-`8cb610d33eebeac454c336eafec77fd7b374fb7c85ab61561a7c9b8cb0d22d66`). The GTU tree was used
-read-only. Its committed `263218e8` redundant-route work does not change the parameter catalog;
+`3eebb35d6d35be5b5fb4c1a753017baff107b082` (`Support legacy NV4 refresh parameter`). Its exact
+three-file diff from `310ca309` has SHA-256
+`8cb610d33eebeac454c336eafec77fd7b374fb7c85ab61561a7c9b8cb0d22d66`; the source tree was not
+modified by this port. Earlier committed `263218e8` redundant-route work does not change the
+parameter catalog;
 per-endpoint direct/HUB failover remains outside this catalog synchronization because Mission
 Planner's shared parser does not retain GTU's sender/listener metadata. The relevant source
 specification is
