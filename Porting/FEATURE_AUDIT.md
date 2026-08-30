@@ -222,6 +222,13 @@ submodule. UI-only changes were translated to Avalonia where applicable:
 - Persisted serial, TCP, UDP client/listener and WebSocket endpoints can auto-connect at normal app
   startup without reopening the endpoint prompt. An interactive network connection now uses the
   single combined Avalonia address/port dialog and suppresses the transport's second upstream prompt.
+- Upstream's two default inbound MAVLink listeners are restored independently of endpoint
+  auto-connect: Mission Planner binds UDP 14550 and 14551 at application startup without waiting
+  for a heartbeat. Each port owns a separate multi-link runtime, vehicle collection and lazy
+  telemetry log, so both inputs work concurrently and an idle listener does not make the ordinary
+  primary connection UI report a false connected session. Planner Settings exposes one startup
+  toggle and both validated ports; duplicate values deliberately create one listener and changes
+  take effect on restart.
 - WebSocket telemetry now uses a port-owned managed transport instead of the inherited `async void`
   reader. Raw WebSocket endpoints no longer receive a spurious Socket.IO probe, explicit Socket.IO
   endpoints retain the MAVControl handshake and binary prefix, fragmented binary messages remain a
