@@ -224,6 +224,91 @@ public class GetLogProtocolTests {
   }
 
   [Fact]
+  public async Task Corrupt_short_far_packet_does_not_end_the_download() {
+    byte[] log = MakeLog(1234);
+    using var vehicle = new FakeLogVehicle(log);
+    bool corruptSent = false;
+    vehicle.OnRequest = req => {
+      ulong end = Math.Min((ulong)req.ofs + req.count, (ulong)log.Length);
+      for (ulong ofs = req.ofs; ofs < end; ofs += BlockSize) {
+        // short and far clears the end-inference bar trivially - it must not
+        // end the download at a phantom length
+        if (ofs == 5 * BlockSize && !corruptSent) {
+          corruptSent = true;
+          vehicle.Send(MAVLink.MAVLINK_MSG_ID.LOG_DATA,
+              new MAVLink.mavlink_log_data_t(1_000_000, LogId, 40, new byte[BlockSize]));
+        }
+        vehicle.SendBlock((uint)ofs, (int)Math.Min(BlockSize, end - ofs));
+      }
+    };
+
+    byte[] result = await Download(vehicle);
+
+    Assert.True(log.Length == result.Length,
+        $"corrupt short far packet ended the download at {result.Length} of {log.Length} bytes");
+    Assert.Equal(log, result);
+  }
+
+  [Fact]
+  public async Task Corrupt_short_far_packet_below_the_log_end_does_not_truncate() {
+    byte[] log = MakeLog(20_000);
+    using var vehicle = new FakeLogVehicle(log);
+    // block 2 dropped on first delivery stalls the trusted frontier near the
+    // start of the log while the stream runs far ahead of it
+    var drop = new HashSet<uint> { 2 };
+    bool corruptSent = false;
+    vehicle.OnRequest = req => {
+      if (corruptSent) {
+        vehicle.Serve(req);
+        return;
+      }
+
+      corruptSent = true;
+      ulong end = Math.Min((ulong)req.ofs + req.count, (ulong)log.Length);
+      for (ulong ofs = req.ofs; ofs < end; ofs += BlockSize) {
+        if (ofs == 150 * BlockSize) {
+          // short, far, and below the true end: trusting it as the end would
+          // silently truncate the download and return success
+          vehicle.Send(MAVLink.MAVLINK_MSG_ID.LOG_DATA,
+              new MAVLink.mavlink_log_data_t(160 * BlockSize, LogId, 40,
+                  new byte[BlockSize]));
+        }
+        if (drop.Remove((uint)(ofs / BlockSize))) {
+          continue;
+        }
+        vehicle.SendBlock((uint)ofs, (int)Math.Min(BlockSize, end - ofs));
+      }
+    };
+
+    byte[] result = await Download(vehicle);
+
+    Assert.True(log.Length == result.Length,
+        $"corrupt short far packet truncated the download to {result.Length} of "
+        + $"{log.Length} bytes");
+    Assert.Equal(log, result);
+  }
+
+  [Fact]
+  public async Task End_marker_past_a_stalled_frontier_completes_without_restreaming() {
+    // an early drop stalls the trusted frontier while the log is large enough
+    // that the genuine end packet sits far past it - the end must still hand
+    // over to bounded repair, not force the whole stream to be sent again
+    byte[] log = MakeLog(12_000);
+    using var vehicle = new FakeLogVehicle(log);
+    var drop = new HashSet<uint> { 3 };
+    vehicle.OnRequest = req => vehicle.Serve(req, drop);
+
+    byte[] result = await Download(vehicle);
+
+    Assert.Equal(log, result);
+    lock (vehicle.Requests) {
+      Assert.True(vehicle.Requests.Count <= 4,
+          $"{vehicle.Requests.Count} requests for one dropped block - the far end "
+          + "marker is forcing full re-streams");
+    }
+  }
+
+  [Fact]
   public async Task Scattered_gaps_recover_by_chained_repair_requests() {
     byte[] log = MakeLog(300 * BlockSize);
     using var vehicle = new FakeLogVehicle(log);

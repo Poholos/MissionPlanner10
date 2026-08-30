@@ -6279,6 +6279,19 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
                             DateTime now = DateTime.UtcNow;
                             if (now >= nextRetryAt)
                             {
+                                // silence right after an end candidate from past the trusted
+                                // frontier is the missing evidence: a corrupt packet is followed
+                                // by more stream, the real end of log is not. promote it and
+                                // start the bounded repair phase
+                                if (tracker.AcceptPendingTotalLength())
+                                {
+                                    silenceMsRemaining = retryLimit * retryDelayMilliseconds;
+                                    IssueNextRequest(now);
+                                    log.Info("GetLog end past stalled frontier: " +
+                                             tracker.TotalLength.Value + " bytes");
+                                    continue;
+                                }
+
                                 // a time budget, not a window count: repair windows are much
                                 // shorter than streaming windows, and must not shrink the total
                                 // silence a flaky link is allowed before the download aborts

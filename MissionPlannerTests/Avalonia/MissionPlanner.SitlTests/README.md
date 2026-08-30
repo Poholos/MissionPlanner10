@@ -57,12 +57,15 @@ python3 lossy_proxy.py    # listens on 5770, forwards to 127.0.0.1:5760
 
 Then point the harness at port 5770.
 
-## Reference results (2026-08-28, 2.3 MB log, WSL2 loopback)
+## Reference results (2026-08-29, 2.3 MB log, WSL2 loopback)
 
 - clean link: 2,306,048 bytes in 0.44 s (~5 MiB/s), byte-identical;
   cancel raises OperationCanceledException and the link lists logs again
-- 5% LOG_DATA loss: byte-identical in 72.9 s (~1,290 scattered
-  single-block gaps recovered by chained repair requests)
+- 5% LOG_DATA loss: byte-identical in 77.3 s, one streaming pass
+  (~1,290 scattered single-block gaps recovered by chained repair
+  requests; ~3 s over the earlier 72.9 s reference is the silence window
+  that confirms an end-of-log packet arriving far past a frontier
+  stalled at the first dropped block)
 
 Before repair-request chaining was added to `GetLog`, the lossy run did
 not complete within 10 minutes: the repair phase served one gap per ~3 s
