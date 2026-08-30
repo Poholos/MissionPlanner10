@@ -19,6 +19,22 @@ internal static class NvModemCatalog {
   internal const int Nv5MaximumFrameBytes = 496;
   internal const int Nv5FrameStepBytes = 16;
 
+  internal static IReadOnlyList<string> Nv4ParameterNames { get; } = Array.AsReadOnly(new[] {
+    "HW_VERSION", "WD_TIMEOUT", "DATA_REFLECT", "DATA_RF_STAT",
+    "RC_DELAY", "RX_RSSI_TYPE", "SBUS_ENABLE", "SBUS_MASK",
+    "LOCAL_SYS_ID", "LOCAL_COMP_ID", "UAV_SYS_ID", "UAV_COMP_ID",
+    "NET_PORT_LOCAL", "NET_PORT_REMOTE", "PROXY_UDP_RPORT", "PROXY_UDP_LPORT",
+    "PROXY_RSSI", "NET_ENABLE", "TX_ON", "SERIAL_BAUDRATE", "UNITED_PKG_CNT",
+    "USE_FHSS", "GUARD_INTERVAL", "CENTRAL_FREQ_MZ", "BANDWIDTH_MHZ", "PREAMBLE_LEN",
+    "ENC_KEY_BYTE1", "ENC_KEY_BYTE2", "ENC_KEY_BYTE3", "ENC_KEY_BYTE4",
+    "ENC_KEY_BYTE5", "ENC_KEY_BYTE6", "ENC_KEY_BYTE7", "ENC_KEY_BYTE8",
+    "CHL_WIDE_KHZ", "ENC_KEY_BITS", "SPREAD_FACTOR", "POWER_TX", "LNA_GAIN",
+    "CODING_RATE", "HOPS_WAITING", "SYNC_WORD", "HARDWARE_CRC",
+    "NET_BYTE_1", "NET_BYTE_2", "NET_BYTE_3", "NET_MASK_1", "NET_MASK_2",
+    "NET_MASK_3", "NET_MASK_4", "NET_BYTE_REMOTE", "CHECK_SYNC_WORD",
+    "ACCEPT_UNKN_MAV", "UART2_STAT_ON", "DEV_MODE", "REFRESH_SETTING",
+  });
+
   internal static bool IsNv5Signature(string name) =>
       name is "MODEM_PROFILE" or "RADIO_COUNT"
       || name.StartsWith("RTSP_", StringComparison.Ordinal)
@@ -26,8 +42,23 @@ internal static class NvModemCatalog {
       || name.StartsWith("CH2_", StringComparison.Ordinal);
 
   internal static bool IsNv4Signature(string name) =>
-      name is "HW_VERSION" or "CENTRAL_FREQ_MZ" or "REFRESH_SETTING"
+      name is "HW_VERSION" or "CENTRAL_FREQ_MZ"
+      || IsNv4RefreshParameter(name)
       || Nv4KeyWordIndex(name) >= 0;
+
+  internal static bool IsNv4RefreshParameter(string name) =>
+      name is "REFRESH_SETTING" or "REFRESH_SETTINGS";
+
+  internal static string? Nv4RefreshParameterName(
+      IReadOnlyDictionary<string, double> parameters) {
+    if (parameters.ContainsKey("REFRESH_SETTING")) {
+      return "REFRESH_SETTING";
+    }
+    if (parameters.ContainsKey("REFRESH_SETTINGS")) {
+      return "REFRESH_SETTINGS";
+    }
+    return null;
+  }
 
   internal static string Nv5KeyWordName(int channel, int word) =>
       $"CH{channel}_KEY_W{word}";
@@ -74,8 +105,9 @@ internal static class NvModemCatalog {
   }
 
   internal static bool IsReadOnly(string name) =>
-      name is "MODEM_PROFILE" or "HW_VERSION" or "REFRESH_SETTING" or "RADIO_COUNT"
+      name is "MODEM_PROFILE" or "HW_VERSION" or "RADIO_COUNT"
       or "DIVERSITY"
+      || IsNv4RefreshParameter(name)
       || name.EndsWith("_HASH", StringComparison.Ordinal)
       || name.EndsWith("_CHIP", StringComparison.Ordinal);
 
@@ -132,47 +164,72 @@ internal static class NvModemCatalog {
 
   internal static string Description(string name) {
     string exact = name switch {
-      "HW_VERSION" => "Read-only NV4 hardware generation reported by the unchanged legacy firmware.",
-      "WD_TIMEOUT" => "NV4 watchdog timeout in seconds; -1 disables the watchdog.",
-      "DATA_REFLECT" => "NV4 diagnostic payload reflection: 0=disabled, 1=enabled.",
-      "DATA_RF_STAT" => "Encapsulate RF statistics into the legacy data stream: 0=off, 1=on.",
-      "RC_DELAY" => "RC_CHANNELS_OVERRIDE/SBUS update period in milliseconds.",
-      "RX_RSSI_TYPE" => "Legacy RADIO_STATUS RSSI representation: 0=raw shifted value, 1=percentage-like scale.",
-      "SBUS_ENABLE" => "Enable NV4 SBUS handling: 0=disabled, 1=enabled.",
-      "SBUS_MASK" => "Bit mask selecting the SBUS/RC channels handled by the modem.",
+      "HW_VERSION" => "Read-only NV4 hardware generation. Version 3 selects the older primary "
+          + "UART mapping; version 4 or later also enables the hardware mode button.",
+      "WD_TIMEOUT" => "NV4 watchdog timeout in seconds. -1 calculates it from packet timing and "
+          + "HOPS_WAITING, with a minimum of 10 seconds.",
+      "DATA_REFLECT" => "Stored legacy diagnostic-reflection field. The current NV_MODEM_V4 "
+          + "sketch does not read it, so changing it has no runtime effect.",
+      "DATA_RF_STAT" => "Also emit each NV_RX_STAT message inside MAVLink ENCAPSULATED_DATA: "
+          + "0=off, nonzero=on.",
+      "RC_DELAY" => "Period in milliseconds for converting received SBUS data into "
+          + "RC_CHANNELS_OVERRIDE messages on a transmitting modem.",
+      "RX_RSSI_TYPE" => "Legacy RADIO_STATUS RSSI representation: 0=RSSI shifted by +164, "
+          + "1=that shifted value scaled by 100/174.",
+      "SBUS_ENABLE" => "NV4 serial routing: 0=SBUS disabled and both UARTs carry MAVLink, "
+          + "1=SBUS on the primary UART, 2=SBUS on the secondary UART.",
+      "SBUS_MASK" => "16-bit mask selecting which SBUS channels are copied into generated "
+          + "RC_CHANNELS_OVERRIDE messages; bit 0 selects channel 1.",
       "LOCAL_SYS_ID" => "NV4 MAVLink system id. Changing addressing takes effect after settings are applied.",
-      "LOCAL_COMP_ID" => "NV4 MAVLink component id; the legacy defaults are in the 16..19 range.",
+      "LOCAL_COMP_ID" => "NV4 MAVLink component id and fourth octet of its local IPv4 address; "
+          + "legacy provisioning normally uses 16..19.",
       "UAV_SYS_ID" => "Target MAVLink system id for generated RC_CHANNELS_OVERRIDE messages.",
       "UAV_COMP_ID" => "Target MAVLink component id for generated RC_CHANNELS_OVERRIDE messages.",
       "NET_PORT_LOCAL" => "Local UDP port receiving the primary telemetry stream.",
       "NET_PORT_REMOTE" => "Remote UDP destination port for the primary telemetry stream.",
       "PROXY_UDP_LPORT" => "Local UDP receive port for the NV4 proxy stream.",
       "PROXY_UDP_RPORT" => "Remote UDP destination port for the NV4 proxy stream.",
-      "PROXY_RSSI" => "Forward/handle RSSI through the proxy path: 0=disabled, 1=enabled.",
+      "PROXY_RSSI" => "Stored legacy proxy-RSSI field. The current NV_MODEM_V4 sketch does not "
+          + "read it, so changing it has no runtime effect.",
       "NET_ENABLE" => "NV4 Ethernet transport: 0=disabled, 1=enabled.",
-      "TX_ON" => "NV4 radio role: 0=receiver, 1=transmitter. Save writes REFRESH_SETTING automatically.",
-      "SERIAL_BAUDRATE" => "NV4 primary serial port baud rate.",
-      "UNITED_PKG_CNT" => "Number of AES blocks combined into one fixed over-air packet.",
+      "TX_ON" => "NV4 radio role selected by bit 0: even values receive and odd values transmit; "
+          + "normal values are 0 and 1. Mission Planner writes the firmware refresh trigger "
+          + "automatically.",
+      "SERIAL_BAUDRATE" => "Baud rate for UARTs carrying MAVLink: both UARTs when SBUS is off, "
+          + "or the UART not assigned to SBUS in modes 1 and 2.",
+      "UNITED_PKG_CNT" => "Number of 16-byte AES blocks combined into one fixed over-air packet; "
+          + "peers must match.",
       "USE_FHSS" => "NV4 frequency hopping: 0=fixed frequency, 1=FHSS; peers must match.",
       "GUARD_INTERVAL" => "Fractional guard interval added to the calculated packet air time.",
       "CENTRAL_FREQ_MZ" => "Center RF frequency in MHz; peers and permitted regional band must match.",
       "BANDWIDTH_MHZ" => "Total NV4 FHSS frequency span in MHz around the center frequency.",
-      "PREAMBLE_LEN" => "LoRa preamble length in symbols; peers should use the same value.",
+      "PREAMBLE_LEN" => "LoRa preamble length in symbols; 0 keeps the radio driver's default, "
+          + "otherwise peers should use the same value.",
       "CHL_WIDE_KHZ" => "SX1278 LoRa channel bandwidth in kHz, normally 125, 250 or 500.",
       "ENC_KEY_BITS" => "NV4 legacy metadata; the firmware is compiled for AES-128 and does not use this field to select another key size. Keep it at 128.",
       "SPREAD_FACTOR" => "LoRa spreading factor; SX1278 normally supports 6..12.",
-      "POWER_TX" => "SX1278 transmit power setting in dBm, subject to hardware and regional limits.",
-      "LNA_GAIN" => "SX1278 receive gain: 0=automatic; supported fixed values depend on the radio driver.",
+      "POWER_TX" => "SX1278 transmit power in dBm; applied only when TX_ON selects transmitter "
+          + "mode and subject to hardware and regional limits.",
+      "LNA_GAIN" => "SX1278 receive gain passed to the radio only in receiver mode: 0=automatic, "
+          + "other supported values select fixed gain.",
       "CODING_RATE" => "LoRa coding-rate denominator: 5..8 represents 4/5 through 4/8.",
-      "HOPS_WAITING" => "Number of packet intervals spent on one FHSS frequency before hopping.",
+      "HOPS_WAITING" => "Unsynchronized receiver scan interval multiplier. Before the first valid "
+          + "packet, frequency changes after this many packet intervals; it also scales automatic "
+          + "WD_TIMEOUT.",
       "SYNC_WORD" => "LoRa sync word byte, 0..255; peers must match.",
       "HARDWARE_CRC" => "SX1278 packet CRC: 0=disabled, 1=enabled; peers must match.",
-      "NET_BYTE_REMOTE" => "Fourth octet of the remote IPv4 address; the first three use NET_BYTE_1..3.",
-      "CHECK_SYNC_WORD" => "Validate the legacy frame synchronization word: 0=off, 1=on.",
+      "NET_BYTE_REMOTE" => "Fourth octet of the remote IPv4 address; its first three octets come "
+          + "from NET_BYTE_1..3.",
+      "CHECK_SYNC_WORD" => "SX1278 bit synchronization: 0=disable it, nonzero=enable it and apply "
+          + "SYNC_WORD.",
       "ACCEPT_UNKN_MAV" => "Forward MAVLink messages with unknown ids: 0=reject, 1=accept.",
-      "UART2_STAT_ON" => "Emit legacy radio statistics on the secondary UART: 0=off, 1=on.",
-      "DEV_MODE" => "Legacy bench/development mode. Leave disabled in normal operation.",
-      "REFRESH_SETTING" => "Internal NV4 apply trigger; Mission Planner writes it automatically after a transaction.",
+      "UART2_STAT_ON" => "Allow non-forced locally generated MAVLink, including radio statistics, "
+          + "on the secondary UART: 0=off, nonzero=on.",
+      "DEV_MODE" => "Legacy development mode: enables the hardware mode button and forwards "
+          + "USB-injected MAVLink into the RF transmit queue. Leave disabled in normal operation.",
+      "REFRESH_SETTING" or "REFRESH_SETTINGS" => "Internal NV4 apply trigger. Old firmware names "
+          + "it REFRESH_SETTINGS; newer builds use REFRESH_SETTING. Mission Planner writes the "
+          + "advertised name automatically.",
       "MODEM_PROFILE" => "Read-only provisioned product profile identifier.",
       "RADIO_COUNT" => "Read-only number of detected and enabled radio chips.",
       "RTSP_ENABLE" => "RTSP client: 0=disabled, 1=connect automatically using the settings below.",
@@ -207,7 +264,8 @@ internal static class NvModemCatalog {
           + "key; all eight words also affect the FHSS schedule, so peers must match all eight.";
     }
     if (name.StartsWith("NET_BYTE_", StringComparison.Ordinal)) {
-      return "One local IPv4 octet. NV4 derives the fourth octet from LOCAL_COMP_ID.";
+      return "One of the first three IPv4 octets shared by the local and remote addresses. "
+          + "LOCAL_COMP_ID supplies the local fourth octet.";
     }
 
     if (name.StartsWith("NET_MASK_", StringComparison.Ordinal)) {
@@ -414,7 +472,7 @@ internal static class NvModemCatalog {
         || name is "CH1_FEC" or "CH1_FEC_K" or "CH1_FEC_N"
             or "CH2_FEC" or "CH2_FEC_K" or "CH2_FEC_N";
     if (!lora && !flrc) {
-      return name != "REFRESH_SETTING";
+      return !IsNv4RefreshParameter(name);
     }
     string modeName = name.StartsWith("CH1_", StringComparison.Ordinal)
         ? "CH1_MOD" : "CH2_MOD";

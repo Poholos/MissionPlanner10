@@ -156,16 +156,29 @@ public class NvModemTests {
   }
 
   [Fact]
-  public void Carries_nv5settings_descriptions_and_corrected_nv4_apply_parameter() {
+  public void Carries_nv5settings_descriptions_and_nv4_refresh_compatibility() {
     Assert.True(NvModemCatalog.IsNv4Signature("REFRESH_SETTING"));
-    Assert.False(NvModemCatalog.IsNv4Signature("REFRESH_SETTINGS"));
+    Assert.True(NvModemCatalog.IsNv4Signature("REFRESH_SETTINGS"));
     Assert.True(NvModemCatalog.IsReadOnly("REFRESH_SETTING"));
+    Assert.True(NvModemCatalog.IsReadOnly("REFRESH_SETTINGS"));
+    Assert.False(NvModemCatalog.Applicable("REFRESH_SETTING",
+        new Dictionary<string, double>()));
+    Assert.False(NvModemCatalog.Applicable("REFRESH_SETTINGS",
+        new Dictionary<string, double>()));
+    Assert.Equal("REFRESH_SETTING", NvModemCatalog.Nv4RefreshParameterName(
+        new Dictionary<string, double> {
+          ["REFRESH_SETTINGS"] = 0,
+          ["REFRESH_SETTING"] = 0,
+        }));
+    Assert.Equal("REFRESH_SETTINGS", NvModemCatalog.Nv4RefreshParameterName(
+        new Dictionary<string, double> { ["REFRESH_SETTINGS"] = 0 }));
     Assert.True(NvModemCatalog.IsReadOnly("DIVERSITY"));
     Assert.False(NvModemCatalog.RequiresManualReboot(NvModemGeneration.Nv5, "RTSP_PORT"));
     Assert.True(NvModemCatalog.RequiresManualReboot(NvModemGeneration.Nv5, "APP_ROUTE"));
     Assert.False(NvModemCatalog.RequiresManualReboot(NvModemGeneration.Nv4, "APP_ROUTE"));
-    Assert.Contains("writes it automatically",
+    Assert.Contains("advertised name automatically",
         NvModemCatalog.Description("REFRESH_SETTING"), StringComparison.OrdinalIgnoreCase);
+    Assert.Contains("Old firmware", NvModemCatalog.Description("REFRESH_SETTINGS"));
     Assert.Contains("FLRC video stream 0", NvModemCatalog.Description("UDP_RX_BASE"));
     Assert.Contains("Read-only derived topology", NvModemCatalog.Description("DIVERSITY"));
     Assert.DoesNotContain("reboots", NvModemCatalog.Description("APP_ROUTE"),
@@ -194,6 +207,47 @@ public class NvModemTests {
     Assert.Equal(key, restored);
     Assert.Equal("Teensy · RFM/SX1278",
         NvModemCatalog.HardwareModel(NvModemGeneration.Nv4, 99));
+  }
+
+  [Fact]
+  public void Carries_complete_nv4_sketch_parameter_catalog_and_descriptions() {
+    string[] expected = [
+      "HW_VERSION", "WD_TIMEOUT", "DATA_REFLECT", "DATA_RF_STAT",
+      "RC_DELAY", "RX_RSSI_TYPE", "SBUS_ENABLE", "SBUS_MASK",
+      "LOCAL_SYS_ID", "LOCAL_COMP_ID", "UAV_SYS_ID", "UAV_COMP_ID",
+      "NET_PORT_LOCAL", "NET_PORT_REMOTE", "PROXY_UDP_RPORT", "PROXY_UDP_LPORT",
+      "PROXY_RSSI", "NET_ENABLE", "TX_ON", "SERIAL_BAUDRATE", "UNITED_PKG_CNT",
+      "USE_FHSS", "GUARD_INTERVAL", "CENTRAL_FREQ_MZ", "BANDWIDTH_MHZ", "PREAMBLE_LEN",
+      "ENC_KEY_BYTE1", "ENC_KEY_BYTE2", "ENC_KEY_BYTE3", "ENC_KEY_BYTE4",
+      "ENC_KEY_BYTE5", "ENC_KEY_BYTE6", "ENC_KEY_BYTE7", "ENC_KEY_BYTE8",
+      "CHL_WIDE_KHZ", "ENC_KEY_BITS", "SPREAD_FACTOR", "POWER_TX", "LNA_GAIN",
+      "CODING_RATE", "HOPS_WAITING", "SYNC_WORD", "HARDWARE_CRC",
+      "NET_BYTE_1", "NET_BYTE_2", "NET_BYTE_3", "NET_MASK_1", "NET_MASK_2",
+      "NET_MASK_3", "NET_MASK_4", "NET_BYTE_REMOTE", "CHECK_SYNC_WORD",
+      "ACCEPT_UNKN_MAV", "UART2_STAT_ON", "DEV_MODE", "REFRESH_SETTING",
+    ];
+
+    Assert.Equal(expected.OrderBy(name => name, StringComparer.Ordinal),
+        NvModemCatalog.Nv4ParameterNames.OrderBy(name => name, StringComparer.Ordinal));
+    Assert.Equal(expected.Length,
+        NvModemCatalog.Nv4ParameterNames.Distinct(StringComparer.Ordinal).Count());
+    foreach (string name in expected) {
+      string description = NvModemCatalog.Description(name);
+      Assert.False(string.IsNullOrWhiteSpace(description), name);
+      Assert.False(description.StartsWith("Published by the modem", StringComparison.Ordinal),
+          name);
+    }
+
+    Assert.Contains("-1 calculates", NvModemCatalog.Description("WD_TIMEOUT"));
+    Assert.DoesNotContain("disables", NvModemCatalog.Description("WD_TIMEOUT"),
+        StringComparison.OrdinalIgnoreCase);
+    Assert.Contains("2=SBUS on the secondary UART",
+        NvModemCatalog.Description("SBUS_ENABLE"));
+    Assert.Contains("Unsynchronized receiver", NvModemCatalog.Description("HOPS_WAITING"));
+    Assert.Contains("does not read it", NvModemCatalog.Description("DATA_REFLECT"));
+    Assert.Contains("does not read it", NvModemCatalog.Description("PROXY_RSSI"));
+    Assert.StartsWith("Fourth octet of the remote",
+        NvModemCatalog.Description("NET_BYTE_REMOTE"), StringComparison.Ordinal);
   }
 
   [Fact]
@@ -807,8 +861,11 @@ public class NvModemTests {
     Assert.Equal(first.Channel1Key, retry.Channel1Key);
   }
 
-  [Fact]
-  public void Nv4_key_transaction_finishes_with_singular_refresh_setting_on_same_link() {
+  [Theory]
+  [InlineData("REFRESH_SETTING")]
+  [InlineData("REFRESH_SETTINGS")]
+  public void Nv4_key_transaction_uses_advertised_refresh_parameter_on_same_link(
+      string refreshParameter) {
     var transport = new FakeTransport();
     using var viewModel = new NvModemViewModel(transport, () => DateTime.UtcNow,
         startTimer: false);
@@ -820,7 +877,7 @@ public class NvModemTests {
       viewModel.HandlePacket(source, ParameterPacket($"ENC_KEY_BYTE{index}", index, 6,
           count, 1, 16));
     }
-    viewModel.HandlePacket(source, ParameterPacket("REFRESH_SETTING", 0, 5,
+    viewModel.HandlePacket(source, ParameterPacket(refreshParameter, 0, 5,
         count, 1, 16));
     transport.Sent.Clear();
     viewModel.KeyText = "ABCDEFGHIJKLMNOPQRSTUVWXYZ012345";
@@ -839,8 +896,9 @@ public class NvModemTests {
         .Where(sent => sent.Packet is MAVLink.mavlink_param_set_t)
         .Select(sent => NvModemParameterCodec.Name(
             ((MAVLink.mavlink_param_set_t)sent.Packet).param_id))];
-    Assert.Equal("REFRESH_SETTING", writtenNames[^1]);
-    Assert.DoesNotContain("REFRESH_SETTINGS", writtenNames);
+    Assert.Equal(refreshParameter, writtenNames[^1]);
+    Assert.DoesNotContain(refreshParameter == "REFRESH_SETTING"
+        ? "REFRESH_SETTINGS" : "REFRESH_SETTING", writtenNames);
     var refresh = Assert.IsType<MAVLink.mavlink_param_set_t>(transport.Sent[^1].Packet);
     Assert.Equal((byte)MAVLink.MAV_PARAM_TYPE.UINT32, refresh.param_type);
     Assert.False(viewModel.IsBusy);

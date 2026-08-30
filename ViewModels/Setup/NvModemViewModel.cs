@@ -1858,14 +1858,15 @@ public partial class NvModemViewModel : ViewModelBase, IDisposable {
       });
       any = true;
     }
-    if (any && addLegacyRefresh && device.Generation == NvModemGeneration.Nv4
-        && device.Parameters.ContainsKey("REFRESH_SETTING")) {
+    string? refreshName = device.Generation == NvModemGeneration.Nv4
+        ? NvModemCatalog.Nv4RefreshParameterName(device.Parameters) : null;
+    if (any && addLegacyRefresh && refreshName != null) {
       _writeQueue.Enqueue(new NvWriteOperation {
         Kind = NvWriteKind.Parameter,
         Device = device,
-        Name = "REFRESH_SETTING",
+        Name = refreshName,
         Value = 1,
-        ParameterType = device.ParameterTypes.GetValueOrDefault("REFRESH_SETTING",
+        ParameterType = device.ParameterTypes.GetValueOrDefault(refreshName,
             (byte)MAVLink.MAV_PARAM_TYPE.UINT32),
       });
     }

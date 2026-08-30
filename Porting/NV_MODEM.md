@@ -1,10 +1,15 @@
 # NV Modem setup
 
 Setup > NV Modem is the Avalonia port of the `NV5Settings` widget from the local AgroSky GTU tree.
-The latest comparison used GTU `master` and `origin/master`
-`d74f43087fa591d7ac43f690e0eda5ef654373ea`; the local-only commit after it does not touch
-`NV5Settings`. All modem changes since the previous `f196ea689` checkpoint were reviewed and their
-applicable behavior is represented here. The relevant source specification is
+The latest parameter-catalog comparison used GTU `master == origin/master`
+`310ca309b3c877e3ed012e5039fd2f084e625fe4` and the pre-existing uncommitted NV4 draft in
+`hermes-gui/include/nv5settings.h`, `hermes-gui/src/nv5settings.cpp` and
+`hermes-gui/test/testnv5settings.cpp` (diff SHA-256
+`8cb610d33eebeac454c336eafec77fd7b374fb7c85ab61561a7c9b8cb0d22d66`). The GTU tree was used
+read-only. Its committed `263218e8` redundant-route work does not change the parameter catalog;
+per-endpoint direct/HUB failover remains outside this catalog synchronization because Mission
+Planner's shared parser does not retain GTU's sender/listener metadata. The relevant source
+specification is
 `hermes-gui/include/nv5settings.h` plus `hermes-gui/src/nv5settings.cpp`,
 `hermes-gui/src/nv5settings.ui`, `docs/hermes-hub-management.md` and the regression tests.
 
@@ -39,7 +44,8 @@ modem was already seen, and requests the passport, NV5 status, and CAN node info
 observed address as well as by broadcast. The private SkyComm dialect is registered at application
 startup, before any shared connection starts reading, so an early identity/status packet is not
 lost while the setup page is still closed. An ordinary `AUTOPILOT_VERSION` is not enough to classify
-a flight controller as a modem. The corrected singular NV4 apply parameter is `REFRESH_SETTING`.
+a flight controller as a modem. NV4 firmware advertises either `REFRESH_SETTING` or the older
+`REFRESH_SETTINGS`; the page recognizes both and always writes the advertised name.
 The shared passport is accepted only at schema version 1, generation 4 or 5, and with the MAVLink
 parameter capability bit set. A nonzero `UID2` is the durable device identity. If an offline modem
 returns on the same Mission Planner link with a new system/component address, its parameter and UI
@@ -53,7 +59,9 @@ The page includes:
 
 - typed, bytewise MAVLink integer parameter decoding and encoding;
 - complete NV4/NV5 parameter descriptions copied from `NV5Settings`, displayed in the
-  **Description / values** column and retained in the port source catalog;
+  **Description / values** column and retained in the port source catalog. The canonical 56-name
+  NV4 sketch catalog is pinned by a regression test, while the runtime table remains driven by
+  the exact parameters advertised by the connected firmware;
 - explicit changed, invalid and read-only state in the parameter table;
 - live NV4 or per-radio NV5 link status;
 - LR2021/LoRa/FLRC, FHSS, FEC and role presets, staged locally until **Save**;
@@ -76,7 +84,7 @@ The page includes:
   changed parameter to the last value read from the modem. It sends no MAVLink message and leaves
   every other staged edit untouched;
 - NV4 `ENC_KEY_BITS` is restricted to the only effective firmware value, 128 bits, while all eight
-  signed key words and the singular `REFRESH_SETTING` write remain compatible with legacy units;
+  signed key words and both advertised refresh spellings remain compatible with legacy units;
 - RTSP path get/set and transport presets for supported LR2021 configurations;
 - transmitter enable/suppress diagnostics and standard MAVLink reboot;
 - Mission Planner-compatible `.param` import/export. Exports carry a sensitive-data warning because
@@ -101,6 +109,8 @@ The shared Mission Planner parser, custom CRC/layouts, multi-link and HUB target
 passport validation, UID2 address migration and conflict guards, NV4 apply transaction, both NV5
 key-write paths, exact typed echoes and rejection diagnostics, independent diversity key targeting,
 RTSP dirty-state handling, current preset staging, parameter-file roundtrip and slow/silent-device
-handling are covered by automated tests. A representative physical NV4 and NV5
+handling are covered by automated tests. NV4 coverage additionally pins the complete sketch
+catalog, parameter-specific descriptions and both apply-trigger spellings. A representative
+physical NV4 and NV5
 modem on UDP/TCP/UART still require an operator acceptance run, including reboot/reappearance and
 real RF/RTSP behavior.
