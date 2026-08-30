@@ -119,6 +119,7 @@ public class DataFlashExpressionEvaluatorTests {
 
   [Theory]
   [InlineData("ArduTracker", 10, "AUTO")]
+  [InlineData("ArduCopter2", 31, "ModelCal")]
   [InlineData("", 10, null)]
   [InlineData("NotAFirmware", 10, null)]
   public void Flight_mode_resolver_matches_upstream_firmware_names(

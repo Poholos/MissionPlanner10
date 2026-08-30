@@ -43,7 +43,18 @@ Updated: **2026-08-30**.
   follow-up to `origin/master`, verify GitHub records PR #24 as `MERGED`, and require the master
   CI/package and CodeQL workflows on the pushed commit. Rerun the clean + 5%-loss SITL harness
   after any further `GetLog`/tracker change, per its README.
+## Custom ArduCopter model-calibration mode
 
+- Branch `feature/model-calibration-support-20260830` is based on clean published `master`
+  `58b2ea4c5a192abd6fe71a11cc67eac7837e3781`. It adds this fork's `ModelCal` flight mode to
+  the Copter mode catalogue as custom mode **31**, so live mode selection, MAVLink translation,
+  configuration selectors and DataFlash mode labels all resolve the same number even when the
+  bundled upstream parameter metadata predates the custom firmware.
+- Mode 29 was deliberately not reused: the current MAVLink `COPTER_MODE` enum assigns it to
+  `RATE_ACRO`; ArduCopter reserves 30 for offboard control. Regression tests pin `ModelCal` to 31
+  and protect against accidentally mapping it back onto 29.
+- Focused Flight Data and DataFlash tests pass **58/58**. The Release solution build succeeds with
+  **0 warnings / 0 errors**. No push, merge, package, tag or release was performed.
 ## Ten-second Flight Data action bounds and compact Actions layout
 
 - The Flight Data `Arm / Disarm` action now uses an explicit ten-second total MAVLink ACK bound
