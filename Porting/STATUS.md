@@ -1,6 +1,6 @@
 # Avalonia in-place migration status
 
-Updated: **2026-08-29**.
+Updated: **2026-08-30**.
 
 ## Log download hardening checkpoint (branch fix/log-download-cancel-tests)
 
@@ -31,8 +31,18 @@ Updated: **2026-08-29**.
   in 0.44 s; 5% loss byte-identical in 77.3 s, one streaming pass (~3 s of that is the silence
   window confirming a deferred end candidate; previously the lossy run did not complete - repair
   served one gap per 3 s silence window).
-- Remaining blocker: none for this checkpoint. Next executable step: rerun the SITL harness
-  (clean + lossy) after any further `GetLog`/tracker change, per its README.
+- PR #24 head `6257c6c53e5c6cef8069e7dd397e09e946634d21` was reviewed and integrated
+  locally into `master` by merge commit `0ef837654`. Review follow-up `fee3c2dc3` keeps the UI
+  recoverable when the native file/folder picker fails and prevents a cancellation arriving
+  during the final synchronous KML export from being reported as success once export returns.
+  The complete Release suite passes **1531/1531**; `MissionPlanner.slnx` and the standalone SITL
+  harness both build with **0 warnings / 0 errors**; the proxy parses; and all six migration,
+  retirement and artifact checks pass (1623 native rows, 0 blockers, 708/708 pinned paths).
+- Remaining blocker before the remote handoff: the fork PR workflows are `action_required`, so
+  they never executed on the contributor head. Next executable step: push the reviewed merge and
+  follow-up to `origin/master`, verify GitHub records PR #24 as `MERGED`, and require the master
+  CI/package and CodeQL workflows on the pushed commit. Rerun the clean + 5%-loss SITL harness
+  after any further `GetLog`/tracker change, per its README.
 
 ## Ten-second Flight Data action bounds and compact Actions layout
 
