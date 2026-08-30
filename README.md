@@ -40,14 +40,16 @@ The in-place migration started from native Mission Planner commit
 audited under [`Porting/`](Porting/README.md); upstream updates can now be merged into this same tree.
 The hardware-free acceptance workflow is documented in the [SITL checklist](SITL-TESTING.md).
 
-The application version is copied automatically from `Properties/AssemblyInfo.cs` and then extended
-with the build date and repository commit. For example, official Mission Planner `1.3.83` produces
-`1.3.83+20260824.c5945b02`; a package made from uncommitted local changes adds
-`.dirty`. The composite version appears in the window title and Help page and is shared by release
-archives and update manifests. Filesystem/release names use the GitHub-safe equivalent
-`1.3.83-20260824.c5945b02`, and release tags add a leading `v`. Debian control metadata adds an
-epoch plus a monotonically ordered repository revision; MSI uses the same revision in its third
-numeric product-version field so Windows Installer upgrades remain ordered.
+The application version combines the upstream value from `Properties/AssemblyInfo.cs`, the tracked
+local build number in `build/local-build-number.txt` and the repository commit. For example,
+upstream Mission Planner `1.3.83`, local build `7202` and commit `c5945b02` produce
+`1.3.83.7202+c5945b02`; a package made from uncommitted changes adds `.dirty`. Run
+`make bump-local-build` and commit the changed counter before producing the next local release.
+The counter is global and monotonic: do not reset it when the upstream version changes. The
+composite version appears in the window title and Help page and is shared by release archives and
+update manifests. Filesystem/release names use `1.3.83.7202-c5945b02`, and release tags add a
+leading `v`. Debian control metadata adds epoch 1. MSI uses `major.minor.local-build` because
+Windows Installer accepts only three numeric product-version fields.
 Signed beta tags append `-beta` or `-beta.N`; they are published as GitHub prereleases and are
 discovered by the enabled Beta Updates preference; stable and beta channels both read only signed
 manifests attached to this repository's GitHub Releases.

@@ -46,8 +46,8 @@ public static class AppVersion {
     }
 
     string hash = position < metadata.Length ? metadata[position] : "";
-    if (LooksLikeCommit(hash) && hash.Length > 7) {
-      hash = hash.Substring(0, 7);
+    if (LooksLikeCommit(hash) && hash.Length > 8) {
+      hash = hash.Substring(0, 8);
     }
     if (!LooksLikeCommit(hash)) {
       hash = "";

@@ -310,7 +310,7 @@ while IFS= read -r native_path; do
     Properties/AssemblyInfo.cs)
       status="merge"
       candidates="MissionPlanner.csproj;Services/AppVersion.cs"
-      evidence="Keep official version and add build date plus canonical commit hash."
+      evidence="Keep the upstream version and add the tracked local build plus canonical commit hash."
       ;;
     Program.cs)
       status="replace"

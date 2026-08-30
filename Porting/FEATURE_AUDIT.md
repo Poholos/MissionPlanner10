@@ -797,10 +797,10 @@ native-platform acceptance testing.
   completed three consecutive managed D-Bus LE scans; no Nordic UART modem was in range for a
   traffic test.
 
-Release package names and application metadata embed the upstream Mission Planner version, UTC
-build date and short source commit. Debian versions additionally use epoch 1 and the repository
-revision count, preserving upgrade ordering from the earlier CalVer packages and between same-day
-builds. Exact artifact paths, sizes and SHA-256 values are reported with each build instead of being
+Release package names and application metadata embed the upstream Mission Planner version, the
+tracked monotonic local build number and the short source commit. Debian versions additionally use
+epoch 1, preserving upgrade ordering from the earlier CalVer and date-based packages. Exact
+artifact paths, sizes and SHA-256 values are reported with each build instead of being
 pinned here, because a documentation-only commit would immediately make such a record stale. The
 apphost is an x86-64 ELF PIE, native libraries are ELF `.so` files and the `.dll` files are managed
 assemblies.

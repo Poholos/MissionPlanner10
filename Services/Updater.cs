@@ -637,8 +637,8 @@ public sealed class UpdateEngine {
   public static bool IsNewer(string remote, string local) {
     AppVersionParts remoteParts = AppVersion.Parse(remote);
     AppVersionParts localParts = AppVersion.Parse(local);
-    var remoteNumber = V3(remoteParts.Number);
-    var localNumber = V3(localParts.Number);
+    var remoteNumber = V4(remoteParts.Number);
+    var localNumber = V4(localParts.Number);
 
     // One-time migration from the port's old YYYY.M.patch CalVer to the official
     // MissionPlanner x.y.z base. The first official-version build must update an older
@@ -660,14 +660,14 @@ public sealed class UpdateEngine {
     }
 
     // Git hashes do not have a useful ordering. If the release server and local build have
-    // different commits for the same official version/date, install the server's selected
+    // different commits for the same official version/local build, install the server's selected
     // release once; after the update their hashes match and it no longer prompts.
     return remoteParts.Hash.Length > 0
         && localParts.Hash.Length > 0
         && !string.Equals(remoteParts.Hash, localParts.Hash, StringComparison.OrdinalIgnoreCase);
   }
 
-  private static (int, int, int) V3(string s) {
+  private static (int, int, int, int) V4(string s) {
     s = (s ?? "").Trim();
     if (s.StartsWith("v", StringComparison.OrdinalIgnoreCase)) {
       s = s.Substring(1);
@@ -678,10 +678,10 @@ public sealed class UpdateEngine {
     }
     var p = s.Split('.');
     int g(int i) => i < p.Length && int.TryParse(p[i], out var x) ? x : 0;
-    return (g(0), g(1), g(2));
+    return (g(0), g(1), g(2), g(3));
   }
 
-  private static bool IsLegacyCalVer((int Major, int Minor, int Patch) version) =>
+  private static bool IsLegacyCalVer((int Major, int Minor, int Patch, int Build) version) =>
       version.Major is >= 2000 and <= 2999 && version.Minor is >= 1 and <= 12;
 
   private static StringComparer PathComparer => OperatingSystem.IsWindows()

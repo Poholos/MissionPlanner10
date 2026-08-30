@@ -9,9 +9,9 @@
   <key>CFBundleIdentifier</key>
   <string>io.github.rouniy.missionplanner10</string>
   <key>CFBundleVersion</key>
-  <string>__VERSION__</string>
+  <string>__BUILD_NUMBER__</string>
   <key>CFBundleShortVersionString</key>
-  <string>__VERSION__</string>
+  <string>__SHORT_VERSION__</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleExecutable</key>

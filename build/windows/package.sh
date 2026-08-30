@@ -56,7 +56,7 @@ env -u VERSION "$DOTNET" publish "$APP_PROJECT" \
   -p:DebugType=none \
   -p:PlatformTarget=x64 \
   -p:MissionPlannerUpstreamVersion="$MP_UPSTREAM_VERSION" \
-  -p:MissionPlannerBuildDate="$MP_BUILD_DATE" \
+  -p:MissionPlannerLocalBuildNumber="$MP_LOCAL_BUILD_NUMBER" \
   -p:MissionPlannerCommit="$MP_COMMIT$MP_DIRTY_SUFFIX" \
   -o "$PUBLISH_TEMP"
 

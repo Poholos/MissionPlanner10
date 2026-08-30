@@ -184,7 +184,7 @@ jobs:
           dotnet publish MissionPlanner.csproj -c Release -r "$RID" --self-contained true \
             -m:1 -p:DebugType=none -p:StripSymbols=true \
             -p:MissionPlannerUpstreamVersion="$MP_UPSTREAM_VERSION" \
-            -p:MissionPlannerBuildDate="$MP_BUILD_DATE" \
+            -p:MissionPlannerLocalBuildNumber="$MP_LOCAL_BUILD_NUMBER" \
             -p:MissionPlannerCommit="$MP_COMMIT" \
             -o "out/$RID"
           test -s "out/$RID/libsimpleble-c.dylib"
@@ -200,6 +200,7 @@ jobs:
           test "$MP_DIRTY_SUFFIX" = ""
           mkdir -p dist upload
           ./build/macos/make-app.sh "out/$RID" "$MP_UPSTREAM_VERSION" \
+            "$MP_LOCAL_BUILD_NUMBER" \
             "dist/Mission Planner 10.app"
           ditto -c -k --sequesterRsrc --keepParent "dist/Mission Planner 10.app" \
             "upload/MissionPlanner10-${RID}.zip"

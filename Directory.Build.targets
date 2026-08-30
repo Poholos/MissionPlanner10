@@ -33,7 +33,7 @@
       <MissionPlannerCommit Condition="'$(MissionPlannerCommit)' == '' And '$(SourceRevisionId)' != ''">$([System.Text.RegularExpressions.Regex]::Match('$(SourceRevisionId)', '^[0-9a-fA-F]{7,12}').Value)</MissionPlannerCommit>
       <MissionPlannerCommit Condition="'$(MissionPlannerCommit)' == ''">unknown</MissionPlannerCommit>
       <MissionPlannerCommit Condition="'$(_MissionPlannerGitStatus)' != '' And !$([System.String]::Copy('$(MissionPlannerCommit)').EndsWith('.dirty'))">$(MissionPlannerCommit).dirty</MissionPlannerCommit>
-      <InformationalVersion>$(MissionPlannerUpstreamVersion)+$(MissionPlannerBuildDate).$(MissionPlannerCommit)</InformationalVersion>
+      <InformationalVersion>$(MissionPlannerUpstreamVersion).$(MissionPlannerLocalBuildNumber)+$(MissionPlannerCommit)</InformationalVersion>
       <_MissionPlannerBuildInfoFile>$(IntermediateOutputPath)MissionPlanner.BuildIdentity.g.cs</_MissionPlannerBuildInfoFile>
     </PropertyGroup>
     <ItemGroup>

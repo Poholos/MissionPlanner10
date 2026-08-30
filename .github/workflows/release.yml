@@ -13,9 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       base: ${{ steps.version.outputs.base }}
-      date: ${{ steps.version.outputs.date }}
+      local_build: ${{ steps.version.outputs.local_build }}
       commit: ${{ steps.version.outputs.commit }}
-      revision: ${{ steps.version.outputs.revision }}
       version: ${{ steps.version.outputs.version }}
       artifact: ${{ steps.version.outputs.artifact }}
       prerelease: ${{ steps.version.outputs.prerelease }}
@@ -31,19 +30,22 @@ jobs:
           PRERELEASE=false
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
             VALUE="${GITHUB_REF_NAME#v}"
-            if [[ ! "$VALUE" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-([0-9]{8})\.([0-9a-fA-F]{8})(-beta(\.[0-9]+)?)?$ ]]; then
-              echo "::error::Tag must be v<MP-version>-<yyyyMMdd>.<8-char-hash>[-beta[.N]]."
+            if [[ ! "$VALUE" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\.([1-9][0-9]{0,4})-([0-9a-fA-F]{8})(-beta(\.[0-9]+)?)?$ ]]; then
+              echo "::error::Tag must be v<MP-version>.<local-build>-<8-char-hash>[-beta[.N]]."
               exit 1
             fi
             export MISSIONPLANNER_UPSTREAM_VERSION="${BASH_REMATCH[1]}"
-            export MISSIONPLANNER_BUILD_DATE="${BASH_REMATCH[2]}"
+            export MISSIONPLANNER_LOCAL_BUILD_NUMBER="${BASH_REMATCH[2]}"
             export MISSIONPLANNER_COMMIT="${BASH_REMATCH[3],,}"
             [[ -n "${BASH_REMATCH[4]}" ]] && PRERELEASE=true
             ACTUAL_VERSION=$(sed -nE 's/.*AssemblyFileVersion\("([0-9]+\.[0-9]+\.[0-9]+)"\).*/\1/p' \
               Properties/AssemblyInfo.cs | head -1)
+            ACTUAL_LOCAL_BUILD=$(tr -d '[:space:]' < build/local-build-number.txt)
             ACTUAL_COMMIT=$(git rev-parse --short=8 HEAD)
             test "$MISSIONPLANNER_UPSTREAM_VERSION" = "$ACTUAL_VERSION" || {
               echo "::error::Tag version does not match Properties/AssemblyInfo.cs"; exit 1; }
+            test "$MISSIONPLANNER_LOCAL_BUILD_NUMBER" = "$ACTUAL_LOCAL_BUILD" || {
+              echo "::error::Tag local build does not match build/local-build-number.txt"; exit 1; }
             test "$MISSIONPLANNER_COMMIT" = "$ACTUAL_COMMIT" || {
               echo "::error::Tag hash does not match HEAD"; exit 1; }
           fi
@@ -51,9 +53,8 @@ jobs:
           source build/version.sh
           {
             echo "base=$MP_UPSTREAM_VERSION"
-            echo "date=$MP_BUILD_DATE"
+            echo "local_build=$MP_LOCAL_BUILD_NUMBER"
             echo "commit=$MP_COMMIT"
-            echo "revision=$MP_PORT_REVISION"
             echo "version=$MP_PACKAGE_VERSION"
             echo "artifact=$MP_ARTIFACT_VERSION"
             echo "prerelease=$PRERELEASE"
@@ -76,9 +77,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       MP_RELEASE_BASE: ${{ needs.resolve-version.outputs.base }}
-      MP_RELEASE_DATE: ${{ needs.resolve-version.outputs.date }}
+      MP_RELEASE_LOCAL_BUILD: ${{ needs.resolve-version.outputs.local_build }}
       MP_RELEASE_COMMIT: ${{ needs.resolve-version.outputs.commit }}
-      MP_RELEASE_REVISION: ${{ needs.resolve-version.outputs.revision }}
       MP_RELEASE_VERSION: ${{ needs.resolve-version.outputs.version }}
       MP_RELEASE_ARTIFACT: ${{ needs.resolve-version.outputs.artifact }}
     steps:
@@ -95,9 +95,8 @@ jobs:
         shell: bash
         run: |
           MISSIONPLANNER_UPSTREAM_VERSION="$MP_RELEASE_BASE" \
-          MISSIONPLANNER_BUILD_DATE="$MP_RELEASE_DATE" \
+          MISSIONPLANNER_LOCAL_BUILD_NUMBER="$MP_RELEASE_LOCAL_BUILD" \
           MISSIONPLANNER_COMMIT="$MP_RELEASE_COMMIT" \
-          MISSIONPLANNER_PORT_REVISION="$MP_RELEASE_REVISION" \
           MISSIONPLANNER_DIRTY_SUFFIX="" \
           PACKAGE_VERSION="$MP_RELEASE_VERSION" \
           OUTPUT_DIR="$GITHUB_WORKSPACE/upload" \
@@ -116,9 +115,8 @@ jobs:
             export WINDOWS_SIGN_PFX="$RUNNER_TEMP/windows-signing.pfx"
           fi
           MISSIONPLANNER_UPSTREAM_VERSION="$MP_RELEASE_BASE" \
-          MISSIONPLANNER_BUILD_DATE="$MP_RELEASE_DATE" \
+          MISSIONPLANNER_LOCAL_BUILD_NUMBER="$MP_RELEASE_LOCAL_BUILD" \
           MISSIONPLANNER_COMMIT="$MP_RELEASE_COMMIT" \
-          MISSIONPLANNER_PORT_REVISION="$MP_RELEASE_REVISION" \
           MISSIONPLANNER_DIRTY_SUFFIX="" \
           OUTPUT_DIR="$GITHUB_WORKSPACE/upload" \
           PUBLISH_PARENT="$GITHUB_WORKSPACE/out" \
@@ -141,7 +139,7 @@ jobs:
           dotnet publish MissionPlanner.csproj -c Release -r "$RID" --self-contained true \
             -m:1 -p:DebugType=none -p:StripSymbols=true \
             -p:MissionPlannerUpstreamVersion="$MP_RELEASE_BASE" \
-            -p:MissionPlannerBuildDate="$MP_RELEASE_DATE" \
+            -p:MissionPlannerLocalBuildNumber="$MP_RELEASE_LOCAL_BUILD" \
             -p:MissionPlannerCommit="$MP_RELEASE_COMMIT" \
             -o out/macos
 
@@ -161,7 +159,8 @@ jobs:
             rm -f "$RUNNER_TEMP/cert.p12"
           fi
 
-          ./build/macos/make-app.sh out/macos "$MP_RELEASE_BASE" "dist/Mission Planner 10.app"
+          ./build/macos/make-app.sh out/macos "$MP_RELEASE_BASE" \
+            "$MP_RELEASE_LOCAL_BUILD" "dist/Mission Planner 10.app"
           ZIP="upload/MissionPlanner10-$MP_RELEASE_ARTIFACT-$RID.zip"
           (cd dist && ditto -c -k --sequesterRsrc --keepParent "Mission Planner 10.app" "../$ZIP")
 

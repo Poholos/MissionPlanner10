@@ -39,13 +39,19 @@
 
     <MissionPlannerVersionFile>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/Properties/AssemblyInfo.cs'))</MissionPlannerVersionFile>
     <MissionPlannerVersionFileExists>$([System.IO.File]::Exists('$(MissionPlannerVersionFile)'))</MissionPlannerVersionFileExists>
+    <MissionPlannerLocalBuildFile>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/build/local-build-number.txt'))</MissionPlannerLocalBuildFile>
+    <MissionPlannerLocalBuildFileExists>$([System.IO.File]::Exists('$(MissionPlannerLocalBuildFile)'))</MissionPlannerLocalBuildFileExists>
     <MissionPlannerUpstreamVersion Condition="'$(MissionPlannerUpstreamVersion)' == '' And '$(MissionPlannerVersionFileExists)' == 'True'">$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(MissionPlannerVersionFile)')), 'AssemblyFileVersion\(&quot;([0-9]+\.[0-9]+\.[0-9]+)&quot;\)').Groups[1].Value)</MissionPlannerUpstreamVersion>
     <MissionPlannerUpstreamVersion Condition="'$(MissionPlannerUpstreamVersion)' == ''">0.0.0</MissionPlannerUpstreamVersion>
-    <MissionPlannerBuildDate Condition="'$(MissionPlannerBuildDate)' == ''">$([System.DateTime]::Now.ToString('yyyyMMdd'))</MissionPlannerBuildDate>
-    <Version>$(MissionPlannerUpstreamVersion)</Version>
+    <MissionPlannerLocalBuildNumber Condition="'$(MissionPlannerLocalBuildNumber)' == '' And '$(MissionPlannerLocalBuildFileExists)' == 'True'">$([System.String]::Copy($([System.IO.File]::ReadAllText('$(MissionPlannerLocalBuildFile)'))).Trim())</MissionPlannerLocalBuildNumber>
+    <MissionPlannerLocalBuildNumber Condition="'$(MissionPlannerLocalBuildNumber)' == ''">0</MissionPlannerLocalBuildNumber>
+    <MissionPlannerLocalBuildNumberValid>$([System.Text.RegularExpressions.Regex]::IsMatch('$(MissionPlannerLocalBuildNumber)', '^[1-9][0-9]{0,4}$'))</MissionPlannerLocalBuildNumberValid>
+    <MissionPlannerLocalBuildNumberValue Condition="'$(MissionPlannerLocalBuildNumberValid)' == 'True'">$([System.Int32]::Parse('$(MissionPlannerLocalBuildNumber)'))</MissionPlannerLocalBuildNumberValue>
+    <Version>$(MissionPlannerUpstreamVersion).$(MissionPlannerLocalBuildNumber)</Version>
+    <!-- Keep the assembly version on the upstream ABI identity; local builds vary FileVersion. -->
     <AssemblyVersion>$(MissionPlannerUpstreamVersion).0</AssemblyVersion>
-    <FileVersion>$(MissionPlannerUpstreamVersion).0</FileVersion>
-    <InformationalVersion>$(MissionPlannerUpstreamVersion)+$(MissionPlannerBuildDate)</InformationalVersion>
+    <FileVersion>$(MissionPlannerUpstreamVersion).$(MissionPlannerLocalBuildNumber)</FileVersion>
+    <InformationalVersion>$(MissionPlannerUpstreamVersion).$(MissionPlannerLocalBuildNumber)</InformationalVersion>
     <GenerateAssemblyInformationalVersionAttribute>false</GenerateAssemblyInformationalVersionAttribute>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <PublishAot Condition="'$(EnableNativeAot)' == 'true'">true</PublishAot>
@@ -56,6 +62,14 @@
            Text="Native Mission Planner Properties/AssemblyInfo.cs is missing." />
     <Error Condition="'$(MissionPlannerUpstreamVersion)' == '0.0.0'"
            Text="Could not read AssemblyFileVersion x.y.z from $(MissionPlannerVersionFile)." />
+    <Error Condition="'$(MissionPlannerLocalBuildFileExists)' != 'True'"
+           Text="Tracked local build number is missing: $(MissionPlannerLocalBuildFile)." />
+    <Error Condition="'$(MissionPlannerLocalBuildNumberValid)' != 'True'"
+           Text="Local build number must be a canonical positive integer: '$(MissionPlannerLocalBuildNumber)'." />
+    <Error Condition="'$(MissionPlannerLocalBuildNumberValid)' == 'True' And
+                      ($(MissionPlannerLocalBuildNumberValue) &lt; 1 Or
+                       $(MissionPlannerLocalBuildNumberValue) &gt; 65535)"
+           Text="Local build number must be from 1 through 65535: '$(MissionPlannerLocalBuildNumber)'." />
   </Target>
 
   <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'win-x64'">

@@ -2,11 +2,12 @@
 set -euo pipefail
 
 # Wrap a `dotnet publish` output directory into a macOS .app bundle.
-# Usage: make-app.sh <publish-dir> <version> <output-app-path>
+# Usage: make-app.sh <publish-dir> <short-version> <build-number> <output-app-path>
 
 PUBLISH_DIR="$1"
-VERSION="$2"
-APP="$3"
+SHORT_VERSION="$2"
+BUILD_NUMBER="$3"
+APP="$4"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 EXE="MissionPlanner10"
 
@@ -17,7 +18,10 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 cp -R "$PUBLISH_DIR"/. "$APP/Contents/MacOS/"
 cp "$HERE/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
-sed "s/__VERSION__/$VERSION/g" "$HERE/Info.plist" > "$APP/Contents/Info.plist"
+sed \
+  -e "s/__SHORT_VERSION__/$SHORT_VERSION/g" \
+  -e "s/__BUILD_NUMBER__/$BUILD_NUMBER/g" \
+  "$HERE/Info.plist" > "$APP/Contents/Info.plist"
 chmod +x "$APP/Contents/MacOS/$EXE"
 
 if [[ -n "${SIGN_IDENTITY:-}" ]]; then

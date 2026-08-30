@@ -1,6 +1,6 @@
 # Cross-platform packaging and releases
 
-Updated: **2026-08-24**.
+Updated: **2026-08-30**.
 
 ## Artifact matrix
 
@@ -27,20 +27,31 @@ runtime-layout mismatch.
 
 ## Version contract
 
-`build/version.sh` reads the official version from `Properties/AssemblyInfo.cs` and emits one
-contract for assemblies, UI, archives, Debian metadata, MSI and updater manifests:
+`build/version.sh` reads the upstream version from `Properties/AssemblyInfo.cs`, the explicit
+monotonic local build number from `build/local-build-number.txt`, and the canonical Git commit. It
+emits one contract for assemblies, UI, archives, Debian metadata, MSI and updater manifests:
 
 ```text
-informational: 1.3.83+20260824.0123abcd
-artifact:      1.3.83-20260824.0123abcd
-release tag:   v1.3.83-20260824.0123abcd
-beta tag:      v1.3.83-20260824.0123abcd-beta[.N]
+product/file:  1.3.83.7202
+informational: 1.3.83.7202+0123abcd
+artifact:      1.3.83.7202-0123abcd
+release tag:   v1.3.83.7202-0123abcd
+beta tag:      v1.3.83.7202-0123abcd-beta[.N]
+Debian:        1:1.3.83.7202+0123abcd
+MSI:           1.3.7202
 ```
 
-Developer packages made with tracked or untracked source changes append `.dirty`. Debian uses an
-epoch and the monotonically ordered repository revision. Windows Installer accepts only three
-numeric fields, so the MSI product version is `major.minor.repository-revision`; the complete
-informational version remains visible in package metadata.
+Developer packages made with tracked or untracked source changes append `.dirty`. Ordinary builds
+never mutate the source tree. Before a local release, run `make bump-local-build`, review the single
+counter-file change, and commit it. The counter is repository-global and must not be reset when the
+upstream version changes. Windows Installer accepts only three numeric fields, so its product
+version is `major.minor.local-build`; the complete informational version remains visible in package
+metadata. macOS uses the upstream `major.minor.patch` as `CFBundleShortVersionString` and the local
+build number as `CFBundleVersion`.
+
+The explicit sequence starts at `7202`, immediately after the last implicit Git revision `7201`.
+This prevents an installed MSI or Debian package from treating the first explicit-counter build as
+older than packages produced by the previous version pipeline.
 
 ## Local commands
 
@@ -51,6 +62,11 @@ dotnet test MissionPlannerTests/Avalonia/MissionPlanner.Tests/MissionPlanner.Tes
 
 make linux-packages
 make windows-zip
+
+# Before producing a new local release (not for every developer build):
+make bump-local-build
+git add build/local-build-number.txt
+git commit -m "build: bump local build number"
 ```
 
 `make windows-msi` and `make windows-packages` require Windows because WiX only supports producing
@@ -63,8 +79,8 @@ app executable and Applications shortcut, and detaches it again.
 ## GitHub release and updater
 
 `.github/workflows/release.yml` builds all artifacts on a `v*` tag. A tag is rejected unless its
-official version and eight-character hash match the tagged commit. It publishes flat release
-assets plus `SHA256SUMS` and, for each RID, these updater assets:
+upstream version, local build number and eight-character hash match the tagged commit and tracked
+counter. It publishes flat release assets plus `SHA256SUMS` and, for each RID, these updater assets:
 
 ```text
 <rid>-manifest.json

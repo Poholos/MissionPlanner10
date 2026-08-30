@@ -1422,7 +1422,7 @@ Plugins/example22-payloadconfig.cs	csharp	remove	Porting/Reference/PLUGINS.md	Th
 Plugins/example23-switch.cs	csharp	remove	Porting/Reference/PLUGINS.md	This is a development/plugin-SDK sample rather than a shipped operator workflow. The portable plugin lifecycle, API, trust model and buildable source pattern are documented in Porting/Reference/PLUGINS.md; runtime compilation of loose trusted C# is deliberately not shipped.
 Plugins/example23-switch.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Program.cs	csharp	replace	Program.cs	Replace WinForms startup with the tested Avalonia entry point.
-Properties/AssemblyInfo.cs	csharp	merge	MissionPlanner.csproj;Services/AppVersion.cs	Keep official version and add build date plus canonical commit hash.
+Properties/AssemblyInfo.cs	csharp	merge	MissionPlanner.csproj;Services/AppVersion.cs	Keep the upstream version and add the tracked local build plus canonical commit hash.
 Properties/Resources.Designer.cs	csharp	remove	Porting/Reference/PORT_STATUS.md	The generated WinForms resource accessor is not compiled by the Avalonia application; the neutral and localized RESX files remain preserved for the translation workflow.
 Properties/Resources.resx	resx	retain		Preserve neutral/culture resource until AXAML localization mapping is verified.
 Radio/ComPort.cs	csharp	replace	Services/MavlinkSerialControlPort.cs;ViewModels/Setup/SetupActionPages.cs	Mapped to the listed native Avalonia artifacts; feature-level parity and deliberate safety differences are recorded in Porting/Reference/PORT_STATUS.md.

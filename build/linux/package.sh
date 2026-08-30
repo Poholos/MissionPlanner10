@@ -56,7 +56,7 @@ mkdir -p "$PUBLISH_TEMP" "$OUTPUT_DIR" "$PUBLISH_PARENT"
 echo "Publishing $DIR_NAME"
 # Do not pass the reserved global MSBuild Version property: it would leak into native
 # ProjectReferences. The executable project consumes these namespaced properties and stamps
-# its own official/date/commit version contract.
+# its own official/local-build/commit version contract.
 env -u VERSION "$DOTNET" publish "$APP_PROJECT" \
   -c "$CONFIGURATION" \
   -r "$RID" \
@@ -64,7 +64,7 @@ env -u VERSION "$DOTNET" publish "$APP_PROJECT" \
   -m:1 \
   -p:DebugType=none \
   -p:MissionPlannerUpstreamVersion="$MP_UPSTREAM_VERSION" \
-  -p:MissionPlannerBuildDate="$MP_BUILD_DATE" \
+  -p:MissionPlannerLocalBuildNumber="$MP_LOCAL_BUILD_NUMBER" \
   -p:MissionPlannerCommit="$MP_COMMIT$MP_DIRTY_SUFFIX" \
   -o "$PUBLISH_TEMP"
 

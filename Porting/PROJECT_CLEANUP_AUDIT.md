@@ -172,7 +172,7 @@ CodeQL `32721719966` passes and its branch-specific API result contains zero ope
 - `Swarm/Vertexs.py` is retained conservatively: it is a Blender content-authoring helper for the
   same `Layouts`/`Steps` JSON shape loaded, edited and executed by the native swarm sequence UI.
 - `Properties/AssemblyInfo.cs` remains the authoritative upstream Mission Planner version source;
-  build date and Git commit are appended by the native version pipeline.
+  the tracked local build number and Git commit are appended by the native version pipeline.
 - Historical localized RESX files remain translation-source data. Their standard reader/writer and
   form-layout type strings are not compiled or embedded by the Avalonia project; the translation
   editor reads string entries only, so deleting them would discard upstream translations without
