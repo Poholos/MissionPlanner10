@@ -2,6 +2,43 @@
 
 Updated: **2026-08-30**.
 
+## Native dataflash log core, phase 2: P/Invoke bindings and DFLogBuffer fast paths (branch feature/dflog-native-bindings, stacked on phase 1)
+
+- `ExtLibs/Utilities/DFLogNative.cs` (ported from the upstream fork, ABI v5): internal P/Invoke
+  surface over `dflog_ffi` - availability probe (`Available`, gated on the ABI version), whole-log
+  index scan (`TryScan`), and a `ColumnReader` for typed column queries, instance filtering,
+  int16[32] array columns and the GPS time base. Every entry point returns false instead of
+  throwing; the standard .NET native probing finds the library next to the apphost (no resolver
+  needed - unlike GDAL/VLC the library is bundled, not system-provided).
+- `DFLogBuffer` gained the native fast paths: `setlinecount` uses the native index scan for
+  path-backed binary logs (managed scanner unchanged as fallback), `TryGetColumnsNative` /
+  `TryGetArrayColumnNative` (with per-instance filtering and `GetInstanceFieldName`), and
+  `DFLog.GetTimeFromMs` for columnwise time axes. `UseNativeScan` precedence: explicit set >
+  `DFLOG_NATIVE` env > `dflog_native` setting > on by default; `DFLogNative.Available` gates the
+  actual calls, so hosts without the library keep exactly today's behavior. The native path also
+  side-steps the `BinaryFormatter` index cache (note: the managed `SaveCache` path for >300 MB
+  path-opened logs calls `BinaryFormatter.Serialize` unguarded, a pre-existing latent throw on
+  .NET 10 that stream-wrapped callers avoid; unchanged here, worth its own fix).
+- Consumers deliberately NOT converted yet (phase 3): `LogBrowseViewModel`, `ConfigFFTViewModel`,
+  `SpectrogramWindow`, `OfflineMagFitService` (the last needs its `CancellationReadStream` wrapper
+  reworked to expose a path before the native path can engage).
+- Tests: `DflogNativeTests` (23 cases) - native-vs-managed index parity over the four vendored
+  corpus logs AND over derived malformed variants (truncation, mid-record truncation, corrupt FMT
+  length byte, garbage prefix flipping the binary sniff - all line-for-line string equality),
+  typed-column/instance/array/time-base parity against the managed enumerator, truncated-tail
+  behavior, and clean failure for unknown fields/types. All return early on hosts without the
+  native library (NativeGdalMapTests pattern; verified both modes), with two guards against
+  silent degradation: a built-but-unloadable library (ABI drift) fails a dedicated test, and
+  `DFLOG_REQUIRE_NATIVE=1` turns the skip into a failure for hosts that must have the native
+  path (set it in CI once phase 4 installs the toolchain). Both failure modes verified by fault
+  injection (corrupted library file; library removed with the variable set). The corpus is copied from
+  `rust/testdata` at build time - no new committed binaries. Full suite 1554/1565 locally; the
+  failures are the known environment-dependent set plus one known-flaky UDP listener test,
+  unchanged from master. Project/binary audit gates pass.
+- Remaining blocker: none for this phase. Next executable step: phase 3 - convert
+  `LogBrowseViewModel` columnar reads, then the FFT/spectrogram ISBD path, re-measuring against a
+  large real log; phase 4 wires rustup targets into ci.yml/release.yml for the four RIDs.
+
 ## Native dataflash log core, phase 1: vendored Rust workspace and build plumbing (branch feature/dflog-native-log-core)
 
 - Vendored the dflog parser core from the upstream fork (userepo/MissionPlanner
