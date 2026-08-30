@@ -58,6 +58,19 @@ public class FlightDataSafetyAndTabTests {
     Assert.Equal(15, mode.Key);
   }
 
+  [Fact]
+  public void Copter_model_calibration_uses_a_non_conflicting_custom_mode_number() {
+    var modes = MissionPlanner.ArduPilot.Common
+        .getModesList(MissionPlanner.ArduPilot.Firmwares.ArduCopter2);
+
+    var modelCal = Assert.Single(modes,
+        item => item.Value.Equals("ModelCal", StringComparison.OrdinalIgnoreCase));
+    Assert.Equal(31, modelCal.Key);
+    Assert.DoesNotContain(modes,
+        item => item.Key == 29
+            && item.Value.Equals("ModelCal", StringComparison.OrdinalIgnoreCase));
+  }
+
   [Theory]
   [InlineData("Stabilize", true)]
   [InlineData("AltHold", true)]

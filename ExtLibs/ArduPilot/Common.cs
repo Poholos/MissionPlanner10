@@ -158,6 +158,14 @@ union px4_custom_mode {
             {
                 var flightModes = Utilities.ParameterMetaDataRepository.GetParameterOptionsInt("FLTMODE1",
                     firmware.ToString());
+                // This fork's experimental translational-model calibration mode deliberately
+                // uses 31: MAVLink already assigns 29 to RATE_ACRO and ArduCopter reserves 30
+                // for offboard control.  Keep it available even when the bundled upstream
+                // parameter metadata predates the custom firmware.
+                if (!flightModes.Any(mode => mode.Key == 31))
+                {
+                    flightModes.Add(new KeyValuePair<int, string>(31, "ModelCal"));
+                }
                 return flightModes;
             }
             else if (firmware == Firmwares.ArduRover)
