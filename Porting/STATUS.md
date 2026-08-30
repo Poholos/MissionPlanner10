@@ -38,11 +38,12 @@ Updated: **2026-08-30**.
   The complete Release suite passes **1531/1531**; `MissionPlanner.slnx` and the standalone SITL
   harness both build with **0 warnings / 0 errors**; the proxy parses; and all six migration,
   retirement and artifact checks pass (1623 native rows, 0 blockers, 708/708 pinned paths).
-- Remaining blocker before the remote handoff: the fork PR workflows are `action_required`, so
-  they never executed on the contributor head. Next executable step: push the reviewed merge and
-  follow-up to `origin/master`, verify GitHub records PR #24 as `MERGED`, and require the master
-  CI/package and CodeQL workflows on the pushed commit. Rerun the clean + 5%-loss SITL harness
-  after any further `GetLog`/tracker change, per its README.
+- The fork PR workflows remained `action_required`, so they never executed on the contributor
+  head. The reviewed integration was pushed instead: GitHub records PR #24 as `MERGED` with merge
+  commit `0ef83765432b04db2ed3af70aa87d8081fdcfd52`, and the PR contains a review comment listing
+  the accepted behavior, follow-up and verification. Master head `02e8f38f4` passed the complete
+  Linux/Windows/macOS x64/macOS arm64 CI/package workflow and CodeQL. Rerun the clean + 5%-loss
+  SITL harness after any further `GetLog`/tracker change, per its README.
 ## Custom ArduCopter model-calibration mode
 
 - Branch `feature/model-calibration-support-20260830` is based on clean published `master`
@@ -53,8 +54,15 @@ Updated: **2026-08-30**.
 - Mode 29 was deliberately not reused: the current MAVLink `COPTER_MODE` enum assigns it to
   `RATE_ACRO`; ArduCopter reserves 30 for offboard control. Regression tests pin `ModelCal` to 31
   and protect against accidentally mapping it back onto 29.
-- Focused Flight Data and DataFlash tests pass **58/58**. The Release solution build succeeds with
-  **0 warnings / 0 errors**. No push, merge, package, tag or release was performed.
+- Source commit `715e8115e` was merged into `master` on top of the complete PR #24 integration by
+  merge commit `a9788c244`. On the combined tree, focused Flight Data/DataFlash checks pass
+  **58/58**, the complete Release suite passes **1533/1533**, and both `MissionPlanner.slnx` and
+  the standalone log-download SITL harness build with **0 warnings / 0 errors**. All six porting
+  gates pass (1623 native rows, 0 blockers, 708/708 pinned paths, clean WinForms and artifact
+  audits). No package, tag or release was created.
+- Remaining blocker before this handoff: none locally. Next executable step: push the combined
+  merge/status commits to `origin/master` and require the new master CI/package and CodeQL runs
+  on that final head before treating the merge as remotely verified.
 ## Ten-second Flight Data action bounds and compact Actions layout
 
 - The Flight Data `Arm / Disarm` action now uses an explicit ten-second total MAVLink ACK bound
