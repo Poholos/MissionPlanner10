@@ -28,9 +28,23 @@ Updated: **2026-09-01**.
   `MissionPlanner.slnx` builds with **0 warnings / 0 errors**. A Linux x64 publish contains the
   byte-identical overlay. All six migration/retirement/artifact gates pass (1623 native rows,
   0 blockers, 708/708 pinned port paths, and clean WinForms/project/binary/key audits).
+- The code and initial handoff commits were pushed to the newly published
+  `origin/port/avalonia-in-place` branch. The first `make linux-deb` attempt encountered the known
+  logical/physical checkout alias (`/home/alex/src` versus `/home/alex/SRC`) in stale Release
+  intermediates; a standard solution clean followed by the physical-path package script resolved
+  it without source changes. The resulting package is
+  `out/packages/missionplanner10_1.3.83.2-6264c722_amd64.deb`: 60,143,970 bytes, Debian version
+  `1:1.3.83.2+6264c722`, installed size 193,828 KiB, SHA-256
+  `fa3f9e7f0f5a264a84c80bc44ae053de46d4d90c05393fd7994aa31e651bbef2`. `lintian` passes with no
+  findings; the packaged `ParameterMetaDataLocal.xml` is byte-identical to the tracked 29,318-byte
+  source, required launcher/resource checks pass, and forbidden Windows SimpleBLE/libusb payloads
+  are absent. An isolated extracted-package Xvfb launch reaches the normal event loop for the
+  complete 12-second smoke window (expected timeout 124) with empty stderr.
 - Remaining blocker: none. Next executable acceptance step is to connect the matching custom
   firmware and visually verify the new descriptions/editors in Full Parameter List; regenerate
-  and review this small overlay whenever the pinned ArduPilot branch advances.
+  and review this small overlay whenever the pinned ArduPilot branch advances. This status-only
+  handoff follows the package checkpoint; after it is pushed, the branch and worktree are clean and
+  `master` remains untouched.
 
 ## Dual startup MAVLink UDP listeners and Debian handoff
 
