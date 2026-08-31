@@ -2,6 +2,43 @@
 
 Updated: **2026-09-01**.
 
+## PR #25: safe DFLogBuffer index cache on .NET 10
+
+- PR `#25` (`fix/dflogbuffer-savecache-net10`, reviewed head `2cd32cfdb`) is important and
+  appropriate to integrate. The path-backed `DFLogBuffer` cache is exercised for logs at or above
+  300 MiB, but its upstream `BinaryFormatter` save path throws on .NET 10; loading also cannot
+  restore that format. The PR replaces it with a small versioned binary format inside GZip,
+  validates source length/write time, writes via a temporary file and falls back to a full scan
+  when the cache is stale, truncated or foreign. The contributor's synthetic coverage and
+  433.6-MiB/10.55M-record benchmark demonstrate both the failure and the useful startup gain.
+- The review found integration blockers in the first revision and fixed them in follow-up commit
+  `a4f24e82c` after the exact PR merge commit `55f543048`. `LastLoadFromCache` was static and was
+  also read back as a control-flow decision, so concurrently constructed buffers could make one
+  another skip a required scan; it is now per instance and the decision remains local. The
+  predictable shared-temp name was replaced by a SHA-256 path key in the user's local data
+  directory. Concurrent writers use unique sibling temp files and always clean abandoned writes.
+  Source identity is captured before scanning and rechecked before publishing or accepting an
+  index, covering platforms that permit an already-open log to be modified.
+- Cache input is now validated as untrusted data: line and per-list counts have individual and
+  aggregate bounds; offsets and line numbers must be in range and strictly increasing; paired
+  lists, total binary-message count and text/binary line-offset cardinality must agree; trailing
+  payload is rejected. Untrusted counts no longer cause a full-size up-front allocation. A bad
+  cache resets all temporary indexes and degrades to a clean rescan without failing log open.
+- Focused binary/text round-trip, stale-identity, corrupt/truncated, unreasonable-count,
+  out-of-range-offset and instance-isolation coverage passes **8/8**. The complete Release suite
+  passes **1581/1581**; `MissionPlanner.slnx` builds with **0 warnings / 0 errors**. All six
+  migration/retirement/artifact gates pass: 1623 native rows with 0 blockers, 708/708 pinned port
+  paths, and clean WinForms/project/binary/key audits.
+- PR checks at reviewed head: Linux build/test/package, Windows package, macOS x64 package and
+  CodeQL succeeded. The only red job was macOS arm64 after publish, signing and DMG creation had
+  already succeeded: `hdiutil verify` returned runner-level `Resource temporarily unavailable` on
+  all three retries. No changed source or cache test ran in that failing packaging step, so this is
+  the already-known DMG-host flake rather than a PR regression.
+- Remaining code blocker: none. Integration branch `integration/pr-25` contains the exact PR merge
+  followed by the reviewed hardening commit and this handoff. Next executable step is to
+  fast-forward and push `master`, confirm GitHub marks PR #25 merged, then verify the checks on the
+  published master commit (retry only the macOS arm64 package if the same host error recurs).
+
 ## Local ArduPilot parameter-metadata synchronization
 
 - The authoritative source checkout remained read-only and clean on ArduPilot branch
@@ -85,41 +122,6 @@ Updated: **2026-09-01**.
   show 1 and 2; upload/read the mission and confirm Flight Data uses the same numbers while current
   mission status may still correctly report sequence 0 when the vehicle is idle.
 
-## DFLogBuffer index cache rebuilt without BinaryFormatter (branch fix/dflogbuffer-savecache-net10)
-
-- `BinaryFormatter` throws unconditionally on modern .NET, which made `DFLogBuffer`'s large-log
-  index cache doubly broken: `SaveCache` crashed the open of any path-backed log at or over
-  300 MB (`LoadCache` only survived because its `Deserialize` sat in a try/catch, so loading
-  silently never worked either). Stream-wrapping callers (`LogIndexService`,
-  `OfflineMagFitService`) dodge it by hiding the filename; every path-based consumer - LogBrowse
-  curves/rows, expressions, FFT, GeoRef - was exposed.
-- The cache is reimplemented with `BinaryWriter`/`BinaryReader` over the existing GZip stream:
-  magic + version header, then the source file's length and last-write ticks (the cache path only
-  encodes the length, so a same-length in-place edit is now caught too - an upstream gap), then
-  the raw index longs. Writes go through a temp file and replace, so a torn write never lands at
-  the cache path (also fixing upstream's non-truncating `File.OpenWrite`; the delete+move pair
-  leaves at worst a moment with no cache). List lengths read from the cache - which lives in the
-  shared temp directory and is untrusted - are bounded by the source log's possible record count
-  before any pre-allocation. The load commits only after the whole cache reads back cleanly and resets
-  the collections on any failure so a torn cache cannot leave a half-loaded index for the rescan
-  to append onto, and both directions degrade to a fresh scan instead of throwing. The
-  `System.Runtime.Serialization.Formatters.Binary` using and the `[Serializable]` struct are gone.
-- Threshold promoted to an internal test seam (`CacheThresholdBytes`, default unchanged) plus a
-  `LastLoadFromCache` observability flag. `DflogBufferCacheTests` (4 cases over a synthesized
-  binary log): round-trip index identity, same-length-edit stale-cache rejection, and
-  garbage/truncated cache fallback - all four fail against the old code (verified by reverting
-  the implementation under the new tests; the round-trip test's first open throws exactly like
-  production).
-- Real-log proof (433.6 MiB / 10.55M-record log from uav.tridgell.net/tmp, which crashes the
-  open on master): first open 5.66 s scan + cache save, second open 1.78 s from the cache with
-  an identical index. Full suite 1536/1548; the failures are the known environment-dependent
-  set, unchanged from master.
-- Interaction note: the dflog phase-2 branch (`feature/dflog-native-bindings`) edits the same
-  `setlinecount` region; whichever lands second takes a small rebase, and the semantics compose
-  (the native scanner skips this cache in both directions, the managed fallback now has a
-  working cache again).
-- Remaining blocker: none. Follow-up candidates recorded previously: un-wrapping the
-  `CancellationReadStream` callers so they can share the cache and native paths.
 ## Flight Data bearing-overlay zoom stability
 
 - Dedicated branch `fix/flight-data-bearing-overlay-zoom` starts from merged `master`
