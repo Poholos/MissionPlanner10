@@ -1127,8 +1127,9 @@ public class MapView : MapControl {
     }
 
     var s = MissionPlanner.Utilities.Settings.Instance;
-    double lenPx = s.GetInt32("GMapMarkerBase_Length", 500);
-    double len = lenPx * resMpp;
+    // Keep the bearing vectors in map space. Treating this value as screen pixels makes a
+    // telemetry refresh stretch the same vector across countries when the map is zoomed out.
+    double len = Math.Max(0, s.GetInt32("GMapMarkerBase_Length", 500));
 
     if (s.GetBoolean("GMapMarkerBase_DisplayHeading", true)) {
       AddBearingLine(pt, cs.yaw, len, _headingStyle);

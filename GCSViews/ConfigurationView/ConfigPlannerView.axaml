@@ -164,7 +164,7 @@
         <CheckBox Content="Display ToolTip" IsChecked="{Binding DisplayTooltip, Mode=TwoWay}" Margin="0,0,12,0" />
       </WrapPanel>
       <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,6,0,0">
-        <c:FormField Label="Line Length" LabelWidth="80">
+        <c:FormField Label="Line Length (m)" LabelWidth="100">
           <NumericUpDown Classes="md" Minimum="0" Maximum="10000" Increment="10" FormatString="0" Value="{Binding LineLength}" />
         </c:FormField>
         <c:FormField Label="Secondary Style" LabelWidth="100">

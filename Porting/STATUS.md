@@ -2,6 +2,34 @@
 
 Updated: **2026-08-31**.
 
+## Flight Data bearing-overlay zoom stability
+
+- Dedicated branch `fix/flight-data-bearing-overlay-zoom` starts from merged `master`
+  `47fc0de85`. The published branch first attempted screen-space parity in commits `005462291` and
+  `40de2497f`; live testing showed that keeping the default 500-pixel vectors constant made them
+  span countries at world zoom. Corrective commit `5acf3d98e` removes that viewport callback/cache
+  and keeps bearing vectors at a stable map distance instead. Published history was not rewritten.
+- Official Mission Planner draws heading, navigation, course and target bearings at a constant
+  screen-pixel length. This port now deliberately differs: `GMapMarkerBase_Length` is a map distance
+  in metres, and Planner Settings labels it **Line Length (m)**. The vector therefore shrinks with
+  the aircraft when the map is zoomed out instead of acquiring a continental geographic extent on
+  every telemetry refresh. Radius geometry retains its existing physical-distance behavior.
+- `FlightMapOverlayTests` passes **29/29**. The corrected regression verifies that a configured
+  500m bearing renders as 250px at resolution 2, shrinks to 62.5px after zooming to resolution 8,
+  and remains 62.5px after the next `PopulateVehicleLayer` telemetry redraw. The Release build
+  succeeds with **0 warnings / 0 errors**. The complete Avalonia suite ran **1567** cases: **1566
+  passed** and only the existing environment-sensitive
+  `VideoSourceResolverTests.NormalizesCommonStreamSources` `/dev/video0` case failed; neither the
+  resolver nor its test changes on this branch.
+- The worktree still contains only the user's five pre-existing modifications in `Drivers/inf2cat.bat`,
+  `Drivers/uninstall_drivers.bat`, `ExtLibs/Mavlink/regenerate.bat`,
+  `ExtLibs/Mavlink/updatexmls.bat` and `graphs/updatexmls.bat`; none is staged or included. Claude
+  remains disabled.
+- No code or automated-test blocker remains. Manual acceptance requires rebuilding and relaunching
+  this branch (the already running process predates it), connecting the live vehicle, and zooming
+  Flight Data out to a regional/world view: all enabled bearing lines must stay local to the
+  aircraft, shrink with the map and remain free of duplicated aircraft symbols.
+
 ## Choice-dialog action layout
 
 - Dedicated branch `fix/dialog-choice-button-layout` starts from merged `master` `4700897ad`.
