@@ -29,15 +29,17 @@ Updated: **2026-09-01**.
   passes **1581/1581**; `MissionPlanner.slnx` builds with **0 warnings / 0 errors**. All six
   migration/retirement/artifact gates pass: 1623 native rows with 0 blockers, 708/708 pinned port
   paths, and clean WinForms/project/binary/key audits.
-- PR checks at reviewed head: Linux build/test/package, Windows package, macOS x64 package and
-  CodeQL succeeded. The only red job was macOS arm64 after publish, signing and DMG creation had
-  already succeeded: `hdiutil verify` returned runner-level `Resource temporarily unavailable` on
-  all three retries. No changed source or cache test ran in that failing packaging step, so this is
-  the already-known DMG-host flake rather than a PR regression.
-- Remaining code blocker: none. Integration branch `integration/pr-25` contains the exact PR merge
-  followed by the reviewed hardening commit and this handoff. Next executable step is to
-  fast-forward and push `master`, confirm GitHub marks PR #25 merged, then verify the checks on the
-  published master commit (retry only the macOS arm64 package if the same host error recurs).
+- At the reviewed PR head, Linux, Windows, macOS x64 and CodeQL passed; macOS arm64 failed only
+  after publish/sign/DMG creation because `hdiutil verify` returned runner-level `Resource
+  temporarily unavailable` on all three retries. The published master checkpoint
+  `afdf316733bb8b8188512182afddd5d3498eff64` then passed the complete CI/package run
+  `33451960996`: Linux tests/TAR/DEB/payload smoke, Windows ZIP/MSI install validation and both
+  macOS ZIP/DMG jobs all succeeded, including arm64. CodeQL run `33451960959` also succeeded.
+- PR #25 is `MERGED` with merge commit `55f543048`; the review/fix summary is posted in the PR and
+  `master == origin/master == afdf31673` at the verified functional handoff checkpoint. Remaining
+  code blocker: none. This final status-only update follows that checkpoint; the next useful manual
+  acceptance step is to open a representative path-backed log over 300 MiB twice and confirm the
+  second open uses the per-user cache without changing displayed lines or message counts.
 
 ## Local ArduPilot parameter-metadata synchronization
 
