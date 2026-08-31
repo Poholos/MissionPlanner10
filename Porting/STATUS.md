@@ -38,12 +38,23 @@ Updated: **2026-08-31**.
   pre-merge local acceptance package; the GitHub workflow rebuilds every platform artifact from
   the exact final tagged commit and therefore uses that commit's hash in its filenames.
 - Release was explicitly requested on 2026-08-31. `port/avalonia-in-place` was merged without
-  conflict into local `master` by merge commit `55bdaf2b1`; all functional, test, documentation
-  and local-sequence commits are ancestors of that merge. This post-merge status update is the
-  only subsequent source change and forms the release checkpoint. Remaining blocker: none before
-  remote gates. Next executable step: push this checkpoint to `origin/master`, require its complete
-  CI/package and CodeQL runs to pass, then tag the same commit as
-  `v1.3.83.2-<8-character-commit-hash>` and verify the resulting public GitHub Release assets.
+  conflict into `master` by merge commit `55bdaf2b1`; release checkpoint `22ec12fef` is published
+  on `origin/master`. Complete CI/package run `33370869010` passes Linux tests/DEB/TAR smoke,
+  Windows ZIP/MSI build-install-uninstall and both macOS app/DMG jobs. CodeQL run `33370869031`
+  passes on the same commit and the code-scanning API reports zero open alerts.
+- Annotated tag `v1.3.83.2-22ec12fe` resolves exactly to release checkpoint `22ec12fef`. Release
+  workflow `33371674803` passes tag-contract validation, all four fresh platform builds, signed
+  update-manifest generation, checksum aggregation and publication. The stable, non-draft,
+  non-prerelease GitHub Release is
+  `https://github.com/Rouniy/MissionPlanner10/releases/tag/v1.3.83.2-22ec12fe` and contains 19
+  uploaded assets: Linux TAR/DEB/update ZIP, Windows ZIP/MSI/update ZIP, both macOS ZIP/DMG pairs,
+  four manifest/signature pairs and `SHA256SUMS`. The checksum file names all other 18 assets;
+  every manifest reports `1.3.83.2+22ec12fe`, its published bundle URL/hash/size, and every Ed25519
+  signature independently verifies with `build/update-public-key.txt`.
+- This final status-only handoff is the sole commit after the immutable release tag; application
+  source and released binaries remain at `22ec12fef`. Remaining blocker: none for the release.
+  Next executable steps are physical simultaneous-input acceptance on UDP 14550/14551 and, before
+  any later release, an intentional `make bump-local-build` from **2 to 3**.
 
 ## NV4 parameter-catalog synchronization and Debian handoff
 
