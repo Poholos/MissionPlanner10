@@ -2,6 +2,38 @@
 
 Updated: **2026-08-31**.
 
+## Updater equal-version metadata precedence
+
+- Dedicated branch `fix/updater-same-version-prompt` starts from merged `master` `3e7ce29e1`.
+  Commit `136118c40` stops Git commit and `.dirty` metadata from ordering otherwise equal builds;
+  commit `2652eb316` covers the reported `1.3.83.2` clean-release versus dirty-local-build case and
+  proves that a higher fourth numeric build still updates. Reviewer follow-up `a8434687f` limits
+  date ordering to legacy identities without an explicit fourth field, and `3111d8ebe` covers that
+  equal-four-part/different-date case.
+- `UpdateEngine.IsNewer` previously treated different hashes as newer after the official version,
+  local build number and legacy build date compared equal. This produced an update prompt whose
+  message showed the same `1.3.83.2` version on both sides. Hashes now remain display and artifact
+  identity metadata only. The four-part numeric version remains authoritative, while legacy
+  three-part dated builds and the one-time CalVer migration retain their existing ordering. The
+  release process already requires incrementing the repository-global local build number before
+  every materially new stable or beta release.
+- The combined `UpdaterTests` and `AppVersionTests` pass **51/51**, and
+  `dotnet build MissionPlanner.csproj -c Release -m:1 --no-restore` succeeds with **0 warnings / 0
+  errors**. The complete Avalonia suite ran **1565** cases: **1564 passed** and only the existing
+  environment-sensitive `VideoSourceResolverTests.NormalizesCommonStreamSources` `/dev/video0`
+  case failed; neither the resolver nor its test changes on this branch.
+- Behavior, integration and test reviewers approve the code/test tuple `136118c40` + `2652eb316`
+  + `a8434687f` + `3111d8ebe`. The worktree still contains only the user's five pre-existing
+  modifications in
+  `Drivers/inf2cat.bat`, `Drivers/uninstall_drivers.bat`, `ExtLibs/Mavlink/regenerate.bat`,
+  `ExtLibs/Mavlink/updatexmls.bat` and `graphs/updatexmls.bat`; none is staged or included. Claude
+  remains disabled.
+- No code or test blocker remains. Manual acceptance requires rebuilding and relaunching this
+  branch, then checking against a signed release with the same four-part version but a different
+  hash: it must report up to date and must not offer installation. A release with a higher fourth
+  numeric build must still prompt. After this updater fix lands, the next separate task is the
+  Flight Data bearing/target overlay behavior while zooming.
+
 ## Flight Planner vehicle-home synchronization
 
 - Dedicated branch `fix/flight-planner-vehicle-home-sync` starts from merged `master`
