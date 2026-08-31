@@ -90,6 +90,10 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Install Rust cross-compilation targets
+        if: startsWith(matrix.rid, 'osx-')
+        run: rustup target add x86_64-apple-darwin aarch64-apple-darwin
+
       - name: Package Linux
         if: matrix.rid == 'linux-x64'
         shell: bash
@@ -142,6 +146,9 @@ jobs:
             -p:MissionPlannerLocalBuildNumber="$MP_RELEASE_LOCAL_BUILD" \
             -p:MissionPlannerCommit="$MP_RELEASE_COMMIT" \
             -o out/macos
+          # a host without a working Rust toolchain would silently publish the
+          # managed-parser-only app; releases must ship the native log parser
+          test -s out/macos/libdflog_ffi.dylib
 
           if [[ -n "$MACOS_CERT_P12" && -n "$MACOS_SIGN_IDENTITY" ]]; then
             PASSWORD=$(uuidgen)

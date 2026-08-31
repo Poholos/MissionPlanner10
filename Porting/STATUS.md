@@ -2,6 +2,30 @@
 
 Updated: **2026-08-30**.
 
+## Native dataflash log core, phase 4: CI and packaging wiring (branch feature/dflog-native-ci, stacked on phase 3)
+
+- ci.yml: the Linux test step sets `DFLOG_REQUIRE_NATIVE=1` (the runner has a Rust toolchain,
+  so a missing or unloadable native library now fails the parity tests loudly instead of letting
+  every one of them skip); the Debian payload check asserts
+  `usr/lib/missionplanner10/libdflog_ffi.so`; the Windows ZIP/MSI required-files list gains
+  `dflog_ffi.dll`; the macOS job installs both Apple rustup targets (the arm64 runner
+  cross-compiles osx-x64) and asserts `libdflog_ffi.dylib` in the publish output.
+- release.yml: the package matrix installs the Apple rustup targets for the osx rows and asserts
+  the dylib right after the macOS publish. Linux and Windows release payloads are covered by the
+  same `package.sh` scripts as CI.
+- build/linux/package.sh and build/windows/package.sh assert the native library in the publish
+  payload next to their existing required-file checks, so every packaging path - CI, release,
+  and local - fails loudly rather than shipping a silently managed-parser-only app. A local
+  developer without a Rust toolchain still builds and runs the app normally; only packaging
+  demands the library.
+- Verified: both workflows parse (yaml), both package scripts pass `bash -n`, a local
+  `build/windows/package.sh zip` run exercises the new assert against a real publish, and the
+  full dflog test set passes locally with `DFLOG_REQUIRE_NATIVE=1` set (the failure direction
+  was fault-injected in phase 2).
+- Remaining blocker: none. Next executable step: open the PR stack once the upstream maintainer
+  responds (phase 1 build plumbing, phase 2 bindings, phase 3 consumers, phase 4 CI), with the
+  measured numbers from the phase-3 checkpoint in the description.
+
 ## Native dataflash log core, phase 3: converted consumers (branch feature/dflog-native-consumers, stacked on phase 2)
 
 - `DataFlashLog.ReadField` takes the native columnar path (value column plus the same time field
