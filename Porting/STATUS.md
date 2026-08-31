@@ -22,12 +22,15 @@ Updated: **2026-09-01**.
   guidance from leaking into Plane/Rover/Sub; generic EKF3 additions remain available to every
   vehicle that exposes them. Missing overlay fields still fall through to downloaded pdef and then
   to the legacy backup. The overlay is copied byte-for-byte into normal output and publish payloads.
-- Functional/data/test commit `839659c7f` is isolated on `port/avalonia-in-place`; `master` and
-  `origin/master` remain at `2f99868f2` in accordance with the branch handoff policy. Focused
-  metadata tests pass **4/4**, the complete Release suite passes **1554/1554**, and
-  `MissionPlanner.slnx` builds with **0 warnings / 0 errors**. A Linux x64 publish contains the
-  byte-identical overlay. All six migration/retirement/artifact gates pass (1623 native rows,
-  0 blockers, 708/708 pinned port paths, and clean WinForms/project/binary/key audits).
+- Functional/data/test commit `839659c7f` was developed and published on
+  `port/avalonia-in-place`. The user explicitly authorized master integration on 2026-09-01;
+  local `master` was first fast-forwarded through the eight newer origin changes ending at
+  `ecf886a19`, then the complete metadata branch was integrated by merge commit `185fc9065`.
+  The tracked local build sequence was intentionally incremented from **2 to 3** in the separate
+  commit `6762223b1`. On this combined master, focused metadata tests pass **4/4**, the complete
+  Release suite passes **1573/1573**, and `MissionPlanner.slnx` builds with **0 warnings / 0
+  errors**. All six migration/retirement/artifact gates pass (1623 native rows, 0 blockers,
+  708/708 pinned port paths, and clean WinForms/project/binary/key audits).
 - The code and initial handoff commits were pushed to the newly published
   `origin/port/avalonia-in-place` branch. The first `make linux-deb` attempt encountered the known
   logical/physical checkout alias (`/home/alex/src` versus `/home/alex/SRC`) in stale Release
@@ -40,11 +43,18 @@ Updated: **2026-09-01**.
   source, required launcher/resource checks pass, and forbidden Windows SimpleBLE/libusb payloads
   are absent. An isolated extracted-package Xvfb launch reaches the normal event loop for the
   complete 12-second smoke window (expected timeout 124) with empty stderr.
+- The clean merged-master package after the required sequence bump is
+  `out/packages/missionplanner10_1.3.83.3-6762223b_amd64.deb`: 60,142,236 bytes, Debian version
+  `1:1.3.83.3+6762223b`, installed size 193,860 KiB, SHA-256
+  `45f1e84556fa5c597646f83f01fd69783ecd3f7d1f2b00fac9e0bf9faa1c722f`. `lintian` has no findings;
+  the packaged overlay is byte-identical, required launcher/resource checks pass, and forbidden
+  Windows SimpleBLE/libusb payloads are absent. Its isolated Xvfb smoke reaches the normal event
+  loop for the full 12-second window (expected timeout 124) with empty stderr.
 - Remaining blocker: none. Next executable acceptance step is to connect the matching custom
   firmware and visually verify the new descriptions/editors in Full Parameter List; regenerate
   and review this small overlay whenever the pinned ArduPilot branch advances. This status-only
-  handoff follows the package checkpoint; after it is pushed, the branch and worktree are clean and
-  `master` remains untouched.
+  handoff follows the merged-master package checkpoint; after it is pushed, `master`,
+  `origin/master` and the worktree are aligned and clean.
 
 ## Flight Planner waypoint display numbering
 
