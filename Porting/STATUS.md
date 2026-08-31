@@ -1,6 +1,42 @@
 # Avalonia in-place migration status
 
-Updated: **2026-08-30**.
+Updated: **2026-08-31**.
+
+## DFLogBuffer index cache rebuilt without BinaryFormatter (branch fix/dflogbuffer-savecache-net10)
+
+- `BinaryFormatter` throws unconditionally on modern .NET, which made `DFLogBuffer`'s large-log
+  index cache doubly broken: `SaveCache` crashed the open of any path-backed log at or over
+  300 MB (`LoadCache` only survived because its `Deserialize` sat in a try/catch, so loading
+  silently never worked either). Stream-wrapping callers (`LogIndexService`,
+  `OfflineMagFitService`) dodge it by hiding the filename; every path-based consumer - LogBrowse
+  curves/rows, expressions, FFT, GeoRef - was exposed.
+- The cache is reimplemented with `BinaryWriter`/`BinaryReader` over the existing GZip stream:
+  magic + version header, then the source file's length and last-write ticks (the cache path only
+  encodes the length, so a same-length in-place edit is now caught too - an upstream gap), then
+  the raw index longs. Writes go through a temp file and replace, so a torn write never lands at
+  the cache path (also fixing upstream's non-truncating `File.OpenWrite`; the delete+move pair
+  leaves at worst a moment with no cache). List lengths read from the cache - which lives in the
+  shared temp directory and is untrusted - are bounded by the source log's possible record count
+  before any pre-allocation. The load commits only after the whole cache reads back cleanly and resets
+  the collections on any failure so a torn cache cannot leave a half-loaded index for the rescan
+  to append onto, and both directions degrade to a fresh scan instead of throwing. The
+  `System.Runtime.Serialization.Formatters.Binary` using and the `[Serializable]` struct are gone.
+- Threshold promoted to an internal test seam (`CacheThresholdBytes`, default unchanged) plus a
+  `LastLoadFromCache` observability flag. `DflogBufferCacheTests` (4 cases over a synthesized
+  binary log): round-trip index identity, same-length-edit stale-cache rejection, and
+  garbage/truncated cache fallback - all four fail against the old code (verified by reverting
+  the implementation under the new tests; the round-trip test's first open throws exactly like
+  production).
+- Real-log proof (433.6 MiB / 10.55M-record log from uav.tridgell.net/tmp, which crashes the
+  open on master): first open 5.66 s scan + cache save, second open 1.78 s from the cache with
+  an identical index. Full suite 1536/1548; the failures are the known environment-dependent
+  set, unchanged from master.
+- Interaction note: the dflog phase-2 branch (`feature/dflog-native-bindings`) edits the same
+  `setlinecount` region; whichever lands second takes a small rebase, and the semantics compose
+  (the native scanner skips this cache in both directions, the managed fallback now has a
+  working cache again).
+- Remaining blocker: none. Follow-up candidates recorded previously: un-wrapping the
+  `CancellationReadStream` callers so they can share the cache and native paths.
 
 ## NV4 parameter-catalog synchronization and Debian handoff
 
