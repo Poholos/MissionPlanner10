@@ -20,6 +20,8 @@ using MissionPlanner.ViewModels.GCSViews.ConfigurationView;
 namespace MissionPlanner.ViewModels;
 
 public partial class FlightDataViewModel : ViewModelBase, IDisposable {
+  private const string _autoPanSetting = "CHK_autopan";
+
   private MAVLinkInterface _comPort => AppState.comPort;
   private readonly DispatcherTimer _timer;
   private readonly TlogPlayer _tlog = new();
@@ -145,6 +147,9 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
   private bool _anemometerVisible = true;
 
   public FlightDataViewModel() {
+    if (Settings.Instance[_autoPanSetting] != null) {
+      _autoPan = Settings.Instance.GetBoolean(_autoPanSetting);
+    }
     _python = new PythonScriptHost(
         () => AppState.comPort,
         () => AppState.Connections.Snapshot().Select(connection => connection.Link).ToArray(),
@@ -2320,7 +2325,10 @@ public partial class FlightDataViewModel : ViewModelBase, IDisposable {
   }
 
   [ObservableProperty]
-  private bool _autoPan;
+  private bool _autoPan = true;
+
+  partial void OnAutoPanChanged(bool value) =>
+      Settings.Instance[_autoPanSetting] = value.ToString();
 
   public event System.Action? TrackClearRequested;
 

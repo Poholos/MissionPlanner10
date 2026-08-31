@@ -2,6 +2,45 @@
 
 Updated: **2026-08-31**.
 
+## Flight Data Auto Pan settings parity
+
+- Dedicated branch `fix/flight-data-autopan-settings` carries four granular code/test commits:
+  `8540f8b74` restores the official setting behavior, `adea69d75` adds its initial regression
+  tests, `e6cf79aee` matches official handling of a malformed present value, and `7d570b224`
+  covers the complete absent/true/false/malformed settings matrix.
+  The comparison source is the official `ArduPilot/MissionPlanner` repository at commit
+  `2b5589f40` (`latest`).
+- PR #26 (`https://github.com/Rouniy/MissionPlanner10/pull/26`) tracks this branch. Merge commit
+  `cbe4c4db8` brings it onto current `origin/master` `2f99868f2`; its only textual conflict was
+  this status file, where both the Auto Pan record and upstream's dual-listener release record
+  were retained.
+- Official Mission Planner starts `CHK_autopan` enabled, restores an existing preference and
+  updates that preference when the checkbox changes. Mission Planner 10 instead initialized the
+  generated `AutoPan` property to false and never loaded or stored `CHK_autopan`. A restored
+  `maplast_lat`/`maplast_lng` viewport was therefore marked centred and stayed at an old location
+  while the live aircraft marker updated off-screen. The port now defaults Auto Pan on without
+  manufacturing a setting, restores an explicit true/false value, treats a malformed present
+  value as false like official Mission Planner, and persists later changes.
+- On the merged result, `dotnet build MissionPlanner.csproj -c Release -m:1 --no-restore` succeeds
+  with **0 warnings / 0 errors**. The focused Auto Pan tests pass **3/3**, and the complete
+  `PlannerPortParityTests` class passes **59/59**.
+- The complete merged Avalonia suite ran **1553** cases: **1552 passed** and one unrelated existing
+  `VideoSourceResolverTests.NormalizesCommonStreamSources` case failed because this workstation has
+  a real `/dev/video0`. `VideoSourceResolver.Resolve` treats an existing filesystem path as
+  `FromPath` before its later V4L2 normalization, while the test unconditionally expects
+  `v4l2:///dev/video0`. Neither file is changed on this branch; this is an environment-sensitive
+  pre-existing test/implementation mismatch rather than an Auto Pan regression.
+- The worktree still contains the user's five pre-existing modifications in
+  `Drivers/inf2cat.bat`, `Drivers/uninstall_drivers.bat`, `ExtLibs/Mavlink/regenerate.bat`,
+  `ExtLibs/Mavlink/updatexmls.bat` and `graphs/updatexmls.bat`; none is staged or included in these
+  commits. Claude remains disabled.
+- No Auto Pan code blocker remains. The next executable acceptance step is a fresh WP10 SITL
+  launch: confirm
+  Flight Data starts with Auto Pan checked and centres on the live aircraft, then uncheck it,
+  restart WP10 and confirm the explicit false preference is restored. Run the full suite on a host
+  without `/dev/video0`, or address that video test separately, before claiming an entirely green
+  repository suite.
+
 ## Dual startup MAVLink UDP listeners and Debian handoff
 
 - Work is isolated on `port/avalonia-in-place`, as required by the repository handoff policy.
