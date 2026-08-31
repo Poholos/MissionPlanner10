@@ -318,7 +318,7 @@ internal static class ConnectionListService {
           ? host[1..^1]
           : host;
 
-  private static void OpenTelemetryLogs(
+  internal static void OpenTelemetryLogs(
       MAVLinkInterface link, ConnectionListEndpoint endpoint) {
     try {
       Directory.CreateDirectory(Settings.Instance.LogDir);
@@ -635,6 +635,7 @@ internal sealed class MavLinkSecondaryRuntime {
   private readonly MavLinkConnection _connection;
   private readonly Action<MavLinkConnection> _closed;
   private readonly TimeSpan _silenceTimeout;
+  private readonly bool _openTelemetryLogsOnFirstTraffic;
   private readonly CancellationTokenSource _shutdown = new();
   private readonly MavLinkTransportRelease _transportRelease = new();
   private Task? _runner;
@@ -643,13 +644,16 @@ internal sealed class MavLinkSecondaryRuntime {
   private DateTime _lastVersionPollUtc = DateTime.MinValue;
   private bool _lastArmed;
   private int _homeRefreshRunning;
+  private int _telemetryLogAttempted;
 
   internal MavLinkSecondaryRuntime(
       MavLinkConnection connection, Action<MavLinkConnection> closed,
-      TimeSpan? silenceTimeout = null) {
+      TimeSpan? silenceTimeout = null,
+      bool openTelemetryLogsOnFirstTraffic = false) {
     _connection = connection;
     _closed = closed;
     _silenceTimeout = silenceTimeout ?? TimeSpan.FromSeconds(10);
+    _openTelemetryLogsOnFirstTraffic = openTelemetryLogsOnFirstTraffic;
     if (_silenceTimeout <= TimeSpan.Zero) {
       throw new ArgumentOutOfRangeException(nameof(silenceTimeout));
     }
@@ -731,6 +735,11 @@ internal sealed class MavLinkSecondaryRuntime {
                    ViewModels.ConnectionHealth.ShouldPollReader(link.BaseStream) &&
                    !cancellationToken.IsCancellationRequested &&
                    DateTime.UtcNow < readDeadline) {
+              if (_openTelemetryLogsOnFirstTraffic &&
+                  Interlocked.Exchange(ref _telemetryLogAttempted, 1) == 0 &&
+                  _connection.Source != null) {
+                ConnectionListService.OpenTelemetryLogs(link, _connection.Source);
+              }
               await link.readPacketAsync().ConfigureAwait(false);
             }
             foreach (MAVState mav in link.MAVlist) {

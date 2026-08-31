@@ -458,7 +458,10 @@ public partial class ConnectionViewModel : ViewModelBase, IDisposable {
       MavSystemChoice? fallbackSelection = null;
       _updatingVehicleChoices = true;
       try {
-        IsConnected = openConnections.Length > 0;
+        // A passive startup UDP listener is an available transport, not an established vehicle
+        // session. Keep the ordinary CONNECT action available until the primary link is open or
+        // at least one real MAVLink system has arrived on any secondary connection.
+        IsConnected = AppState.Connections.Primary.IsOpen || choices.Length > 0;
         ConnectText = IsConnected ? "DISCONNECT" : "CONNECT";
         VehicleChoices.Clear();
         foreach (var choice in choices) {

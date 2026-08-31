@@ -143,6 +143,17 @@ public partial class ConfigPlannerViewModel : ViewModelBase, System.IDisposable 
   private bool _loadWaypointsOnConnect;
 
   [ObservableProperty]
+  private bool _startupUdpListenersEnabled = StartupUdpListenerOptions.DefaultEnabled;
+
+  [ObservableProperty]
+  private int _startupUdpPrimaryPort = StartupUdpListenerOptions.DefaultPrimaryPort;
+
+  [ObservableProperty]
+  private int _startupUdpAlternatePort = StartupUdpListenerOptions.DefaultAlternatePort;
+
+  public string StartupUdpListenerStatus => StartupUdpListenerService.Status;
+
+  [ObservableProperty]
   private bool _displayInFlightData = true;
 
   [ObservableProperty]
@@ -298,6 +309,10 @@ public partial class ConfigPlannerViewModel : ViewModelBase, System.IDisposable 
     EnableFlightCommandShortcuts = s.GetBoolean(
         FlightCommandShortcuts.EnabledSettingKey, EnableFlightCommandShortcuts);
     LoadWaypointsOnConnect = s.GetBoolean("loadwpsonconnect", LoadWaypointsOnConnect);
+    StartupUdpListenerOptions startupUdp = StartupUdpListenerOptions.Load(s);
+    StartupUdpListenersEnabled = startupUdp.Enabled;
+    StartupUdpPrimaryPort = startupUdp.PrimaryPort;
+    StartupUdpAlternatePort = startupUdp.AlternatePort;
     DisplayInFlightData = s.GetBoolean("CHK_disttohomeflightdata", DisplayInFlightData);
     MapFollowPlane = s.GetBoolean("CHK_maprotation", MapFollowPlane);
     ResetOnUsbConnect = s.GetBoolean("CHK_resetapmonconnect", ResetOnUsbConnect);
@@ -652,6 +667,27 @@ public partial class ConfigPlannerViewModel : ViewModelBase, System.IDisposable 
   partial void OnLoadWaypointsOnConnectChanged(bool value) {
     if (_loading) return;
     Settings.Instance["loadwpsonconnect"] = value.ToString();
+  }
+
+  partial void OnStartupUdpListenersEnabledChanged(bool value) {
+    if (_loading) return;
+    Settings.Instance[StartupUdpListenerService.EnabledSettingKey] = value.ToString();
+  }
+
+  partial void OnStartupUdpPrimaryPortChanged(int value) {
+    if (_loading) return;
+    int normalized = StartupUdpListenerOptions.NormalizePort(
+        value, StartupUdpListenerOptions.DefaultPrimaryPort);
+    Settings.Instance[StartupUdpListenerService.PrimaryPortSettingKey] =
+        normalized.ToString(System.Globalization.CultureInfo.InvariantCulture);
+  }
+
+  partial void OnStartupUdpAlternatePortChanged(int value) {
+    if (_loading) return;
+    int normalized = StartupUdpListenerOptions.NormalizePort(
+        value, StartupUdpListenerOptions.DefaultAlternatePort);
+    Settings.Instance[StartupUdpListenerService.AlternatePortSettingKey] =
+        normalized.ToString(System.Globalization.CultureInfo.InvariantCulture);
   }
 
   partial void OnDisplayInFlightDataChanged(bool value) {

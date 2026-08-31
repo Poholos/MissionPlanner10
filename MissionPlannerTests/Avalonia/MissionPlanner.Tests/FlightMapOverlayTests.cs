@@ -55,6 +55,71 @@ public class FlightMapOverlayTests {
     Assert.Contains("Other vehicles", names);
   }
 
+  [AvaloniaFact]
+  public void Flight_map_scopes_vehicle_symbol_to_the_point_feature() {
+    var map = new MapView();
+
+    map.ShowSampleMarker(34, 33);
+
+    Mapsui.Layers.WritableLayer layer = Assert.IsType<Mapsui.Layers.WritableLayer>(
+        Assert.Single(map.Map.Layers, candidate => candidate.Name == "Vehicle"));
+    Assert.Null(layer.Style);
+    Mapsui.Layers.PointFeature marker = Assert.Single(
+        layer.GetFeatures().OfType<Mapsui.Layers.PointFeature>());
+    Mapsui.Styles.SymbolStyle style = Assert.Single(
+        marker.Styles.OfType<Mapsui.Styles.SymbolStyle>());
+    Assert.Equal(Mapsui.Styles.SymbolType.Triangle, style.SymbolType);
+  }
+
+  [AvaloniaFact]
+  public void Live_vehicle_bearing_and_radius_overlays_do_not_duplicate_the_symbol() {
+    string[] settingKeys = {
+      "GMapMarkerBase_DisplayHeading",
+      "GMapMarkerBase_DisplayNavBearing",
+      "GMapMarkerBase_DisplayCOG",
+      "GMapMarkerBase_DisplayTarget",
+      "GMapMarkerBase_DisplayRadius",
+    };
+    var saved = settingKeys.ToDictionary(key => key, key => Utilities.Settings.Instance[key]);
+    try {
+      foreach (string key in settingKeys) {
+        Utilities.Settings.Instance[key] = bool.TrueString;
+      }
+
+      using var link = new MAVLinkInterface();
+      MAVState mav = link.MAV;
+      mav.aptype = MAVLink.MAV_TYPE.FIXED_WING;
+      mav.cs.yaw = 10;
+      mav.cs.nav_bearing = 20;
+      mav.cs.groundcourse = 30;
+      mav.cs.target_bearing = 40;
+      mav.cs.groundspeed = 20;
+      mav.cs.roll = 20;
+      var map = new MapView();
+
+      map.PopulateVehicleLayer(mav, new Mapsui.MPoint(1000, 2000), resolution: 2);
+
+      Mapsui.Layers.WritableLayer layer = Assert.IsType<Mapsui.Layers.WritableLayer>(
+          Assert.Single(map.Map.Layers, candidate => candidate.Name == "Vehicle"));
+      Assert.Null(layer.Style);
+      Mapsui.IFeature[] features = layer.GetFeatures().ToArray();
+      Mapsui.Layers.PointFeature marker = Assert.Single(
+          features.OfType<Mapsui.Layers.PointFeature>());
+      Assert.Single(marker.Styles.OfType<Mapsui.Styles.SymbolStyle>());
+      Mapsui.Nts.GeometryFeature[] overlays =
+          features.OfType<Mapsui.Nts.GeometryFeature>().ToArray();
+      Assert.Equal(5, overlays.Length);
+      Assert.All(overlays, overlay => {
+        Assert.Contains(overlay.Styles, style => style is Mapsui.Styles.VectorStyle);
+        Assert.DoesNotContain(overlay.Styles, style => style is Mapsui.Styles.SymbolStyle);
+      });
+    } finally {
+      foreach ((string key, string? value) in saved) {
+        Utilities.Settings.Instance[key] = value;
+      }
+    }
+  }
+
   [Theory]
   [InlineData(Firmwares.ArduCopter2, 1, 2, 150, true)]
   [InlineData(Firmwares.ArduCopter2, 1, 3, 150, true)]
