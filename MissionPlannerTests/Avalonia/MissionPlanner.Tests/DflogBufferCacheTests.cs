@@ -39,14 +39,14 @@ public class DflogBufferCacheTests {
 
   /// <summary>
   /// Lowers the cache threshold so kilobyte fixtures exercise the cache, and
-  /// sweeps the cache files (which live in the system temp directory, keyed
-  /// by the log's mangled path) on the way out.
+  /// removes the per-user cache file on the way out.
   /// </summary>
   private sealed class CacheScope : IDisposable {
     private readonly long _oldThreshold;
 
     public DirectoryInfo Dir { get; }
     public string LogPath { get; }
+    public string? CachePath { get; private set; }
 
     public CacheScope() {
       _oldThreshold = DFLogBuffer.CacheThresholdBytes;
@@ -55,8 +55,14 @@ public class DflogBufferCacheTests {
       LogPath = Path.Combine(Dir.FullName, "test.bin");
     }
 
-    public string[] CacheFiles() {
-      return Directory.GetFiles(Path.GetTempPath(), "*" + Dir.Name + "*");
+    public void TrackCache(DFLogBuffer buffer) {
+      CachePath = buffer.CacheFilePath;
+    }
+
+    public string RequireCache() {
+      Assert.False(string.IsNullOrEmpty(CachePath));
+      Assert.True(File.Exists(CachePath), "the expected cache was not written");
+      return CachePath!;
     }
 
     public void Dispose() {
@@ -65,9 +71,13 @@ public class DflogBufferCacheTests {
         Dir.Delete(true);
       } catch (IOException) {
       }
-      foreach (string stale in CacheFiles()) {
+      if (!string.IsNullOrEmpty(CachePath)) {
         try {
-          File.Delete(stale);
+          File.Delete(CachePath);
+          foreach (string stale in Directory.GetFiles(
+              Path.GetDirectoryName(CachePath)!, Path.GetFileName(CachePath) + ".*.tmp")) {
+            File.Delete(stale);
+          }
         } catch (IOException) {
         }
       }
@@ -84,16 +94,17 @@ public class DflogBufferCacheTests {
     // the first open scans and saves the cache; on the BinaryFormatter code
     // this line throws for any over-threshold log
     using (var buffer = new DFLogBuffer(scope.LogPath)) {
-      Assert.False(DFLogBuffer.LastLoadFromCache);
+      scope.TrackCache(buffer);
+      Assert.False(buffer.LastLoadFromCache);
       scanned = Lines(buffer);
       count = buffer.Count;
       Assert.Equal(51, count);
     }
 
-    Assert.NotEmpty(scope.CacheFiles());
+    scope.RequireCache();
 
     using (var buffer = new DFLogBuffer(scope.LogPath)) {
-      Assert.True(DFLogBuffer.LastLoadFromCache,
+      Assert.True(buffer.LastLoadFromCache,
           "second open scanned instead of loading the cache");
       Assert.Equal(count, buffer.Count);
       Assert.Equal(scanned, Lines(buffer));
@@ -102,28 +113,48 @@ public class DflogBufferCacheTests {
   }
 
   [Fact]
+  public void Text_log_cache_round_trip_preserves_line_offsets() {
+    using var scope = new CacheScope();
+    File.WriteAllText(scope.LogPath, "alpha\nbeta\ngamma\n");
+
+    List<string> scanned;
+    using (var buffer = new DFLogBuffer(scope.LogPath)) {
+      scope.TrackCache(buffer);
+      Assert.False(buffer.LastLoadFromCache);
+      scanned = Lines(buffer);
+      Assert.Equal(3, buffer.Count);
+    }
+
+    scope.RequireCache();
+    using var cached = new DFLogBuffer(scope.LogPath);
+    Assert.True(cached.LastLoadFromCache);
+    Assert.Equal(scanned, Lines(cached));
+  }
+
+  [Fact]
   public void Same_length_edit_rejects_the_stale_cache() {
     using var scope = new CacheScope();
     File.WriteAllBytes(scope.LogPath, BuildLog(50));
-    using (new DFLogBuffer(scope.LogPath)) {
+    using (var first = new DFLogBuffer(scope.LogPath)) {
+      scope.TrackCache(first);
     }
-    Assert.NotEmpty(scope.CacheFiles());
+    scope.RequireCache();
 
-    // same byte count, different content - the cache path encodes only the
-    // length, so this must be caught by the recorded write time
+    // Same byte count and source path, different content: the recorded write
+    // time must prevent the old index from being reused.
     File.WriteAllBytes(scope.LogPath, BuildLog(50, flip: 1));
     File.SetLastWriteTimeUtc(scope.LogPath, DateTime.UtcNow.AddSeconds(3));
 
     using var buffer = new DFLogBuffer(scope.LogPath);
-    Assert.False(DFLogBuffer.LastLoadFromCache,
+    Assert.False(buffer.LastLoadFromCache,
         "a cache for an older copy of the log was loaded");
     Assert.Equal(51, buffer.Count);
   }
 
   /// <summary>
-  /// The cache lives in the shared temp directory, so a crafted file with a
-  /// valid header but an absurd list length must be rejected by the
-  /// plausibility bound instead of turning into a giant pre-allocation.
+  /// A crafted file with a valid header but an absurd list length must be
+  /// rejected by the plausibility bound instead of turning into a giant
+  /// pre-allocation.
   /// </summary>
   [Fact]
   public void Implausible_list_length_in_the_cache_is_rejected() {
@@ -132,10 +163,11 @@ public class DflogBufferCacheTests {
 
     List<string> scanned;
     using (var buffer = new DFLogBuffer(scope.LogPath)) {
+      scope.TrackCache(buffer);
       scanned = Lines(buffer);
     }
 
-    string cache = Assert.Single(scope.CacheFiles());
+    string cache = scope.RequireCache();
     var source = new FileInfo(scope.LogPath);
     using (var file = File.Create(cache))
     using (var gzip = new System.IO.Compression.GZipStream(
@@ -150,9 +182,59 @@ public class DflogBufferCacheTests {
     }
 
     using (var buffer = new DFLogBuffer(scope.LogPath)) {
-      Assert.False(DFLogBuffer.LastLoadFromCache);
+      Assert.False(buffer.LastLoadFromCache);
       Assert.Equal(scanned, Lines(buffer));
     }
+  }
+
+  [Fact]
+  public void Structurally_valid_but_out_of_range_offset_is_rejected() {
+    using var scope = new CacheScope();
+    File.WriteAllBytes(scope.LogPath, BuildLog(50));
+
+    List<string> scanned;
+    using (var buffer = new DFLogBuffer(scope.LogPath)) {
+      scope.TrackCache(buffer);
+      scanned = Lines(buffer);
+    }
+
+    string cache = scope.RequireCache();
+    byte[] payload;
+    using (var source = File.OpenRead(cache))
+    using (var gzip = new System.IO.Compression.GZipStream(
+        source, System.IO.Compression.CompressionMode.Decompress))
+    using (var output = new MemoryStream()) {
+      gzip.CopyTo(output);
+      payload = output.ToArray();
+    }
+
+    // Header is 32 bytes, followed by the offset-list count and first offset.
+    BitConverter.GetBytes(new FileInfo(scope.LogPath).Length + 1).CopyTo(payload, 36);
+    using (var output = File.Create(cache))
+    using (var gzip = new System.IO.Compression.GZipStream(
+        output, System.IO.Compression.CompressionMode.Compress)) {
+      gzip.Write(payload);
+    }
+
+    using var reopened = new DFLogBuffer(scope.LogPath);
+    Assert.False(reopened.LastLoadFromCache);
+    Assert.Equal(scanned, Lines(reopened));
+  }
+
+  [Fact]
+  public void Cache_observability_is_per_buffer_instance() {
+    using var scope = new CacheScope();
+    File.WriteAllBytes(scope.LogPath, BuildLog(50));
+
+    using var scanned = new DFLogBuffer(scope.LogPath);
+    scope.TrackCache(scanned);
+    Assert.False(scanned.LastLoadFromCache);
+    scope.RequireCache();
+
+    using var cached = new DFLogBuffer(scope.LogPath);
+    Assert.True(cached.LastLoadFromCache);
+    Assert.False(scanned.LastLoadFromCache,
+        "opening another log buffer changed this instance's cache state");
   }
 
   [Theory]
@@ -164,10 +246,11 @@ public class DflogBufferCacheTests {
 
     List<string> scanned;
     using (var buffer = new DFLogBuffer(scope.LogPath)) {
+      scope.TrackCache(buffer);
       scanned = Lines(buffer);
     }
 
-    string cache = Assert.Single(scope.CacheFiles());
+    string cache = scope.RequireCache();
     if (mode == "garbage") {
       File.WriteAllBytes(cache, new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 });
     } else {
@@ -178,7 +261,7 @@ public class DflogBufferCacheTests {
     }
 
     using (var buffer = new DFLogBuffer(scope.LogPath)) {
-      Assert.False(DFLogBuffer.LastLoadFromCache);
+      Assert.False(buffer.LastLoadFromCache);
       Assert.Equal(scanned, Lines(buffer));
       Assert.Equal(50, buffer.GetEnumeratorType("TST").Count());
     }
