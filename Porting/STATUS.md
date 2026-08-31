@@ -1,6 +1,6 @@
 # Avalonia in-place migration status
 
-Updated: **2026-08-30**.
+Updated: **2026-08-31**.
 
 ## Dual startup MAVLink UDP listeners and Debian handoff
 
@@ -34,12 +34,16 @@ Updated: **2026-08-30**.
   executable, airport-resource and forbidden Windows-native-library payload checks pass. An
   isolated extracted-package Xvfb launch reaches the normal event loop (expected timeout 124),
   emits no stdout/stderr or crash log, creates no empty telemetry logs, and `ss` confirms the
-  packaged process owns both `0.0.0.0:14550` and `0.0.0.0:14551` simultaneously.
-- No merge to `master`, push, tag or GitHub release was performed for this checkpoint. The only
-  source change after clean package commit `3b88492d1` is this status handoff. Remaining blocker:
-  none for local integration and Debian packaging. Next executable step: after explicit approval,
-  merge `port/avalonia-in-place` to `master`, run CI/CodeQL on the merge commit, and verify both
-  default inputs with simultaneous physical telemetry sources before a tagged release.
+  packaged process owns both `0.0.0.0:14550` and `0.0.0.0:14551` simultaneously. This is the
+  pre-merge local acceptance package; the GitHub workflow rebuilds every platform artifact from
+  the exact final tagged commit and therefore uses that commit's hash in its filenames.
+- Release was explicitly requested on 2026-08-31. `port/avalonia-in-place` was merged without
+  conflict into local `master` by merge commit `55bdaf2b1`; all functional, test, documentation
+  and local-sequence commits are ancestors of that merge. This post-merge status update is the
+  only subsequent source change and forms the release checkpoint. Remaining blocker: none before
+  remote gates. Next executable step: push this checkpoint to `origin/master`, require its complete
+  CI/package and CodeQL runs to pass, then tag the same commit as
+  `v1.3.83.2-<8-character-commit-hash>` and verify the resulting public GitHub Release assets.
 
 ## NV4 parameter-catalog synchronization and Debian handoff
 
