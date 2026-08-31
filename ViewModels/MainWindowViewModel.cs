@@ -212,6 +212,9 @@ public partial class MainWindowViewModel : ViewModelBase, System.IDisposable {
       }
       CurrentScreen = nextScreen;
     }
+    if (nextScreen is IActivationAware activation) {
+      activation.Activate();
+    }
   }
 
   [RelayCommand]

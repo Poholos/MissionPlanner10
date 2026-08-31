@@ -21,7 +21,7 @@ using Newtonsoft.Json.Linq;
 
 namespace MissionPlanner.ViewModels;
 
-public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
+public partial class FlightPlannerViewModel : ViewModelBase, IActivationAware, IDisposable {
   private MAVLinkInterface _comPort => AppState.comPort;
   private bool _recomputing;
   private bool _restoringUndo;
@@ -69,6 +69,29 @@ public partial class FlightPlannerViewModel : ViewModelBase, IDisposable {
     OnPropertyChanged(nameof(ShowLoiterRadius));
     OnPropertyChanged(nameof(VehicleFirmware));
   });
+
+  public void Activate() => RefreshHomeFromVehicle(
+      _comPort.MAV.cs.HomeLocation, _comPort.MAV.cs.PlannedHomeLocation);
+
+  internal void RefreshHomeFromVehicle(PointLatLngAlt? reportedHome,
+      PointLatLngAlt? plannedHome) {
+    PointLatLngAlt? home = IsValidHome(reportedHome)
+        ? reportedHome
+        : IsValidHome(plannedHome) ? plannedHome : null;
+    if (home == null) {
+      return;
+    }
+
+    HomeLat = home.Lat;
+    HomeLng = home.Lng;
+    HomeAlt = home.Alt;
+  }
+
+  private static bool IsValidHome(PointLatLngAlt? home) => home != null
+      && double.IsFinite(home.Lat) && home.Lat is >= -90 and <= 90
+      && double.IsFinite(home.Lng) && home.Lng is >= -180 and <= 180
+      && double.IsFinite(home.Alt)
+      && (home.Lat != 0 || home.Lng != 0);
 
   private void RefreshDisplayView() {
     var profile = Services.DisplayViewService.Current;

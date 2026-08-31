@@ -2,6 +2,34 @@
 
 Updated: **2026-08-31**.
 
+## Flight Planner vehicle-home synchronization
+
+- Dedicated branch `fix/flight-planner-vehicle-home-sync` starts from merged `master`
+  `f02eefd87`. Commit `279db6eab` refreshes Flight Planner home state whenever PLAN is selected or
+  reselected; commit `d7132c4d0` adds the isolated helper and shell-navigation regressions. The
+  comparison source is official `ArduPilot/MissionPlanner` commit `2b5589f40`.
+- The persisted `TXT_homelat`/`TXT_homelng` values could remain at an earlier planning site after a
+  different vehicle connected. Adding enough local waypoints then correctly drew the official
+  `last -> home -> first` route, but against that stale home. PLAN activation now prefers the
+  autopilot-reported `HomeLocation`, falls back to `PlannedHomeLocation`, and retains the saved
+  planner home only when neither vehicle coordinate is valid. Route construction and its solid or
+  dashed styling are unchanged.
+- The focused `FlightPlannerHomeSyncTests` pass **4/4**, `PlannerPortParityTests` pass **59/59**,
+  and `dotnet build MissionPlanner.csproj -c Release -m:1 --no-restore` succeeds with **0 warnings /
+  0 errors**. The complete Avalonia suite ran **1562** cases: **1561 passed** and only the existing
+  environment-sensitive `VideoSourceResolverTests.NormalizesCommonStreamSources` `/dev/video0`
+  case failed; neither the resolver nor its test changes on this branch.
+- Behavior, integration and test reviewers approve the implementation and test tuple `279db6eab`
+  + `d7132c4d0`. The worktree still contains only the user's five pre-existing modifications in
+  `Drivers/inf2cat.bat`, `Drivers/uninstall_drivers.bat`,
+  `ExtLibs/Mavlink/regenerate.bat`, `ExtLibs/Mavlink/updatexmls.bat` and `graphs/updatexmls.bat`;
+  none is staged or included. Claude remains disabled.
+- No code or test blocker remains. The screenshot process loaded the older `7de82f8a`, so manual
+  acceptance requires rebuilding and relaunching this branch: connect a vehicle whose reported
+  home differs from the saved planner home, select and reselect PLAN, confirm the Home Location
+  fields follow the vehicle home, then add local waypoints and confirm the closing route remains
+  local. The separately observed Flight Data bearing-axis zoom behavior remains excluded.
+
 ## Flight Planner waypoint viewport stability
 
 - Dedicated branch `fix/flight-planner-waypoint-viewport-stability` starts from merged `master`
