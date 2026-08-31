@@ -2,6 +2,44 @@
 
 Updated: **2026-08-31**.
 
+## Choice-dialog action layout
+
+- Dedicated branch `fix/dialog-choice-button-layout` starts from merged `master` `4700897ad`.
+  Commit `5e8d86341` makes choice dialogs size to their content within a 380px minimum and 760px
+  maximum and lets action buttons wrap when the window is constrained; commit `664f4d5e2` adds the
+  exact four-button updater-dialog regression.
+- `Dialogs.Choice` previously reused the fixed 380px generic dialog frame with a single horizontal
+  `StackPanel`. The updater actions required more width, so the final **Later** button painted past
+  the client edge and was clipped. The choice dialog now expands enough to keep those actions on
+  one row under normal sizing, while a `WrapPanel` keeps every action inside the window if the
+  platform constrains it to the minimum. Updater/version behavior is unchanged on this branch.
+- `DialogLayoutTests` passes **1/1** and renders the reported labels at both automatic width and a
+  verified 380px window width, checking horizontal and vertical containment. The automatic layout
+  also must retain one action row. `dotnet build MissionPlanner.csproj -c Release -m:1 --no-restore`
+  succeeds with **0 warnings / 0 errors**. The complete Avalonia suite ran **1566** cases: **1565
+  passed** and only the existing environment-sensitive
+  `VideoSourceResolverTests.NormalizesCommonStreamSources` `/dev/video0` case failed; neither the
+  resolver nor its test changes on this branch.
+- Behavior, integration and test reviewers approve the code/test tuple `5e8d86341` + `664f4d5e2`.
+  The worktree still contains only the user's five pre-existing modifications in
+  `Drivers/inf2cat.bat`, `Drivers/uninstall_drivers.bat`, `ExtLibs/Mavlink/regenerate.bat`,
+  `ExtLibs/Mavlink/updatexmls.bat` and `graphs/updatexmls.bat`; none is staged or included. Claude
+  remains disabled.
+- PR #31's first CI run `33410216298` published, signed and verified the x64 app, then failed while
+  creating its DMG; the arm64 package passed. An earlier run `33381702003` failed at the same
+  boundary on arm64 with `Resource temporarily unavailable`, while its x64 package passed. Commit
+  `f04397be3` gives DMG creation and immediate verification three bounded attempts with 2s/4s
+  backoff, removes a partial image before recreating it, and exposes `hdiutil` diagnostics. A
+  persistent packaging error still fails the build. `bash -n build/macos/make-dmg.sh` and
+  `git diff --check` pass; integration and test reviewers approve the CI hardening.
+- Follow-up CI run `33411440256` passed on pushed head `719b1858b`: the complete Linux build/test
+  and package job, Windows package build/install validation, and both macOS x64 and arm64 signed
+  app/DMG builds, mount checks and artifact uploads are green. No automated blocker remains. Manual
+  UI acceptance requires rebuilding and relaunching this branch and opening a four-action choice
+  such as the update prompt for a genuinely newer signed release: all four buttons must be visible
+  and clickable. After this UI fix lands, the next separate task is the Flight Data bearing/target
+  overlay behavior while zooming.
+
 ## Updater equal-version metadata precedence
 
 - Dedicated branch `fix/updater-same-version-prompt` starts from merged `master` `3e7ce29e1`.
