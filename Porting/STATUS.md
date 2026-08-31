@@ -2,6 +2,33 @@
 
 Updated: **2026-08-31**.
 
+## Flight Data vehicle-overlay marker rendering
+
+- Dedicated branch `fix/flight-data-vehicle-overlay-rendering` starts from pulled `master`
+  `5a1c11ea3`. Commit `7379e6dde` scopes the active aircraft triangle to its point feature;
+  commit `109872c5e` adds the rendering regression test, and reviewer follow-up `a4f218da0`
+  exercises the complete live fixed-wing layer with all four bearing lines and its radius arc.
+- Flight Data previously assigned `MavMarker.Vehicle` as the style of the complete `Vehicle`
+  layer, then added heading, course, navigation-bearing, target-bearing and turn-radius geometries
+  to that same layer. Mapsui consequently painted the aircraft symbol on those geometries too,
+  producing duplicated arrowheads and a striped fan along the turn-radius arc. The layer now has
+  no shared symbol style, while its aircraft point owns the triangle style; bearing and radius
+  features retain only their vector styles. Log Browse sample markers use the same safe path.
+- `dotnet build MissionPlanner.csproj -c Release -m:1 --no-restore` succeeds with **0 warnings / 0
+  errors**, and the focused `FlightMapOverlayTests` pass **28/28**. The complete Avalonia suite ran
+  **1555** cases: **1554 passed** and only the existing environment-sensitive
+  `VideoSourceResolverTests.NormalizesCommonStreamSources` `/dev/video0` case failed. Neither the
+  resolver nor its test changes on this branch.
+- The worktree still contains the user's five pre-existing modifications in
+  `Drivers/inf2cat.bat`, `Drivers/uninstall_drivers.bat`, `ExtLibs/Mavlink/regenerate.bat`,
+  `ExtLibs/Mavlink/updatexmls.bat` and `graphs/updatexmls.bat`; none is staged or included in these
+  commits. Claude remains disabled.
+- No code blocker remains. The next executable acceptance step is a fixed-wing SITL flight with
+  bearing and turn-radius overlays enabled: confirm exactly one aircraft triangle is rendered and
+  the colored guide lines and radius arc remain clean. The separately observed Flight Planner
+  viewport jump between a distant persisted home and new waypoints is intentionally excluded from
+  this branch and should be handled after this fix lands.
+
 ## Flight Data Auto Pan settings parity
 
 - Dedicated branch `fix/flight-data-autopan-settings` carries four granular code/test commits:
