@@ -54,6 +54,7 @@ public class FlightPlannerMap : MapControl {
   private int _dragIndex = -1;
   private bool _pressedOnWaypoint;
   private readonly List<MPoint> _mapOverlayPoints = [];
+  private int _waypointRedrawVersion;
 
   private readonly HashSet<int> _groupSet = new();
   private readonly Dictionary<int, (double Lat, double Lng)> _groupSnapshot = new();
@@ -135,6 +136,11 @@ public class FlightPlannerMap : MapControl {
       IReadOnlyList<(int Seq, double Lat, double Lng, ushort Cmd, double P1, double P2, double P3,
           double P4)> wps,
       double wpRadius, double loiterRadius, Firmwares firmware) {
+    var viewportBeforeRedraw = Map.Navigator.Viewport;
+    bool preserveViewport = _centered && viewportBeforeRedraw.HasSize()
+        && double.IsFinite(viewportBeforeRedraw.Resolution)
+        && viewportBeforeRedraw.Resolution > 0;
+    int redrawVersion = ++_waypointRedrawVersion;
     _wpRadius = RadiusInMeters(wpRadius, CurrentState.multiplierdist);
     _loiterRadius = RadiusInMeters(loiterRadius, CurrentState.multiplierdist);
     _firmware = firmware;
@@ -154,6 +160,29 @@ public class FlightPlannerMap : MapControl {
       double res = 156543.03392804097 / Math.Pow(2, 17);
       Map.Navigator.CenterOnAndZoomTo(new MPoint(x, y), res);
       _centered = true;
+    } else if (preserveViewport) {
+      RestoreViewport(viewportBeforeRedraw);
+      // Mapsui may finish an extent-reactive refresh after this input callback returns.
+      Dispatcher.UIThread.Post(() => {
+        if (redrawVersion == _waypointRedrawVersion) {
+          RestoreViewport(viewportBeforeRedraw);
+        }
+      });
+    }
+  }
+
+  private void RestoreViewport(Viewport expected) {
+    Viewport current = Map.Navigator.Viewport;
+    if (current.CenterX.Equals(expected.CenterX)
+        && current.CenterY.Equals(expected.CenterY)
+        && current.Resolution.Equals(expected.Resolution)
+        && current.Rotation.Equals(expected.Rotation)) {
+      return;
+    }
+    Map.Navigator.CenterOnAndZoomTo(
+        new MPoint(expected.CenterX, expected.CenterY), expected.Resolution);
+    if (!Map.Navigator.Viewport.Rotation.Equals(expected.Rotation)) {
+      Map.Navigator.RotateTo(expected.Rotation);
     }
   }
 

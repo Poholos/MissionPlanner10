@@ -2,6 +2,33 @@
 
 Updated: **2026-08-31**.
 
+## Flight Planner waypoint viewport stability
+
+- Dedicated branch `fix/flight-planner-waypoint-viewport-stability` starts from merged `master`
+  `fb7896112`. Commit `788d49d32` preserves an already initialized Flight Planner viewport across
+  waypoint redraws; commit `27a4a899a` adds the SFO-home/Kyiv-mission regression and official
+  closing-route style checks; reviewer follow-up `cd13dfbfd` exercises the deferred repair ordering.
+- `SetWaypoints` snapshots centre, resolution and rotation only after the planner has established a
+  valid viewport. It restores an inline redraw mutation immediately and posts one version-gated
+  restore for an extent-reactive mutation queued by the same redraw. Initial startup and first-point
+  centring remain unchanged. The official `last -> home -> first` route is still rendered: a distant
+  route remains solid and a route whose two home legs are both under 5 km remains dashed.
+- Behavior, integration and test reviewers approve exact HEAD `cd13dfbfd`. The focused
+  `FlightPlannerViewportTests` pass **3/3**, and `PlannerPortParityTests` pass **59/59**.
+  `dotnet build MissionPlanner.csproj -c Release -m:1 --no-restore` succeeds with **0 warnings / 0
+  errors**. The complete Avalonia suite ran **1558** cases: **1557 passed** and only the existing
+  environment-sensitive `VideoSourceResolverTests.NormalizesCommonStreamSources` `/dev/video0`
+  case failed; neither the resolver nor its test changes on this branch.
+- The worktree still contains the user's five pre-existing modifications in
+  `Drivers/inf2cat.bat`, `Drivers/uninstall_drivers.bat`, `ExtLibs/Mavlink/regenerate.bat`,
+  `ExtLibs/Mavlink/updatexmls.bat` and `graphs/updatexmls.bat`; none is staged or included in these
+  commits. Claude remains disabled.
+- The currently running Debug process loaded older commit `8f63d8d1`, so it must be stopped and
+  relaunched from the repository root before manual acceptance. Keep a connected SFO home, pan Plan
+  to Kyiv, add at least three waypoints and confirm the local centre/zoom does not change; the long
+  solid closing route must remain rendered. The separately observed Flight Data bearing-axis
+  behavior while zooming remains excluded and is the next independent bug.
+
 ## Flight Data vehicle-overlay marker rendering
 
 - Dedicated branch `fix/flight-data-vehicle-overlay-rendering` starts from pulled `master`
