@@ -120,6 +120,51 @@ public class FlightMapOverlayTests {
     }
   }
 
+  [AvaloniaFact]
+  public void Bearing_overlays_keep_configured_map_length_when_viewport_zooms() {
+    string[] settingKeys = {
+      "GMapMarkerBase_Length",
+      "GMapMarkerBase_DisplayHeading",
+      "GMapMarkerBase_DisplayNavBearing",
+      "GMapMarkerBase_DisplayCOG",
+      "GMapMarkerBase_DisplayTarget",
+      "GMapMarkerBase_DisplayRadius",
+    };
+    var saved = settingKeys.ToDictionary(key => key, key => Utilities.Settings.Instance[key]);
+    try {
+      Utilities.Settings.Instance["GMapMarkerBase_Length"] = "500";
+      Utilities.Settings.Instance["GMapMarkerBase_DisplayHeading"] = bool.TrueString;
+      foreach (string key in settingKeys.Skip(2)) {
+        Utilities.Settings.Instance[key] = bool.FalseString;
+      }
+
+      using var link = new MAVLinkInterface();
+      MAVState mav = link.MAV;
+      mav.cs.yaw = 90;
+      var point = new Mapsui.MPoint(1000, 2000);
+      var map = new MapView();
+      map.Map.Navigator.SetSize(1000, 800);
+      map.Map.Navigator.CenterOnAndZoomTo(point, 2);
+      map.PopulateVehicleLayer(mav, point, map.Map.Navigator.Viewport.Resolution);
+
+      Assert.Equal(250, BearingLineScreenLength(map), 6);
+
+      map.Map.Navigator.CenterOnAndZoomTo(point, 8);
+
+      Assert.Equal(8, map.Map.Navigator.Viewport.Resolution, 6);
+      Assert.Equal(62.5, BearingLineScreenLength(map), 6);
+
+      // A periodic telemetry redraw must not expand the vector back to 500 screen pixels.
+      map.PopulateVehicleLayer(mav, point, map.Map.Navigator.Viewport.Resolution);
+
+      Assert.Equal(62.5, BearingLineScreenLength(map), 6);
+    } finally {
+      foreach ((string key, string? value) in saved) {
+        Utilities.Settings.Instance[key] = value;
+      }
+    }
+  }
+
   [Theory]
   [InlineData(Firmwares.ArduCopter2, 1, 2, 150, true)]
   [InlineData(Firmwares.ArduCopter2, 1, 3, 150, true)]
@@ -189,4 +234,14 @@ public class FlightMapOverlayTests {
         x = (int)Math.Round(lat * 1e7),
         y = (int)Math.Round(lng * 1e7),
       };
+
+  private static double BearingLineScreenLength(MapView map) {
+    Mapsui.Layers.WritableLayer layer = Assert.IsType<Mapsui.Layers.WritableLayer>(
+        Assert.Single(map.Map.Layers, candidate => candidate.Name == "Vehicle"));
+    Mapsui.Nts.GeometryFeature feature = Assert.Single(
+        layer.GetFeatures().OfType<Mapsui.Nts.GeometryFeature>());
+    var line = Assert.IsType<NetTopologySuite.Geometries.LineString>(feature.Geometry);
+    return line.Coordinates[0].Distance(line.Coordinates[1])
+        / map.Map.Navigator.Viewport.Resolution;
+  }
 }
