@@ -42,8 +42,19 @@ Updated: **2026-08-30**.
   dflog/dataflash/expression set still passes (fallback verified), as does a full-suite run with
   `DFLOG_NATIVE=0`. Full suite 1568/1580; the failures are the known environment-dependent
   set, unchanged from master.
-- Remaining blocker: none for this phase. Next executable step: measure the converted paths
-  against a large real log for the PR description, then phase 4 - rustup targets in
+- Measured (medians of 3, warm file cache) over three logs: the 247.7 MiB concatenated SITL
+  corpus (6.37M records; 39k ATT / 196k IMU rows) and two real flight logs from Andrew
+  Tridgell's public archive (uav.tridgell.net/tmp): 00000145.BIN (139.8 MiB, 2024, 169k ATT
+  rows) and 4.0.9Stable_AltitudeRunaway.BIN (259.4 MiB, 2021, 906k IMU rows). Native vs
+  managed: open 1.5-2.4x (0.48 s -> 0.20 s on the 259 MiB log); ReadField (one curve, open +
+  decode) 1.4-2.0x; rows view (7 IMU fields) 7.6 s -> 0.67 s, 3.2 s -> 0.32 s, and 10.4 s ->
+  0.52 s (20x, the dense-IMU real log) - one pass and one open instead of seven; decode alone on
+  an open buffer 3-10x; expression evaluation 1.4-1.9x. Row counts cross-checked managed vs
+  native before timing on every log. Observation for a later change: every consumer re-opens the
+  DFLogBuffer per call, so the open dominates single-curve numbers - a shared buffer per loaded
+  log would compound these wins. Logs over 300 MiB currently cannot A/B at all: the managed
+  path's unguarded BinaryFormatter SaveCache (the phase-2 latent-bug note) throws on .NET 10.
+- Remaining blocker: none for this phase. Next executable step: phase 4 - rustup targets in
   ci.yml/release.yml, `DFLOG_REQUIRE_NATIVE=1` in CI, and packaging assertions for the shipped
   library.
 
