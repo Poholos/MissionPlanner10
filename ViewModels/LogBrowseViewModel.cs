@@ -238,7 +238,7 @@ public partial class LogBrowseViewModel : ViewModelBase {
       return (Array.Empty<string>(), Array.Empty<IReadOnlyList<string>>());
     }
     var columns = new[] { "time" }.Concat(fields).ToList();
-    var perField = fields.Select(f => DataFlashLog.ReadField(CurrentPath, type, f)).ToList();
+    var perField = DataFlashLog.ReadFields(CurrentPath, type, fields);
     int n = Math.Min(maxRows, perField.Count > 0 ? perField.Min(s => s.Count) : 0);
     var rows = new List<IReadOnlyList<string>>(n);
     for (int i = 0; i < n; i++) {

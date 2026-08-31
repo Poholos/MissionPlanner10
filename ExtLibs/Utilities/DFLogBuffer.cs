@@ -83,6 +83,10 @@ namespace MissionPlanner.Utilities
         /// <summary>Whether the last setlinecount used the native scanner.</summary>
         internal static bool LastScanNative;
 
+        /// <summary>Successful native column queries, so tests can prove a
+        /// converted consumer actually took the fast path.</summary>
+        internal static long NativeColumnHits;
+
         DFLogNative.ColumnReader nativeColumns;
         bool nativeColumnsTried;
 
@@ -127,8 +131,11 @@ namespace MissionPlanner.Utilities
                     nativeColumns = DFLogNative.ColumnReader.Open(_filename);
                 }
 
-                return nativeColumns != null &&
-                       nativeColumns.TryGetColumns(type, fields, instance, out linenos, out columns);
+                var ok = nativeColumns != null &&
+                         nativeColumns.TryGetColumns(type, fields, instance, out linenos, out columns);
+                if (ok)
+                    System.Threading.Interlocked.Increment(ref NativeColumnHits);
+                return ok;
             }
         }
 
@@ -157,7 +164,11 @@ namespace MissionPlanner.Utilities
                     nativeColumns = DFLogNative.ColumnReader.Open(_filename);
                 }
 
-                return nativeColumns != null && nativeColumns.TryGetArrayColumn(type, field, out linenos, out rows);
+                var ok = nativeColumns != null &&
+                         nativeColumns.TryGetArrayColumn(type, field, out linenos, out rows);
+                if (ok)
+                    System.Threading.Interlocked.Increment(ref NativeColumnHits);
+                return ok;
             }
         }
 
@@ -1002,6 +1013,32 @@ namespace MissionPlanner.Utilities
                 return null;
 
             return labels[index].Trim();
+        }
+
+        /// <summary>
+        /// The FMT format character for <paramref name="field"/> of
+        /// <paramref name="type"/> (e.g. 'f' for a float, 'M' for a flight
+        /// mode the managed decoder renders as text), or null when the type
+        /// or field is unknown.
+        /// </summary>
+        public char? GetFieldFormatChar(string type, string field)
+        {
+            if (!dflog.logformat.ContainsKey(type))
+                return null;
+
+            var typeid = dflog.logformat[type].Id;
+            if (!FMT.ContainsKey(typeid))
+                return null;
+
+            var labels = FMT[typeid].columns.Split(',');
+            var format = FMT[typeid].format;
+            for (int i = 0; i < labels.Length && i < format.Length; i++)
+            {
+                if (labels[i].Trim() == field)
+                    return format[i];
+            }
+
+            return null;
         }
 
         public int getInstanceIndex(string type)

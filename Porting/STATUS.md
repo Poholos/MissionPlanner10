@@ -2,6 +2,51 @@
 
 Updated: **2026-08-30**.
 
+## Native dataflash log core, phase 3: converted consumers (branch feature/dflog-native-consumers, stacked on phase 2)
+
+- `DataFlashLog.ReadField` takes the native columnar path (value column plus the same time field
+  `DFItem.timems` resolves - TimeMS, then TimeUS, then T - with the managed enumeration loop as
+  in-place fallback); this feeds LogBrowse curves, the timed track, and the rows view. New
+  `ReadFields` decodes one type's fields in a single pass for the rows view instead of one full
+  enumeration per field. Seconds are computed with the same two-step division as the managed path
+  - a single multiplication by the combined reciprocal differs by 1 ULP and the parity tests
+  catch it.
+- `DataFlashExpressionEvaluator.Evaluate` (the preset/expression graphing path) gained a
+  columnwise evaluation: per referenced type one native decode (fields + time field + instance
+  column when referenced), then the exact latest-value merge the enumeration performs, replayed
+  in global record order via native linenos - the order-sensitive lowpass/delta functions see the
+  same sequence. Any fetch failure falls back to the unchanged enumeration path.
+- `ConfigFFTViewModel` collects ISBH/ISBD batch samples (header/data state machine merged by line
+  number) and IMU/IMU2/IMU3 series natively; `Spectrogram` gained the equivalent ISBH/ISBD fast
+  path (ported from the upstream fork). Deliberately not converted: `OfflineMagFitService` and
+  `LogIndexService` (their `CancellationReadStream` wrapper hides the file path by design),
+  `ReadTrack`/KML export (wall-clock `item.time` semantics, cold path), `ReadOverlay`/messages/
+  parameters (string-valued).
+- Value semantics note, also in the code comments: the managed paths parse display strings
+  (floats rounded to 7 significant digits); the native paths carry raw decoded values. Parity
+  tests bound the difference (timestamps tick-exact; values within display rounding; FFT dB
+  magnitudes within 0.01 dB - rounding amplified through bin cancellation and the log scale).
+- 'M' (flight mode) fields are excluded from every native path (`DFLogBuffer.GetFieldFormatChar`
+  gate in the field reads and the evaluator): the managed decoder renders them as
+  resolver-dependent text, natively they are plain numbers, and a graph must show the same thing
+  with and without the library. Making both paths numeric (which would make MODE graphable) is a
+  deliberate behavior change to raise separately. The FFT/spectrogram batch paths also verify
+  that the numeric and array queries describe the same row count before indexing one by the
+  other, falling back to the enumeration loop otherwise.
+- Tests: `DflogNativeConsumerTests` (16 cases) - field reads, multi-field reads, five expression
+  shapes (single type, interleaved types, instanced reference, lowpass, delta), ISBH and IMU FFT,
+  spectrogram, the mode-field gate (engagement counter must not move), and an always-on
+  fallback-equality test for the multi-field read - each parity case run managed-vs-native with
+  the engagement counter (`DFLogBuffer.NativeColumnHits`) proving the fast path took effect.
+  Parity cases skip on hosts without the library; with the library removed, the full
+  dflog/dataflash/expression set still passes (fallback verified), as does a full-suite run with
+  `DFLOG_NATIVE=0`. Full suite 1568/1580; the failures are the known environment-dependent
+  set, unchanged from master.
+- Remaining blocker: none for this phase. Next executable step: measure the converted paths
+  against a large real log for the PR description, then phase 4 - rustup targets in
+  ci.yml/release.yml, `DFLOG_REQUIRE_NATIVE=1` in CI, and packaging assertions for the shipped
+  library.
+
 ## Native dataflash log core, phase 2: P/Invoke bindings and DFLogBuffer fast paths (branch feature/dflog-native-bindings, stacked on phase 1)
 
 - `ExtLibs/Utilities/DFLogNative.cs` (ported from the upstream fork, ABI v5): internal P/Invoke
