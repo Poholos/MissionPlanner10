@@ -1485,7 +1485,7 @@ public partial class FlightPlannerViewModel : ViewModelBase, IActivationAware, I
     } catch (Exception ex) {
       string kml = Services.LocalKmlServer.BuildMissionKml(
           pts.Select(w => new Services.LocalKmlWaypoint(
-              $"WP {w.Seq}", w.Lat, w.Lng, w.Alt)));
+              $"WP {w.DisplayNumber}", w.Lat, w.Lng, w.Alt)));
       var path = Path.Combine(Path.GetTempPath(), "mission.kml");
       File.WriteAllText(path, kml);
       Services.Dialogs.OpenUrl(path);
@@ -1495,7 +1495,7 @@ public partial class FlightPlannerViewModel : ViewModelBase, IActivationAware, I
 
   private void PublishLocalKmlMission() => AppState.LocalKml.UpdateMission(
       Waypoints.Select(w => new Services.LocalKmlWaypoint(
-          $"WP {w.Seq}", w.Lat, w.Lng, w.Alt)));
+          $"WP {w.DisplayNumber}", w.Lat, w.Lng, w.Alt)));
 
   [Obsolete]
   private void WriteRadiusParams() {
@@ -3173,6 +3173,10 @@ public partial class WpRow : ObservableObject {
 
   [ObservableProperty]
   private int _seq;
+
+  public int DisplayNumber => Seq + 1;
+
+  partial void OnSeqChanged(int value) => OnPropertyChanged(nameof(DisplayNumber));
 
   [ObservableProperty]
   private ushort _command;

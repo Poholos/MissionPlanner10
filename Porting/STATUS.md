@@ -2,6 +2,35 @@
 
 Updated: **2026-08-31**.
 
+## Flight Planner waypoint display numbering
+
+- Dedicated branch `fix/flight-planner-waypoint-numbering` starts from merged `master`
+  `1cbe17b87`. Behavior commit `03fca7c64` makes human-facing Planner waypoint numbers
+  one-based; regression commit `054f9c7f1` covers the row model and map markers.
+- Official Mission Planner removes mission item zero (home) before building the Flight Data
+  waypoint overlay, labels the remaining items with `a + 1`, and numbers Flight Planner row
+  headers with `a + 1`. The Avalonia Plan grid and map instead exposed zero-based `WpRow.Seq`, so
+  its first planned point appeared as 0 while Flight Data correctly showed 1.
+- `WpRow.Seq` remains zero-based for editing, plugin APIs, mission transfer, `DO_JUMP`, map dragging
+  and mission files. New read-only `DisplayNumber` returns `Seq + 1` and raises a dependent property
+  notification whenever rows are renumbered. Only human-facing Plan grid, map-marker and KML labels
+  use the one-based value.
+- Focused `WpRowTests` plus `FlightPlannerViewportTests` pass **18/18**. The Release build succeeds
+  with **0 warnings / 0 errors**. The complete Avalonia suite rerun executed **1569** tests:
+  **1568 passed** and only the existing host-sensitive
+  `VideoSourceResolverTests.NormalizesCommonStreamSources` `/dev/video0` case failed. A serial/TCP
+  loopback timing test failed once during the first full run, then passed alone and in the complete
+  rerun; no bridge source or test changes on this branch.
+- Behavior, integration and test reviewers approve exact code/test head `054f9c7f1` with no
+  protocol, file-format, plugin or map-interaction blocker.
+- The worktree still contains only the user's five pre-existing modifications in
+  `Drivers/inf2cat.bat`, `Drivers/uninstall_drivers.bat`, `ExtLibs/Mavlink/regenerate.bat`,
+  `ExtLibs/Mavlink/updatexmls.bat` and `graphs/updatexmls.bat`; none is staged or included. Claude
+  remains disabled.
+- Manual acceptance: rebuild and relaunch, add at least two Plan points and confirm the grid and map
+  show 1 and 2; upload/read the mission and confirm Flight Data uses the same numbers while current
+  mission status may still correctly report sequence 0 when the vehicle is idle.
+
 ## Flight Data bearing-overlay zoom stability
 
 - Dedicated branch `fix/flight-data-bearing-overlay-zoom` starts from merged `master`

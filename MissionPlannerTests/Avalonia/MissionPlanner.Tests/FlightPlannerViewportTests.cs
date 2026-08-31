@@ -11,6 +11,22 @@ namespace MissionPlanner.Tests;
 
 public class FlightPlannerViewportTests {
   [AvaloniaFact]
+  public void Waypoint_markers_use_one_based_display_numbers() {
+    var map = new FlightPlannerMap();
+
+    map.SetWaypoints(KyivWaypoints(2), 50, 80, Firmwares.ArduPlane);
+
+    WritableLayer waypoints = Assert.IsAssignableFrom<WritableLayer>(
+        Assert.Single(map.Map.Layers, candidate => candidate.Name == "Waypoints"));
+    string[] labels = waypoints.GetFeatures().OfType<PointFeature>()
+        .Select(feature =>
+            Assert.Single(feature.Styles.OfType<LabelStyle>()).GetLabelText(feature) ?? "")
+        .OrderBy(label => label, StringComparer.Ordinal)
+        .ToArray();
+    Assert.Equal(new[] { "1", "2" }, labels);
+  }
+
+  [AvaloniaFact]
   public void Waypoint_redraw_preserves_an_initialized_viewport() {
     var map = new FlightPlannerMap();
     var window = new Window { Width = 1200, Height = 800, Content = map };

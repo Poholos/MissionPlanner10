@@ -539,7 +539,7 @@ public class FlightPlannerMap : MapControl {
       SymbolScale = selected ? 0.8 : 0.6,
     });
     f.Styles.Add(new LabelStyle {
-      Text = seq.ToString(),
+      Text = (seq + 1).ToString(),
       ForeColor = Color.Black,
       BackColor = new Brush(Color.Transparent),
       Font = new Font { Size = 11, Bold = true },
