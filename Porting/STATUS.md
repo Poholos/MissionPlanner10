@@ -1,6 +1,36 @@
 # Avalonia in-place migration status
 
-Updated: **2026-08-31**.
+Updated: **2026-09-01**.
+
+## Local ArduPilot parameter-metadata synchronization
+
+- The authoritative source checkout remained read-only and clean on ArduPilot branch
+  `codex/sitl-udpserver-local-port-20260830`, commit
+  `3b2f9ac14e9da48aff58aa206ae60d80527f6edd`; its merge base with `origin/master` is
+  `582a71193ad2ed2d47e6723a53380447b0038a02`. The ArduCopter pdef was regenerated locally with
+  `Tools/autotest/param_metadata/param_parse.py --vehicle ArduCopter --format xml` and the exact
+  fork delta was reviewed rather than copying the complete 2.8 MB generated catalogue.
+- `ParameterMetaDataLocal.xml` records all **46** affected entries: six Copter flight-mode value
+  lists, thirteen changed/new dead-reckoning entries, Copter's changed `ARSPD_USE`, six generic
+  EKF3 entries and twenty ModelCal entries. This covers the new `DR_OBS_*`, `DR_EKF_*`,
+  `EK3_ARSP_MODE`, `EK3_GPS_Q_*` and `MCAL_*` descriptions, ranges, units, values, reboot and
+  read-only flags, plus the new `31:ModelCal` mode value and the changed `DR_NEXT_MODE` /
+  `EK3_OPTIONS` descriptions.
+- The 29,318-byte pdef overlay is loaded before downloaded upstream metadata, so fork changes to
+  existing fields are visible as well as entirely new parameters. Copter-only library entries are
+  explicitly qualified as `ArduCopter:*`, preventing ModelCal, dead-reckoning and the Copter pitot
+  guidance from leaking into Plane/Rover/Sub; generic EKF3 additions remain available to every
+  vehicle that exposes them. Missing overlay fields still fall through to downloaded pdef and then
+  to the legacy backup. The overlay is copied byte-for-byte into normal output and publish payloads.
+- Functional/data/test commit `839659c7f` is isolated on `port/avalonia-in-place`; `master` and
+  `origin/master` remain at `2f99868f2` in accordance with the branch handoff policy. Focused
+  metadata tests pass **4/4**, the complete Release suite passes **1554/1554**, and
+  `MissionPlanner.slnx` builds with **0 warnings / 0 errors**. A Linux x64 publish contains the
+  byte-identical overlay. All six migration/retirement/artifact gates pass (1623 native rows,
+  0 blockers, 708/708 pinned port paths, and clean WinForms/project/binary/key audits).
+- Remaining blocker: none. Next executable acceptance step is to connect the matching custom
+  firmware and visually verify the new descriptions/editors in Full Parameter List; regenerate
+  and review this small overlay whenever the pinned ArduPilot branch advances.
 
 ## Dual startup MAVLink UDP listeners and Debian handoff
 
