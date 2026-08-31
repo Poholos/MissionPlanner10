@@ -2,6 +2,45 @@
 
 Updated: **2026-08-30**.
 
+## Dual startup MAVLink UDP listeners and Debian handoff
+
+- Work is isolated on `port/avalonia-in-place`, as required by the repository handoff policy.
+  Functional commit `ccbfe7740` restores the two upstream default inbound MAVLink listeners at
+  application startup. UDP 14550 and 14551 bind immediately without waiting for a heartbeat and
+  are registered as two independent `MAVLinkInterface`/secondary-runtime connections. Their
+  vehicle lists, reads, writes, disconnect handling and active-link selection therefore remain
+  isolated; multiple systems received on one port continue to use the existing per-component
+  selector. A silent passive listener no longer makes the primary connection button report a
+  false connected session.
+- Planner Settings has a separate **Startup UDP Listeners** group with an enabled-by-default
+  toggle and validated primary/alternate ports (14550/14551). Invalid persisted values fall back
+  to the documented defaults, equal port values create one listener, and changes explicitly take
+  effect after restart. Each listener opens its telemetry log only when its first datagram is
+  ready, so launches without telemetry do not create empty `.tlog`/`.rlog` files. Binding failure
+  on one configured port is contained and does not prevent the other port or the application from
+  starting.
+- Regression coverage sends two real MAVLink heartbeat streams with different sysids to two real
+  loopback UDP sockets and proves that both remain open and that neither vehicle appears on the
+  other link. Default, disabled, duplicate-port and invalid-port behavior is also pinned. The
+  complete final Release suite passes **1550/1550**; `MissionPlanner.slnx` and the standalone SITL
+  harness build with **0 warnings / 0 errors**. All six migration/retirement/artifact gates pass
+  (1623 native rows, 0 blockers, 708/708 pinned port paths, no WinForms dependency, and clean
+  project/binary/key audits).
+- The intentional local sequence increment is isolated in commit `3b88492d1` (`1 -> 2`). The
+  clean-tree Debian artifact is
+  `out/packages/missionplanner10_1.3.83.2-3b88492d_amd64.deb`: 60,128,072 bytes, Debian version
+  `1:1.3.83.2+3b88492d`, installed size 193,792 KiB, SHA-256
+  `a8f111e1eb8bbb44f0a73618ecc1275b194fc355168403a7d0968a26b06bbfd1`. `lintian`, launcher,
+  executable, airport-resource and forbidden Windows-native-library payload checks pass. An
+  isolated extracted-package Xvfb launch reaches the normal event loop (expected timeout 124),
+  emits no stdout/stderr or crash log, creates no empty telemetry logs, and `ss` confirms the
+  packaged process owns both `0.0.0.0:14550` and `0.0.0.0:14551` simultaneously.
+- No merge to `master`, push, tag or GitHub release was performed for this checkpoint. The only
+  source change after clean package commit `3b88492d1` is this status handoff. Remaining blocker:
+  none for local integration and Debian packaging. Next executable step: after explicit approval,
+  merge `port/avalonia-in-place` to `master`, run CI/CodeQL on the merge commit, and verify both
+  default inputs with simultaneous physical telemetry sources before a tagged release.
+
 ## NV4 parameter-catalog synchronization and Debian handoff
 
 - The Hermes source checkpoint is clean GTU `master == origin/master`

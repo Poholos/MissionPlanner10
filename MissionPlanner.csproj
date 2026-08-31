@@ -98,6 +98,7 @@
     <Compile Include="Services/SikRadioSettingsService.cs" />
     <Compile Include="Services/SizeLimitedReadStream.cs" />
     <Compile Include="Services/SystemAwakeService.cs" />
+    <Compile Include="Services/StartupUdpListenerService.cs" />
     <Compile Include="Services/TcpSerialHostListener.cs" />
     <Compile Include="ViewModels/ExternalGuidedViewModel.cs" />
     <Compile Include="Views/DroneCanFieldGraphWindow.cs" />
