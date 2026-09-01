@@ -71,7 +71,7 @@
                         CommandParameter="{Binding SelectedWaypoint}" />
           </DataGrid.KeyBindings>
           <DataGrid.Columns>
-            <DataGridTextColumn Header="#" Binding="{Binding Seq}" IsReadOnly="True" Width="40" />
+            <DataGridTextColumn Header="#" Binding="{Binding DisplayNumber}" IsReadOnly="True" Width="40" />
             <DataGridTemplateColumn Header="Command" Width="190">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate x:DataType="vm:WpRow">

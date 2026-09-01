@@ -20,6 +20,10 @@ namespace MissionPlanner.Utilities
 
         private static Dictionary<string,XDocument> _parameterMetaDataXML = new Dictionary<string, XDocument>();
 
+        private static XDocument _localParameterMetaDataXML;
+
+        internal const string LocalParameterMetaDataFileName = "ParameterMetaDataLocal.xml";
+
         private static string[] vehicles = new[]
         {
              "SITL", "AP_Periph", "ArduSub", "Rover", "ArduCopter",
@@ -37,7 +41,24 @@ namespace MissionPlanner.Utilities
 
         static ParameterMetaDataRepositoryAPMpdef()
         {
+            ReloadLocal();
             _ = GetMetaData();
+        }
+
+        private static void ReloadLocal()
+        {
+            var fileName = Path.Combine(Settings.GetRunningDirectory(), LocalParameterMetaDataFileName);
+
+            try
+            {
+                if (File.Exists(fileName))
+                    _localParameterMetaDataXML = XDocument.Load(fileName);
+            }
+            catch (Exception ex)
+            {
+                log.Error(fileName);
+                log.Error(ex);
+            }
         }
 
         /// <summary>
@@ -213,61 +234,77 @@ namespace MissionPlanner.Utilities
             if (metaKey == ParameterMetaDataConstants.User)
                 metaKey = "user";
 
-            if (_parameterMetaDataXML.ContainsKey(vechileType))
+            _parameterMetaDataXML.TryGetValue(vechileType, out var downloadedParameterMetaData);
+
+            try
             {
-                try
+                return ParameterMetaDataPdefReader.ResolveParameterMetaData(
+                    _localParameterMetaDataXML,
+                    downloadedParameterMetaData,
+                    nodeKey,
+                    metaKey,
+                    vechileType);
+            }
+            catch (Exception ex)
+            {
+                log.Error(ex);
+            }
+
+            return string.Empty;
+        }
+    }
+
+    internal static class ParameterMetaDataPdefReader
+    {
+        internal static string ResolveParameterMetaData(
+            XDocument localParameterMetaData,
+            XDocument downloadedParameterMetaData,
+            string nodeKey,
+            string metaKey,
+            string vehicleType)
+        {
+            var localAnswer = ReadParameterMetaData(
+                localParameterMetaData, nodeKey, metaKey, vehicleType);
+            return localAnswer != string.Empty
+                ? localAnswer
+                : ReadParameterMetaData(downloadedParameterMetaData, nodeKey, metaKey, vehicleType);
+        }
+
+        private static string ReadParameterMetaData(
+            XDocument parameterMetaData,
+            string nodeKey,
+            string metaKey,
+            string vehicleType)
+        {
+            var root = parameterMetaData?.Element("paramfile");
+            if (root == null)
+                return string.Empty;
+
+            var vehicleKey = vehicleType + ":" + nodeKey;
+            foreach (var param in root.Elements()
+                         .SelectMany(section => section.Elements())
+                         .Where(parameters => parameters.HasAttributes)
+                         .SelectMany(parameters => parameters.Elements()))
+            {
+                var name = param.Attribute("name")?.Value;
+                if (name != vehicleKey && name != nodeKey)
+                    continue;
+
+                var attribute = param.Attribute(metaKey);
+                if (attribute != null)
+                    return attribute.Value;
+
+                if (metaKey == ParameterMetaDataConstants.Values)
                 {
-                    var vechileKey = vechileType + ":" + nodeKey;
-                    foreach (var paramfile in _parameterMetaDataXML[vechileType].Element("paramfile").Elements())
-                    {
-                        foreach (var parameters in paramfile.Elements())
-                        {
-                            if (parameters.HasAttributes)
-                            {
-                                foreach (var param in parameters.Elements())
-                                {
-                                    if (param.Attribute("name").Value == vechileKey ||
-                                        param.Attribute("name").Value == nodeKey)
-                                    {
-                                        if (param.Attribute(metaKey) != null)
-                                        {
-                                            return param.Attribute(metaKey).Value;
-                                        }
-                                        if (metaKey == ParameterMetaDataConstants.Values)
-                                        {
-                                            var ans = "";
-                                            param.Elements("values").Elements().ForEach(a =>
-                                            {
-                                                if (a.Name == "value")
-                                                {
-                                                    var code = a.Attribute("code");
-                                                    var value = a.Value.ToString();
-                                                    ans += String.Format("{0}:{1},", code.Value, value);
-                                                }
-                                            });
-                                            return ans;
-                                        }
-                                        foreach (var xElement in param.Elements())
-                                        {
-                                            if (xElement.Name == "field")
-                                            {
-                                                var name = xElement.Attribute("name");
-                                                if (name != null && name.Value == metaKey)
-                                                {
-                                                    return xElement.Value;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    return string.Join(",", param.Elements("values")
+                        .Elements("value")
+                        .Select(value => $"{value.Attribute("code")?.Value}:{value.Value}"));
                 }
-                catch (Exception ex)
-                {
-                    log.Error(ex);
-                } 
+
+                var field = param.Elements("field")
+                    .FirstOrDefault(element => element.Attribute("name")?.Value == metaKey);
+                if (field != null)
+                    return field.Value;
             }
 
             return string.Empty;

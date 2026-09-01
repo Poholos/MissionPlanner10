@@ -32,9 +32,37 @@ mkdir -p "$STAGING"
 ditto "$APP" "$STAGING/$(basename "$APP")"
 ln -s /Applications "$STAGING/Applications"
 
-hdiutil create -quiet -ov -format UDZO -volname "$VOLUME_NAME" \
-  -srcfolder "$STAGING" "$DMG"
-hdiutil verify "$DMG"
+run_with_retry() {
+  local description="$1"
+  shift
+
+  local attempt
+  for attempt in 1 2 3; do
+    if "$@"; then
+      return 0
+    fi
+
+    if [[ "$attempt" -eq 3 ]]; then
+      echo "$description failed after $attempt attempts" >&2
+      return 1
+    fi
+
+    echo "$description failed (attempt $attempt/3); retrying..." >&2
+    sleep "$((attempt * 2))"
+  done
+}
+
+create_dmg() {
+  rm -f "$DMG"
+  hdiutil create -ov -format UDZO -volname "$VOLUME_NAME" \
+    -srcfolder "$STAGING" "$DMG"
+}
+
+# DiskImages can briefly retain a just-created image on hosted macOS runners.
+# Retry both operations so a transient Resource temporarily unavailable error
+# does not discard an otherwise valid package, while preserving a hard failure.
+run_with_retry "DMG creation" create_dmg
+run_with_retry "DMG verification" hdiutil verify "$DMG"
 test -s "$DMG"
 
 echo "Built $DMG"
