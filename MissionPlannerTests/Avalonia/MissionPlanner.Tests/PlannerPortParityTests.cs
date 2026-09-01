@@ -18,6 +18,18 @@ namespace MissionPlanner.Tests;
 
 public class PlannerPortParityTests {
   [AvaloniaFact]
+  public void New_jump_uses_the_original_target_and_repeat_defaults() {
+    using var vm = new FlightPlannerViewModel { VerifyHeight = false };
+
+    vm.AddJump(FlightPlannerViewModel.DefaultJumpTarget);
+
+    WpRow jump = Assert.Single(vm.Waypoints);
+    Assert.Equal((ushort)MAVLink.MAV_CMD.DO_JUMP, jump.Command);
+    Assert.Equal(1, jump.P1);
+    Assert.Equal(5, jump.P2);
+  }
+
+  [AvaloniaFact]
   public void Legacy_plugin_mission_calls_preserve_official_coordinate_and_parameter_order() {
     using var vm = new FlightPlannerViewModel {
       VerifyHeight = false,

@@ -22,6 +22,9 @@ using Newtonsoft.Json.Linq;
 namespace MissionPlanner.ViewModels;
 
 public partial class FlightPlannerViewModel : ViewModelBase, IActivationAware, IDisposable {
+  internal const double DefaultJumpTarget = 1;
+  internal const double DefaultJumpRepeat = 5;
+
   private MAVLinkInterface _comPort => AppState.comPort;
   private bool _recomputing;
   private bool _restoringUndo;
@@ -2648,11 +2651,16 @@ public partial class FlightPlannerViewModel : ViewModelBase, IActivationAware, I
   }
 
   public async Task AddJump() {
-    var s = await Services.Dialogs.InputBox("Jump (DO_JUMP)", "Target WP #", "0");
+    var s = await Services.Dialogs.InputBox("Jump (DO_JUMP)", "Target WP #",
+        DefaultJumpTarget.ToString(CultureInfo.InvariantCulture));
     if (double.TryParse(s, out var wp)) {
-      using var undo = BeginUndoMutation();
-      AddCommandRow(MAVLink.MAV_CMD.DO_JUMP, 0, 0, 0, p1: wp, p2: -1);
+      AddJump(wp);
     }
+  }
+
+  internal void AddJump(double target, double repeat = DefaultJumpRepeat) {
+    using var undo = BeginUndoMutation();
+    AddCommandRow(MAVLink.MAV_CMD.DO_JUMP, 0, 0, 0, p1: target, p2: repeat);
   }
 
   [RelayCommand]
