@@ -90,6 +90,29 @@
         <CheckBox Content="No RC Receiver" IsChecked="{Binding NoRcReceiver, Mode=TwoWay}" Margin="0,0,14,0" />
       </WrapPanel>
 
+      <TextBlock Classes="grp" Text="Startup UDP Listeners" />
+      <CheckBox Content="Open MAVLink UDP listeners when Mission Planner starts"
+                IsChecked="{Binding StartupUdpListenersEnabled, Mode=TwoWay}" />
+      <WrapPanel Margin="0,6,0,0">
+        <c:FormField Orientation="Vertical" Label="Primary UDP port"
+                     Width="150" Margin="0,0,16,0">
+          <NumericUpDown Minimum="1" Maximum="65535" Increment="1" FormatString="0"
+                         HorizontalAlignment="Stretch"
+                         Value="{Binding StartupUdpPrimaryPort, Mode=TwoWay}" />
+        </c:FormField>
+        <c:FormField Orientation="Vertical" Label="Alternate UDP port"
+                     Width="150" Margin="0,0,16,0">
+          <NumericUpDown Minimum="1" Maximum="65535" Increment="1" FormatString="0"
+                         HorizontalAlignment="Stretch"
+                         Value="{Binding StartupUdpAlternatePort, Mode=TwoWay}" />
+        </c:FormField>
+      </WrapPanel>
+      <TextBlock Classes="lbl" Text="{Binding StartupUdpListenerStatus}"
+                 TextWrapping="Wrap" />
+      <TextBlock Classes="lbl"
+                 Text="Each port is a separate MAVLink connection. Changes take effect after restart; duplicate port values open one listener."
+                 TextWrapping="Wrap" />
+
       <TextBlock Classes="grp" Text="Telemetry Stream Rates (Hz)" />
       <WrapPanel>
         <WrapPanel.Styles>
@@ -141,7 +164,7 @@
         <CheckBox Content="Display ToolTip" IsChecked="{Binding DisplayTooltip, Mode=TwoWay}" Margin="0,0,12,0" />
       </WrapPanel>
       <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,6,0,0">
-        <c:FormField Label="Line Length" LabelWidth="80">
+        <c:FormField Label="Line Length (m)" LabelWidth="100">
           <NumericUpDown Classes="md" Minimum="0" Maximum="10000" Increment="10" FormatString="0" Value="{Binding LineLength}" />
         </c:FormField>
         <c:FormField Label="Secondary Style" LabelWidth="100">

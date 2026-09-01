@@ -116,23 +116,38 @@ public static class Dialogs {
   internal static UpstreamDialogResult DefaultUpstreamResult(UpstreamMessageBoxButtons buttons) =>
       buttons == UpstreamMessageBoxButtons.OK ? UpstreamDialogResult.OK : UpstreamDialogResult.Cancel;
 
-  public static Task<string?> Choice(string title, string text, params string[] labels) {
+  public static Task<string?> Choice(string title, string text, params string[] labels) =>
+      ShowOwned<string?>(CreateChoiceWindow(title, text, labels));
+
+  internal static Window CreateChoiceWindow(string title, string text,
+      IReadOnlyList<string> labels) {
     var panel = Shell(title);
-    panel.Children.Add(new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap });
-    var row = new StackPanel {
+    panel.Children.Add(new TextBlock {
+      Text = text,
+      TextWrapping = TextWrapping.Wrap,
+      MaxWidth = 700,
+    });
+    var row = new WrapPanel {
       Orientation = Orientation.Horizontal,
       HorizontalAlignment = HorizontalAlignment.Right,
-      Spacing = 8,
       Margin = new Thickness(0, 6, 0, 0),
     };
     var w = Frame(title, panel);
     foreach (var label in labels) {
-      var b = new Button { Content = label, MinWidth = 80 };
+      var b = new Button {
+        Content = label,
+        MinWidth = 80,
+        Margin = new Thickness(4, 2),
+      };
       b.Click += (_, _) => w.Close(label);
       row.Children.Add(b);
     }
     panel.Children.Add(row);
-    return ShowOwned<string?>(w);
+    w.Width = double.NaN;
+    w.MinWidth = 380;
+    w.MaxWidth = 760;
+    w.SizeToContent = SizeToContent.WidthAndHeight;
+    return w;
   }
 
   public static Task<int?> Select(

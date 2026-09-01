@@ -6,7 +6,7 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Runtime.Serialization.Formatters.Binary;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -95,7 +95,11 @@ namespace MissionPlanner.Utilities
 
         void setlinecount()
         {
-            if (string.IsNullOrEmpty(_filename) || !LoadCache())
+            CacheSourceIdentity sourceIdentity;
+            var hasSourceIdentity = TryGetSourceIdentity(out sourceIdentity);
+            var loadedFromCache = hasSourceIdentity && LoadCache(sourceIdentity);
+            LastLoadFromCache = loadedFromCache;
+            if (!loadedFromCache)
             {
                 byte[] buffer = new byte[1024 * 1024];
 
@@ -200,7 +204,8 @@ namespace MissionPlanner.Utilities
                     }
                 }
 
-                SaveCache();
+                if (hasSourceIdentity)
+                    SaveCache(sourceIdentity);
             }
 
 
@@ -331,14 +336,30 @@ namespace MissionPlanner.Utilities
             indexcachelineno = -1;
         }
 
-        [Serializable]
-        struct cache
+        // index cache file format: gzip over a small header (magic, version,
+        // source length and last-write ticks) followed by the raw index longs.
+        // Upstream serialized this with BinaryFormatter, which throws
+        // unconditionally on modern .NET - saving a large log crashed the open
+        // and loading silently never worked.
+        const uint CacheMagic = 0x4C444D31; // "1MDL"
+        const int CacheVersion = 1;
+
+        struct CacheSourceIdentity
         {
-            public List<long>[] messageindex;
-            public List<long>[] messageindexline;
-            public List<long> linestartoffset;
-            public long lineCount;
+            public long Length;
+            public long LastWriteTimeUtcTicks;
         }
+
+        /// <summary>Logs at or above this many bytes get an index cache
+        /// (test seam; the product default matches upstream's 300 MB).</summary>
+        internal static long CacheThresholdBytes = 1024L * 1024 * 300;
+
+        /// <summary>Whether this buffer loaded its index cache instead of
+        /// scanning (test observability).</summary>
+        internal bool LastLoadFromCache { get; private set; }
+
+        /// <summary>The cache file used by this buffer (test observability).</summary>
+        internal string CacheFilePath => CachePath;
 
         private string CachePath
         {
@@ -346,72 +367,249 @@ namespace MissionPlanner.Utilities
             {
                 try
                 {
-                    return Path.GetTempPath() + Path.GetFullPath(_filename).Replace("/", "_").Replace("\\", "_").Replace(":", "_") + Path.GetFileNameWithoutExtension(_filename) + new FileInfo(_filename).Length;
+                    // Keep the predictable cache out of the shared temp root and
+                    // hash the source path so a deep log path cannot exceed the
+                    // platform's maximum file-name length.
+                    var root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                    if (string.IsNullOrEmpty(root))
+                        root = Path.GetTempPath();
+                    var directory = Path.Combine(root, "MissionPlanner", "DFLogCache");
+                    Directory.CreateDirectory(directory);
+
+                    byte[] digest;
+                    using (var sha = SHA256.Create())
+                        digest = sha.ComputeHash(Encoding.UTF8.GetBytes(Path.GetFullPath(_filename)));
+                    var name = BitConverter.ToString(digest).Replace("-", "").ToLowerInvariant();
+                    return Path.Combine(directory, "index-v" + CacheVersion + "-" + name + ".bin.gz");
                 }
                 catch
                 {
-                    return Path.GetTempFileName();
+                    // A cache is only an optimization. An unusable cache path
+                    // must never create a stray temp file or fail the log open.
+                    return string.Empty;
                 }
             }
         }
 
-        private void SaveCache()
+        bool TryGetSourceIdentity(out CacheSourceIdentity identity)
         {
+            identity = new CacheSourceIdentity();
             if (string.IsNullOrEmpty(_filename))
-                return;
-            // save cache if file is over 300mb
-            if (basestream.Length < 1024 * 1024 * 300)
-                return;
-            //save cache
-            cache cache = new cache();
-            cache.messageindex = messageindex;
-            cache.messageindexline = messageindexline;
-            cache.linestartoffset = linestartoffset;
-            cache.lineCount = _count;
+                return false;
 
-            using (var file = File.OpenWrite(CachePath))
+            try
             {
-                using (GZipStream gs = new GZipStream(file, CompressionMode.Compress))
-                {
-                    BinaryFormatter serializer = new BinaryFormatter();
-                    serializer.Serialize(gs, cache);
-                }
+                var source = new FileInfo(_filename);
+                source.Refresh();
+                if (!source.Exists)
+                    return false;
+                identity.Length = source.Length;
+                identity.LastWriteTimeUtcTicks = source.LastWriteTimeUtc.Ticks;
+                return true;
+            }
+            catch
+            {
+                return false;
             }
         }
 
-        private bool LoadCache()
+        bool SourceMatches(CacheSourceIdentity identity)
         {
-            if (File.Exists(CachePath))
+            CacheSourceIdentity current;
+            return TryGetSourceIdentity(out current) &&
+                   current.Length == identity.Length &&
+                   current.LastWriteTimeUtcTicks == identity.LastWriteTimeUtcTicks;
+        }
+
+        private void SaveCache(CacheSourceIdentity sourceIdentity)
+        {
+            // save cache if file is over the threshold (upstream: 300mb)
+            if (sourceIdentity.Length < CacheThresholdBytes || !SourceMatches(sourceIdentity))
+                return;
+
+            string temp = null;
+            try
             {
-                //load cache
-                cache cache = new cache();
-                BinaryFormatter deserializer = new BinaryFormatter();
-                using (var file = File.OpenRead(CachePath))
+                var cachePath = CachePath;
+                if (string.IsNullOrEmpty(cachePath))
+                    return;
+
+                // A unique sibling temp prevents concurrent opens of the same
+                // large log from truncating one another's in-progress cache.
+                temp = cachePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+                using (var file = File.Create(temp))
+                using (var gs = new GZipStream(file, CompressionMode.Compress))
+                using (var writer = new BinaryWriter(gs))
                 {
-                    using (GZipStream gs = new GZipStream(file, CompressionMode.Decompress))
+                    writer.Write(CacheMagic);
+                    writer.Write(CacheVersion);
+                    writer.Write(sourceIdentity.Length);
+                    writer.Write(sourceIdentity.LastWriteTimeUtcTicks);
+
+                    writer.Write(_count);
+                    WriteLongList(writer, linestartoffset);
+                    for (int a = 0; a < messageindex.Length; a++)
                     {
-                        try
-                        {
-                            cache = (cache)deserializer.Deserialize(gs);
-                        }
-                        catch
-                        {
-                            return false;
-                        }
+                        WriteLongList(writer, messageindex[a]);
+                        WriteLongList(writer, messageindexline[a]);
                     }
                 }
 
-                messageindex = cache.messageindex;
-                messageindexline = cache.messageindexline;
-                linestartoffset = cache.linestartoffset;
-                _count = cache.lineCount;
+                // On platforms where another process can alter an open file,
+                // never publish an index assembled while the source changed.
+                if (!SourceMatches(sourceIdentity))
+                    return;
+
+                // replace through a temp file so a torn write never lands at the
+                // cache path; the delete+move pair leaves at worst a moment with
+                // no cache, which just means a rescan
+                File.Delete(cachePath);
+                File.Move(temp, cachePath);
+                temp = null;
+            }
+            catch
+            {
+                // the cache is an optimization - never fail an open over it
+            }
+            finally
+            {
+                if (!string.IsNullOrEmpty(temp))
+                {
+                    try
+                    {
+                        File.Delete(temp);
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+        }
+
+        private bool LoadCache(CacheSourceIdentity sourceIdentity)
+        {
+            try
+            {
+                var cachePath = CachePath;
+                if (string.IsNullOrEmpty(cachePath) || !File.Exists(cachePath))
+                    return false;
+
+                using (var file = File.OpenRead(cachePath))
+                using (var gs = new GZipStream(file, CompressionMode.Decompress))
+                using (var reader = new BinaryReader(gs))
+                {
+                    if (reader.ReadUInt32() != CacheMagic || reader.ReadInt32() != CacheVersion)
+                        return false;
+
+                    // A cache for an older copy of the log must not survive an
+                    // in-place change. The path identifies the source path, so
+                    // both length and write time are verified in the header.
+                    if (reader.ReadInt64() != sourceIdentity.Length ||
+                        reader.ReadInt64() != sourceIdentity.LastWriteTimeUtcTicks)
+                        return false;
+
+                    // Treat the cache as untrusted even though it lives in the
+                    // user's data directory. Binary records consume at least
+                    // three bytes; text logs can contain one-byte empty lines.
+                    var maxEntries = binary ? sourceIdentity.Length / 3 + 1 : sourceIdentity.Length + 1;
+                    var lineCount = reader.ReadInt64();
+                    if (lineCount < 0 || lineCount > maxEntries || lineCount > int.MaxValue)
+                        throw new InvalidDataException("implausible cached line count " + lineCount);
+
+                    // A valid cache stores one source offset plus at most two
+                    // per-message entries for every indexed line. Bounding the
+                    // aggregate prevents 513 individually plausible lists from
+                    // multiplying memory use after corruption.
+                    var remainingEntries = checked(lineCount * 3 + 1);
+                    var offsets = ReadLongList(reader, maxEntries, ref remainingEntries,
+                        0, sourceIdentity.Length, strictlyIncreasing: true);
+                    var index = new List<long>[messageindex.Length];
+                    var indexline = new List<long>[messageindex.Length];
+                    for (int a = 0; a < index.Length; a++)
+                    {
+                        index[a] = ReadLongList(reader, maxEntries, ref remainingEntries,
+                            0, sourceIdentity.Length - 1, strictlyIncreasing: true);
+                        indexline[a] = ReadLongList(reader, maxEntries, ref remainingEntries,
+                            0, lineCount - 1, strictlyIncreasing: true);
+                        if (index[a].Count != indexline[a].Count)
+                            throw new InvalidDataException("cached offset/line index counts differ");
+                    }
+
+                    var expectedOffsetCount = binary ? lineCount : checked(lineCount + 1);
+                    if (offsets.Count != expectedOffsetCount)
+                        throw new InvalidDataException("cached line-offset count does not match line count");
+
+                    var indexedCount = index.Sum(values => (long)values.Count);
+                    if ((binary && indexedCount != lineCount) || (!binary && indexedCount > lineCount))
+                        throw new InvalidDataException("cached message count does not match line count");
+
+                    // Version 1 has no extension area. Extra uncompressed data
+                    // indicates a foreign or corrupt cache, not a newer format.
+                    if (reader.BaseStream.ReadByte() != -1)
+                        throw new InvalidDataException("trailing data in index cache");
+
+                    if (!SourceMatches(sourceIdentity))
+                        throw new InvalidDataException("source log changed while reading its index cache");
+
+                    // commit only after the whole cache read back cleanly
+                    messageindex = index;
+                    messageindexline = indexline;
+                    linestartoffset = offsets;
+                    _count = lineCount;
+                }
 
                 // build fmt line database to pre seed the FMT message
                 messageindexline[128].ForEach(a => dflog.FMTLine(this[(int)a]));
                 return true;
             }
+            catch
+            {
+                // a torn or foreign cache must not leave a half-loaded index
+                // behind - the caller's rescan appends into these collections.
+                // (dflog.logformat entries FMTLine seeded before the throw are
+                // deliberately left alone: nothing enumerates a type whose
+                // messageindex is empty, and the rescan re-seeds every real FMT
+                // line by key)
+                linestartoffset = new List<long>();
+                for (int a = 0; a < messageindex.Length; a++)
+                {
+                    messageindex[a] = new List<long>(0);
+                    messageindexline[a] = new List<long>(0);
+                }
+                _count = 0;
+                return false;
+            }
+        }
 
-            return false;
+        static void WriteLongList(BinaryWriter writer, List<long> values)
+        {
+            writer.Write(values.Count);
+            foreach (var value in values)
+                writer.Write(value);
+        }
+
+        static List<long> ReadLongList(BinaryReader reader, long maxEntries, ref long remainingEntries,
+            long minimumValue, long maximumValue, bool strictlyIncreasing)
+        {
+            var count = reader.ReadInt32();
+            if (count < 0 || count > maxEntries || count > remainingEntries)
+                throw new InvalidDataException("implausible index list length " + count);
+            remainingEntries -= count;
+
+            // Do not turn an untrusted count into a giant immediate allocation.
+            // Real lists grow normally after the first modest capacity chunk.
+            var values = new List<long>(Math.Min(count, 4096));
+            var previous = long.MinValue;
+            for (int i = 0; i < count; i++)
+            {
+                var value = reader.ReadInt64();
+                if (value < minimumValue || value > maximumValue ||
+                    (strictlyIncreasing && i != 0 && value <= previous))
+                    throw new InvalidDataException("invalid cached index value " + value);
+                values.Add(value);
+                previous = value;
+            }
+            return values;
         }
 
         public void SplitLog(int pieces = 0)

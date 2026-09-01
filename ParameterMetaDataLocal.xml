@@ -1,0 +1,520 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Fork-only parameter metadata generated from /home/alex/SRC/ArduPilot at
+  3b2f9ac14e9da48aff58aa206ae60d80527f6edd (base
+  582a71193ad2ed2d47e6723a53380447b0038a02) with the ArduCopter XML output
+  of Tools/autotest/param_metadata/param_parse.py.
+
+  Only metadata changed by that branch is retained here. Copter-only library
+  parameters are prefixed with ArduCopter so they cannot leak into another
+  vehicle's catalogue. Generic EKF3 parameters intentionally remain unprefixed.
+-->
+<paramfile sourceCommit="3b2f9ac14e9da48aff58aa206ae60d80527f6edd"
+           sourceBase="582a71193ad2ed2d47e6723a53380447b0038a02">
+  <vehicles>
+    <parameters name="ArduCopter">
+      <param name="ArduCopter:FLTMODE1">
+        <values>
+          <value code="0">Stabilize</value>
+          <value code="1">Acro</value>
+          <value code="2">AltHold</value>
+          <value code="3">Auto</value>
+          <value code="4">Guided</value>
+          <value code="5">Loiter</value>
+          <value code="6">RTL</value>
+          <value code="7">Circle</value>
+          <value code="9">Land</value>
+          <value code="11">Drift</value>
+          <value code="13">Sport</value>
+          <value code="14">Flip</value>
+          <value code="15">AutoTune</value>
+          <value code="16">PosHold</value>
+          <value code="17">Brake</value>
+          <value code="18">Throw</value>
+          <value code="19">Avoid_ADSB</value>
+          <value code="20">Guided_NoGPS</value>
+          <value code="21">Smart_RTL</value>
+          <value code="22">FlowHold</value>
+          <value code="23">Follow</value>
+          <value code="24">ZigZag</value>
+          <value code="25">SystemID</value>
+          <value code="26">Heli_Autorotate</value>
+          <value code="27">Auto RTL</value>
+          <value code="28">Turtle</value>
+          <value code="31">ModelCal</value>
+        </values>
+      </param>
+      <param name="ArduCopter:FLTMODE2">
+        <values>
+          <value code="0">Stabilize</value>
+          <value code="1">Acro</value>
+          <value code="2">AltHold</value>
+          <value code="3">Auto</value>
+          <value code="4">Guided</value>
+          <value code="5">Loiter</value>
+          <value code="6">RTL</value>
+          <value code="7">Circle</value>
+          <value code="9">Land</value>
+          <value code="11">Drift</value>
+          <value code="13">Sport</value>
+          <value code="14">Flip</value>
+          <value code="15">AutoTune</value>
+          <value code="16">PosHold</value>
+          <value code="17">Brake</value>
+          <value code="18">Throw</value>
+          <value code="19">Avoid_ADSB</value>
+          <value code="20">Guided_NoGPS</value>
+          <value code="21">Smart_RTL</value>
+          <value code="22">FlowHold</value>
+          <value code="23">Follow</value>
+          <value code="24">ZigZag</value>
+          <value code="25">SystemID</value>
+          <value code="26">Heli_Autorotate</value>
+          <value code="27">Auto RTL</value>
+          <value code="28">Turtle</value>
+          <value code="31">ModelCal</value>
+        </values>
+      </param>
+      <param name="ArduCopter:FLTMODE3">
+        <values>
+          <value code="0">Stabilize</value>
+          <value code="1">Acro</value>
+          <value code="2">AltHold</value>
+          <value code="3">Auto</value>
+          <value code="4">Guided</value>
+          <value code="5">Loiter</value>
+          <value code="6">RTL</value>
+          <value code="7">Circle</value>
+          <value code="9">Land</value>
+          <value code="11">Drift</value>
+          <value code="13">Sport</value>
+          <value code="14">Flip</value>
+          <value code="15">AutoTune</value>
+          <value code="16">PosHold</value>
+          <value code="17">Brake</value>
+          <value code="18">Throw</value>
+          <value code="19">Avoid_ADSB</value>
+          <value code="20">Guided_NoGPS</value>
+          <value code="21">Smart_RTL</value>
+          <value code="22">FlowHold</value>
+          <value code="23">Follow</value>
+          <value code="24">ZigZag</value>
+          <value code="25">SystemID</value>
+          <value code="26">Heli_Autorotate</value>
+          <value code="27">Auto RTL</value>
+          <value code="28">Turtle</value>
+          <value code="31">ModelCal</value>
+        </values>
+      </param>
+      <param name="ArduCopter:FLTMODE4">
+        <values>
+          <value code="0">Stabilize</value>
+          <value code="1">Acro</value>
+          <value code="2">AltHold</value>
+          <value code="3">Auto</value>
+          <value code="4">Guided</value>
+          <value code="5">Loiter</value>
+          <value code="6">RTL</value>
+          <value code="7">Circle</value>
+          <value code="9">Land</value>
+          <value code="11">Drift</value>
+          <value code="13">Sport</value>
+          <value code="14">Flip</value>
+          <value code="15">AutoTune</value>
+          <value code="16">PosHold</value>
+          <value code="17">Brake</value>
+          <value code="18">Throw</value>
+          <value code="19">Avoid_ADSB</value>
+          <value code="20">Guided_NoGPS</value>
+          <value code="21">Smart_RTL</value>
+          <value code="22">FlowHold</value>
+          <value code="23">Follow</value>
+          <value code="24">ZigZag</value>
+          <value code="25">SystemID</value>
+          <value code="26">Heli_Autorotate</value>
+          <value code="27">Auto RTL</value>
+          <value code="28">Turtle</value>
+          <value code="31">ModelCal</value>
+        </values>
+      </param>
+      <param name="ArduCopter:FLTMODE5">
+        <values>
+          <value code="0">Stabilize</value>
+          <value code="1">Acro</value>
+          <value code="2">AltHold</value>
+          <value code="3">Auto</value>
+          <value code="4">Guided</value>
+          <value code="5">Loiter</value>
+          <value code="6">RTL</value>
+          <value code="7">Circle</value>
+          <value code="9">Land</value>
+          <value code="11">Drift</value>
+          <value code="13">Sport</value>
+          <value code="14">Flip</value>
+          <value code="15">AutoTune</value>
+          <value code="16">PosHold</value>
+          <value code="17">Brake</value>
+          <value code="18">Throw</value>
+          <value code="19">Avoid_ADSB</value>
+          <value code="20">Guided_NoGPS</value>
+          <value code="21">Smart_RTL</value>
+          <value code="22">FlowHold</value>
+          <value code="23">Follow</value>
+          <value code="24">ZigZag</value>
+          <value code="25">SystemID</value>
+          <value code="26">Heli_Autorotate</value>
+          <value code="27">Auto RTL</value>
+          <value code="28">Turtle</value>
+          <value code="31">ModelCal</value>
+        </values>
+      </param>
+      <param name="ArduCopter:FLTMODE6">
+        <values>
+          <value code="0">Stabilize</value>
+          <value code="1">Acro</value>
+          <value code="2">AltHold</value>
+          <value code="3">Auto</value>
+          <value code="4">Guided</value>
+          <value code="5">Loiter</value>
+          <value code="6">RTL</value>
+          <value code="7">Circle</value>
+          <value code="9">Land</value>
+          <value code="11">Drift</value>
+          <value code="13">Sport</value>
+          <value code="14">Flip</value>
+          <value code="15">AutoTune</value>
+          <value code="16">PosHold</value>
+          <value code="17">Brake</value>
+          <value code="18">Throw</value>
+          <value code="19">Avoid_ADSB</value>
+          <value code="20">Guided_NoGPS</value>
+          <value code="21">Smart_RTL</value>
+          <value code="22">FlowHold</value>
+          <value code="23">Follow</value>
+          <value code="24">ZigZag</value>
+          <value code="25">SystemID</value>
+          <value code="26">Heli_Autorotate</value>
+          <value code="27">Auto RTL</value>
+          <value code="28">Turtle</value>
+          <value code="31">ModelCal</value>
+        </values>
+      </param>
+      <param name="ArduCopter:DR_NEXT_MODE"
+             documentation="Copter switches to this mode after GPS/EKF recovers. While GPS remains bad, completion or DR_FLY_TIMEOUT levels and holds in Guided_NoGPS using inertial attitude and barometric vertical control. Default is 6/RTL. Set to -1 to return to the mode used before deadreckoning was triggered" />
+      <param humanName="Deadreckoning model distance"
+             name="ArduCopter:DR_MODEL_TIME"
+             documentation="Uses a physical airspeed sensor, or EK3 drag-model parameters when no sensor measurement is available, plus the last trusted EKF headwind estimate to estimate when the last trusted distance home has been flown. A captured tailwind is not credited because it may disappear after GPS loss. DR_FLY_TIMEOUT remains a hard upper limit."
+             user="Advanced">
+        <values>
+          <value code="0">Disabled</value>
+          <value code="1">Enabled</value>
+        </values>
+      </param>
+      <param humanName="Deadreckoning distance margin"
+             name="ArduCopter:DR_DIST_MARGIN"
+             documentation="Multiplier applied to the last trusted distance home when using measured ground progress, or to predicted flight time when using the drag model. Values above one intentionally fly farther to tolerate acceleration, stale wind and model error."
+             user="Advanced">
+        <field name="Range">1 3</field>
+        <field name="Increment">0.1</field>
+      </param>
+      <param humanName="Bounded inertial propulsion observer"
+             name="ArduCopter:DR_OBS_ENABLE"
+             documentation="Enables a GPS-denied horizontal velocity and displacement observer. IMU provides short-term acceleration while throttle, voltage and optional current/RPM constrain the physically possible envelope. Physical airspeed is an optional correction. Vertical control remains barometric."
+             user="Advanced">
+        <values>
+          <value code="0">Disabled</value>
+          <value code="1">Enabled</value>
+        </values>
+      </param>
+      <param humanName="Observer absolute speed limit"
+             name="ArduCopter:DR_OBS_VMAX"
+             documentation="Hard horizontal speed limit for the GPS-denied observer. A valid MCAL_VMAX and propulsion scale may lower this limit but can never raise it."
+             user="Advanced">
+        <field name="Range">2 50</field>
+        <field name="Units">m/s</field>
+        <field name="UnitText">meters per second</field>
+      </param>
+      <param humanName="Observer absolute acceleration limit"
+             name="ArduCopter:DR_OBS_AMAX"
+             documentation="Hard horizontal acceleration limit. The runtime tilt and propulsion envelope normally impose a lower limit. Samples beyond DR_OBS_CLIP are rejected rather than clipped into persistent acceleration."
+             user="Advanced">
+        <field name="Range">1 20</field>
+        <field name="Units">m/s/s</field>
+        <field name="UnitText">meters per square second</field>
+      </param>
+      <param humanName="Observer uncertainty growth"
+             name="ArduCopter:DR_OBS_UNC"
+             documentation="Minimum one-sigma horizontal velocity uncertainty growth per second without an independent velocity observation. Conservative return progress subtracts this uncertainty."
+             user="Advanced">
+        <field name="Range">0.02 2</field>
+        <field name="Units">m/s/s</field>
+        <field name="UnitText">meters per square second</field>
+      </param>
+      <param humanName="Observer acceleration rejection limit"
+             name="ArduCopter:DR_OBS_CLIP"
+             documentation="Horizontal IMU acceleration samples above this magnitude are treated as clipping, impact or gross vibration and are not integrated."
+             user="Advanced">
+        <field name="Range">3 50</field>
+        <field name="Units">m/s/s</field>
+        <field name="UnitText">meters per square second</field>
+      </param>
+      <param humanName="Observer vibration rejection limit"
+             name="ArduCopter:DR_OBS_VIBE"
+             documentation="IMU vibration vector magnitude above which horizontal acceleration is not integrated and observer uncertainty grows faster."
+             user="Advanced">
+        <field name="Range">5 100</field>
+        <field name="Units">m/s/s</field>
+        <field name="UnitText">meters per square second</field>
+      </param>
+      <param humanName="Continue bounded EKF navigation"
+             name="ArduCopter:DR_EKF_BRIDGE"
+             documentation="After GPS is quarantined, keep the current position-controlled mode while both EKF covariance and the separately bounded observer uncertainty remain within configured limits. The observer is not fused back into EKF. When either estimate becomes unsafe the applet changes to Guided_NoGPS fallback."
+             user="Advanced">
+        <values>
+          <value code="0">Immediate Guided_NoGPS fallback</value>
+          <value code="1">Use bounded EKF bridge</value>
+        </values>
+      </param>
+      <param humanName="EKF bridge position uncertainty limit"
+             name="ArduCopter:DR_EKF_POS_MAX"
+             documentation="Maximum 2D RMS horizontal position uncertainty in metres. The larger of EKF covariance and the separately bounded observer uncertainty is used."
+             user="Advanced">
+        <field name="Range">1 100</field>
+        <field name="Units">m</field>
+        <field name="UnitText">meters</field>
+      </param>
+      <param humanName="EKF bridge velocity uncertainty limit"
+             name="ArduCopter:DR_EKF_VEL_MAX"
+             documentation="Maximum one-sigma velocity uncertainty in metres per second. The larger of EKF covariance and the separately bounded observer uncertainty is used."
+             user="Advanced">
+        <field name="Range">0.5 10</field>
+        <field name="Units">m/s</field>
+        <field name="UnitText">meters per second</field>
+      </param>
+      <param humanName="EKF bridge hard time limit"
+             name="ArduCopter:DR_EKF_TIME_MAX"
+             documentation="Maximum time that a GPS-dependent mode may continue after GPS is declared bad, even if covariance remains small. Zero disables the bridge and causes immediate Guided_NoGPS fallback."
+             user="Advanced">
+        <field name="Range">0 120</field>
+        <field name="Units">s</field>
+        <field name="UnitText">seconds</field>
+      </param>
+      <param name="ArduCopter:ARSPD_USE"
+             documentation="Set to 1 only when a forward-facing pitot is intentionally enabled for EKF3 using EK3_ARSP_MODE. It does not create a fixed-wing throttle controller." />
+      <param humanName="Model calibration mode enable"
+             name="ArduCopter:MCAL_ENABLE"
+             documentation="Enables the experimental ModelCal flight mode. ModelCal commands three pairs of straight, reciprocal, nose-forward legs and requires a large clear flight area, reliable GPS, working altitude control and calm enough conditions to reach steady speed. The mode aborts on GPS degradation, excessive radius, pilot roll/pitch/yaw input or failure to stop between legs."
+             user="Advanced">
+        <values>
+          <value code="0">Disabled</value>
+          <value code="1">Enabled</value>
+        </values>
+      </param>
+      <param humanName="Model calibration first pitch angle"
+             name="ArduCopter:MCAL_ANG1"
+             documentation="Forward pitch angle magnitude used for the first reciprocal leg pair."
+             user="Advanced">
+        <field name="Range">2 12</field>
+        <field name="Units">deg</field>
+        <field name="UnitText">degrees</field>
+      </param>
+      <param humanName="Model calibration second pitch angle"
+             name="ArduCopter:MCAL_ANG2"
+             documentation="Forward pitch angle magnitude used for the second reciprocal leg pair."
+             user="Advanced">
+        <field name="Range">3 15</field>
+        <field name="Units">deg</field>
+        <field name="UnitText">degrees</field>
+      </param>
+      <param humanName="Model calibration third pitch angle"
+             name="ArduCopter:MCAL_ANG3"
+             documentation="Forward pitch angle magnitude used for the third reciprocal leg pair."
+             user="Advanced">
+        <field name="Range">4 18</field>
+        <field name="Units">deg</field>
+        <field name="UnitText">degrees</field>
+      </param>
+      <param humanName="Model calibration leg settle time"
+             name="ArduCopter:MCAL_SETTLE"
+             documentation="Time at the commanded pitch before samples from each leg are used. Increase until speed is nearly steady before sampling starts."
+             user="Advanced">
+        <field name="Range">2 10</field>
+        <field name="Units">s</field>
+        <field name="UnitText">seconds</field>
+      </param>
+      <param humanName="Model calibration leg sample time"
+             name="ArduCopter:MCAL_SAMPLE"
+             documentation="Duration of the steady portion averaged for each straight leg."
+             user="Advanced">
+        <field name="Range">2 10</field>
+        <field name="Units">s</field>
+        <field name="UnitText">seconds</field>
+      </param>
+      <param humanName="Model calibration maximum radius"
+             name="ArduCopter:MCAL_RADIUS"
+             documentation="Maximum horizontal distance from the point where ModelCal was entered. Exceeding this radius aborts to Loiter, or AltHold/Land if absolute navigation is unavailable."
+             user="Advanced">
+        <field name="Range">20 200</field>
+        <field name="Units">m</field>
+        <field name="UnitText">meters</field>
+      </param>
+      <param humanName="Apply calibrated forward drag model"
+             name="ArduCopter:MCAL_APPLY"
+             documentation="When enabled, a successful calibration also saves MCAL_BCOEF_X to EK3_DRAG_BCOEF_X and MCAL_MCOEF to EK3_DRAG_MCOEF. The lateral coefficient is not changed. Leave disabled until logs and MCAL_QUALITY have been reviewed."
+             user="Advanced">
+        <values>
+          <value code="0">Results only</value>
+          <value code="1">Apply to EKF3</value>
+        </values>
+      </param>
+      <param humanName="Calibrated forward ballistic coefficient"
+             name="ArduCopter:MCAL_BCOEF_X"
+             documentation="Identified mass-to-drag ratio for quadratic body-X drag, compatible with EK3_DRAG_BCOEF_X."
+             user="Advanced">
+        <field name="ReadOnly">True</field>
+      </param>
+      <param humanName="Calibrated rotor momentum drag coefficient"
+             name="ArduCopter:MCAL_MCOEF"
+             documentation="Identified linear rotor drag coefficient, compatible with EK3_DRAG_MCOEF in the calibrated pitch, speed, thrust and density envelope. Momentum drag can vary with rotor thrust, so a coefficient inferred at a different flight angle need not match."
+             user="Advanced">
+        <field name="ReadOnly">True</field>
+      </param>
+      <param humanName="Model calibration quality"
+             name="ArduCopter:MCAL_QUALITY"
+             documentation="Zero to one quality score based on model residual, coefficient uncertainty, fit identifiability, speed settling, cross-track motion and agreement of wind estimates between reciprocal pairs."
+             user="Advanced">
+        <field name="Range">0 1</field>
+        <field name="ReadOnly">True</field>
+      </param>
+      <param humanName="Calibrated model maximum speed"
+             name="ArduCopter:MCAL_VMAX"
+             documentation="Highest inferred body-X true airspeed covered by the calibration. Model use outside this range should increase uncertainty."
+             user="Advanced">
+        <field name="Units">m/s</field>
+        <field name="UnitText">meters per second</field>
+        <field name="ReadOnly">True</field>
+      </param>
+      <param humanName="Calibration wind north"
+             name="ArduCopter:MCAL_WIND_N"
+             documentation="North component of wind inferred by averaging reciprocal ground-velocity vectors. This is diagnostic and is not reused as a persistent flight wind value."
+             user="Advanced">
+        <field name="Units">m/s</field>
+        <field name="UnitText">meters per second</field>
+        <field name="ReadOnly">True</field>
+      </param>
+      <param humanName="Calibration wind east"
+             name="ArduCopter:MCAL_WIND_E"
+             documentation="East component of wind inferred by averaging reciprocal ground-velocity vectors. This is diagnostic and is not reused as a persistent flight wind value."
+             user="Advanced">
+        <field name="Units">m/s</field>
+        <field name="UnitText">meters per second</field>
+        <field name="ReadOnly">True</field>
+      </param>
+      <param humanName="Calibration mean throttle"
+             name="ArduCopter:MCAL_THR"
+             documentation="Mean normalized throttle during accepted calibration samples, saved as part of the model validity envelope."
+             user="Advanced">
+        <field name="Range">0 1</field>
+        <field name="ReadOnly">True</field>
+      </param>
+      <param humanName="Calibration mean battery voltage"
+             name="ArduCopter:MCAL_VOLT"
+             documentation="Mean primary battery voltage during accepted calibration samples, saved as part of the model validity envelope."
+             user="Advanced">
+        <field name="Units">V</field>
+        <field name="UnitText">volt</field>
+        <field name="ReadOnly">True</field>
+      </param>
+      <param humanName="Calibration mean RPM"
+             name="ArduCopter:MCAL_RPM"
+             documentation="Mean RPM sensor value during accepted calibration samples, or zero when no RPM sensor was available."
+             user="Advanced">
+        <field name="Units">RPM</field>
+        <field name="UnitText">Revolutions Per Minute</field>
+        <field name="ReadOnly">True</field>
+      </param>
+      <param humanName="Calibration airspeed disagreement"
+             name="ArduCopter:MCAL_ARSP_ERR"
+             documentation="Mean absolute disagreement between reciprocal-leg inferred body-X airspeed and a physical airspeed sensor, or zero when no physical sensor was available."
+             user="Advanced">
+        <field name="Units">m/s</field>
+        <field name="UnitText">meters per second</field>
+        <field name="ReadOnly">True</field>
+      </param>
+      <param humanName="Calibration mean battery current"
+             name="ArduCopter:MCAL_CURR"
+             documentation="Mean primary battery current during accepted calibration samples, or zero when current monitoring was unavailable. This is an optional propulsion-envelope reference and is never treated as a direct speed measurement."
+             user="Advanced">
+        <field name="Units">A</field>
+        <field name="UnitText">ampere</field>
+        <field name="ReadOnly">True</field>
+      </param>
+      <param humanName="Calibration mean electrical power"
+             name="ArduCopter:MCAL_PWR"
+             documentation="Mean primary battery electrical power during accepted calibration samples, or zero when current monitoring was unavailable. Unlike current alone this reference remains comparable as battery voltage and state of charge change."
+             user="Advanced">
+        <field name="Units">W</field>
+        <field name="UnitText">watt</field>
+        <field name="ReadOnly">True</field>
+      </param>
+    </parameters>
+  </vehicles>
+  <libraries>
+    <parameters name="EK3_">
+      <param name="EK3_OPTIONS"
+             documentation="EKF optional behaviour. Bit 0 (JammingExpected): Setting JammingExpected will change the EKF behaviour such that if dead reckoning navigation is possible it will require the preflight alignment GPS quality checks controlled by EK3_GPS_CHECK and EK3_CHECK_SCALE to pass before resuming GPS use if GPS lock is lost for more than 2 seconds to prevent bad position estimate. Bit 1 (Manual lane switching): DANGEROUS – If enabled, this disables automatic lane switching. If the active lane becomes unhealthy, no automatic switching will occur. Users must manually set EK3_PRIMARY to change lanes. No health checks will be performed on the selected lane. Use with extreme caution. Bit 2 (Optflow may use terrain alt): Terrain SRTM data will be used if the vehicle climbs above the rangefinder's range allowing optical flow to be used at higher altitudes. Bit 3 (AGL KF for optflow scaling): Use a 2-state IMU-aided AGL Kalman filter (height + vertical velocity, fused with rangefinder) to compute the height-above-ground used for optical flow velocity scaling, instead of terrainState-pd. This decouples optical flow scaling from errors in the main filter's vertical position state. Bit 4 (GPSQuarantine): Rejects GPS position, velocity and height after a large disagreement or data outage and requires a continuous probation period before GPS can modify EKF states again. This is experimental and does not make a single GPS receiver cryptographically trustworthy.">
+        <bitmask>
+          <bit code="0">JammingExpected</bit>
+          <bit code="1">ManualLaneSwitching</bit>
+          <bit code="2">Optflow may use terrain alt</bit>
+          <bit code="3">AGL KF for optflow scaling</bit>
+          <bit code="4">GPS quarantine</bit>
+        </bitmask>
+        <field name="Bitmask">0:JammingExpected, 1:ManualLaneSwitching, 2:Optflow may use terrain alt, 3:AGL KF for optflow scaling, 4:GPS quarantine</field>
+      </param>
+      <param humanName="Airspeed fusion mode"
+             name="EK3_ARSP_MODE"
+             documentation="Controls how EKF3 interprets scalar airspeed measurements. Default fuses true airspeed magnitude only for vehicles that explicitly use the fly-forward zero-sideslip model. BodyXWind interprets a forward pitot as the positive body-X component of air-relative velocity and updates wind states only. BodyXNav additionally permits horizontal velocity correction after absolute position and velocity aiding have timed out. The BodyX modes are experimental, require a forward-facing sensor and a vehicle that is operated nose-forward, and reject measurements during reverse flow, excessive off-axis flow or rapid rotation. They never enable the fixed-wing zero-sideslip assumption."
+             user="Advanced">
+        <values>
+          <value code="0">Default</value>
+          <value code="1">BodyXWind</value>
+          <value code="2">BodyXNav</value>
+        </values>
+        <field name="RebootRequired">True</field>
+      </param>
+      <param humanName="GPS quarantine position gate"
+             name="EK3_GPS_Q_POS"
+             documentation="Maximum horizontal disagreement between a GPS measurement and the delayed EKF prediction that the optional GPS quarantine monitor accepts. A larger value makes recovery after long GPS outages easier but also admits larger spoofed position changes. This hard gate is not enlarged using receiver-reported accuracy because a spoofed receiver can also falsify its accuracy estimate."
+             user="Advanced">
+        <field name="Range">3 100</field>
+        <field name="Units">m</field>
+        <field name="UnitText">meters</field>
+      </param>
+      <param humanName="GPS quarantine velocity gate"
+             name="EK3_GPS_Q_VEL"
+             documentation="Maximum horizontal disagreement between GPS velocity and the delayed EKF velocity prediction accepted by the optional GPS quarantine monitor."
+             user="Advanced">
+        <field name="Range">1 20</field>
+        <field name="Units">m/s</field>
+        <field name="UnitText">meters per second</field>
+      </param>
+      <param humanName="GPS quarantine probation time"
+             name="EK3_GPS_Q_TIME"
+             documentation="Continuous time for which returned GPS position, velocity and receiver quality must remain plausible before the optional quarantine monitor permits GPS fusion and state resets again. Recovery with a stable position offset after a data gap uses twice this time. A continuous position rejection cannot use offset recovery."
+             user="Advanced">
+        <field name="Range">3 60</field>
+        <field name="Units">s</field>
+        <field name="UnitText">seconds</field>
+      </param>
+      <param humanName="GPS quarantine post-gap offset limit"
+             name="EK3_GPS_Q_OFS"
+             documentation="Maximum horizontal disagreement allowed when GPS returns after a real data gap. The returned coordinate trajectory and velocity must still agree with the inertial prediction throughout an extended probation period. This exception is never used after a continuous position rejection and never applies to GPS height, which remains checked against the barometer-aided vertical state. Set this only large enough to cover expected horizontal dead-reckoning drift."
+             user="Advanced">
+        <field name="Range">25 1000</field>
+        <field name="Units">m</field>
+        <field name="UnitText">meters</field>
+      </param>
+    </parameters>
+  </libraries>
+</paramfile>

@@ -1,6 +1,401 @@
 # Avalonia in-place migration status
 
-Updated: **2026-08-30**.
+Updated: **2026-09-01**.
+
+## PR #25: safe DFLogBuffer index cache on .NET 10
+
+- PR `#25` (`fix/dflogbuffer-savecache-net10`, reviewed head `2cd32cfdb`) is important and
+  appropriate to integrate. The path-backed `DFLogBuffer` cache is exercised for logs at or above
+  300 MiB, but its upstream `BinaryFormatter` save path throws on .NET 10; loading also cannot
+  restore that format. The PR replaces it with a small versioned binary format inside GZip,
+  validates source length/write time, writes via a temporary file and falls back to a full scan
+  when the cache is stale, truncated or foreign. The contributor's synthetic coverage and
+  433.6-MiB/10.55M-record benchmark demonstrate both the failure and the useful startup gain.
+- The review found integration blockers in the first revision and fixed them in follow-up commit
+  `a4f24e82c` after the exact PR merge commit `55f543048`. `LastLoadFromCache` was static and was
+  also read back as a control-flow decision, so concurrently constructed buffers could make one
+  another skip a required scan; it is now per instance and the decision remains local. The
+  predictable shared-temp name was replaced by a SHA-256 path key in the user's local data
+  directory. Concurrent writers use unique sibling temp files and always clean abandoned writes.
+  Source identity is captured before scanning and rechecked before publishing or accepting an
+  index, covering platforms that permit an already-open log to be modified.
+- Cache input is now validated as untrusted data: line and per-list counts have individual and
+  aggregate bounds; offsets and line numbers must be in range and strictly increasing; paired
+  lists, total binary-message count and text/binary line-offset cardinality must agree; trailing
+  payload is rejected. Untrusted counts no longer cause a full-size up-front allocation. A bad
+  cache resets all temporary indexes and degrades to a clean rescan without failing log open.
+- Focused binary/text round-trip, stale-identity, corrupt/truncated, unreasonable-count,
+  out-of-range-offset and instance-isolation coverage passes **8/8**. The complete Release suite
+  passes **1581/1581**; `MissionPlanner.slnx` builds with **0 warnings / 0 errors**. All six
+  migration/retirement/artifact gates pass: 1623 native rows with 0 blockers, 708/708 pinned port
+  paths, and clean WinForms/project/binary/key audits.
+- At the reviewed PR head, Linux, Windows, macOS x64 and CodeQL passed; macOS arm64 failed only
+  after publish/sign/DMG creation because `hdiutil verify` returned runner-level `Resource
+  temporarily unavailable` on all three retries. The published master checkpoint
+  `afdf316733bb8b8188512182afddd5d3498eff64` then passed the complete CI/package run
+  `33451960996`: Linux tests/TAR/DEB/payload smoke, Windows ZIP/MSI install validation and both
+  macOS ZIP/DMG jobs all succeeded, including arm64. CodeQL run `33451960959` also succeeded.
+- PR #25 is `MERGED` with merge commit `55f543048`; the review/fix summary is posted in the PR and
+  `master == origin/master == afdf31673` at the verified functional handoff checkpoint. Remaining
+  code blocker: none. This final status-only update follows that checkpoint; the next useful manual
+  acceptance step is to open a representative path-backed log over 300 MiB twice and confirm the
+  second open uses the per-user cache without changing displayed lines or message counts.
+
+## Local ArduPilot parameter-metadata synchronization
+
+- The authoritative source checkout remained read-only and clean on ArduPilot branch
+  `codex/sitl-udpserver-local-port-20260830`, commit
+  `3b2f9ac14e9da48aff58aa206ae60d80527f6edd`; its merge base with `origin/master` is
+  `582a71193ad2ed2d47e6723a53380447b0038a02`. The ArduCopter pdef was regenerated locally with
+  `Tools/autotest/param_metadata/param_parse.py --vehicle ArduCopter --format xml` and the exact
+  fork delta was reviewed rather than copying the complete 2.8 MB generated catalogue.
+- `ParameterMetaDataLocal.xml` records all **46** affected entries: six Copter flight-mode value
+  lists, thirteen changed/new dead-reckoning entries, Copter's changed `ARSPD_USE`, six generic
+  EKF3 entries and twenty ModelCal entries. This covers the new `DR_OBS_*`, `DR_EKF_*`,
+  `EK3_ARSP_MODE`, `EK3_GPS_Q_*` and `MCAL_*` descriptions, ranges, units, values, reboot and
+  read-only flags, plus the new `31:ModelCal` mode value and the changed `DR_NEXT_MODE` /
+  `EK3_OPTIONS` descriptions.
+- The 29,318-byte pdef overlay is loaded before downloaded upstream metadata, so fork changes to
+  existing fields are visible as well as entirely new parameters. Copter-only library entries are
+  explicitly qualified as `ArduCopter:*`, preventing ModelCal, dead-reckoning and the Copter pitot
+  guidance from leaking into Plane/Rover/Sub; generic EKF3 additions remain available to every
+  vehicle that exposes them. Missing overlay fields still fall through to downloaded pdef and then
+  to the legacy backup. The overlay is copied byte-for-byte into normal output and publish payloads.
+- Functional/data/test commit `839659c7f` was developed and published on
+  `port/avalonia-in-place`. The user explicitly authorized master integration on 2026-09-01;
+  local `master` was first fast-forwarded through the eight newer origin changes ending at
+  `ecf886a19`, then the complete metadata branch was integrated by merge commit `185fc9065`.
+  The tracked local build sequence was intentionally incremented from **2 to 3** in the separate
+  commit `6762223b1`. On this combined master, focused metadata tests pass **4/4**, the complete
+  Release suite passes **1573/1573**, and `MissionPlanner.slnx` builds with **0 warnings / 0
+  errors**. All six migration/retirement/artifact gates pass (1623 native rows, 0 blockers,
+  708/708 pinned port paths, and clean WinForms/project/binary/key audits).
+- The code and initial handoff commits were pushed to the newly published
+  `origin/port/avalonia-in-place` branch. The first `make linux-deb` attempt encountered the known
+  logical/physical checkout alias (`/home/alex/src` versus `/home/alex/SRC`) in stale Release
+  intermediates; a standard solution clean followed by the physical-path package script resolved
+  it without source changes. The resulting package is
+  `out/packages/missionplanner10_1.3.83.2-6264c722_amd64.deb`: 60,143,970 bytes, Debian version
+  `1:1.3.83.2+6264c722`, installed size 193,828 KiB, SHA-256
+  `fa3f9e7f0f5a264a84c80bc44ae053de46d4d90c05393fd7994aa31e651bbef2`. `lintian` passes with no
+  findings; the packaged `ParameterMetaDataLocal.xml` is byte-identical to the tracked 29,318-byte
+  source, required launcher/resource checks pass, and forbidden Windows SimpleBLE/libusb payloads
+  are absent. An isolated extracted-package Xvfb launch reaches the normal event loop for the
+  complete 12-second smoke window (expected timeout 124) with empty stderr.
+- The clean merged-master package after the required sequence bump is
+  `out/packages/missionplanner10_1.3.83.3-6762223b_amd64.deb`: 60,142,236 bytes, Debian version
+  `1:1.3.83.3+6762223b`, installed size 193,860 KiB, SHA-256
+  `45f1e84556fa5c597646f83f01fd69783ecd3f7d1f2b00fac9e0bf9faa1c722f`. `lintian` has no findings;
+  the packaged overlay is byte-identical, required launcher/resource checks pass, and forbidden
+  Windows SimpleBLE/libusb payloads are absent. Its isolated Xvfb smoke reaches the normal event
+  loop for the full 12-second window (expected timeout 124) with empty stderr.
+- Remaining blocker: none. Next executable acceptance step is to connect the matching custom
+  firmware and visually verify the new descriptions/editors in Full Parameter List; regenerate
+  and review this small overlay whenever the pinned ArduPilot branch advances. This status-only
+  handoff follows the merged-master package checkpoint; after it is pushed, `master`,
+  `origin/master` and the worktree are aligned and clean.
+
+## Flight Planner waypoint display numbering
+
+- Dedicated branch `fix/flight-planner-waypoint-numbering` starts from merged `master`
+  `1cbe17b87`. Behavior commit `03fca7c64` makes human-facing Planner waypoint numbers
+  one-based; regression commit `054f9c7f1` covers the row model and map markers.
+- Official Mission Planner removes mission item zero (home) before building the Flight Data
+  waypoint overlay, labels the remaining items with `a + 1`, and numbers Flight Planner row
+  headers with `a + 1`. The Avalonia Plan grid and map instead exposed zero-based `WpRow.Seq`, so
+  its first planned point appeared as 0 while Flight Data correctly showed 1.
+- `WpRow.Seq` remains zero-based for editing, plugin APIs, mission transfer, `DO_JUMP`, map dragging
+  and mission files. New read-only `DisplayNumber` returns `Seq + 1` and raises a dependent property
+  notification whenever rows are renumbered. Only human-facing Plan grid, map-marker and KML labels
+  use the one-based value.
+- Focused `WpRowTests` plus `FlightPlannerViewportTests` pass **18/18**. The Release build succeeds
+  with **0 warnings / 0 errors**. The complete Avalonia suite rerun executed **1569** tests:
+  **1568 passed** and only the existing host-sensitive
+  `VideoSourceResolverTests.NormalizesCommonStreamSources` `/dev/video0` case failed. A serial/TCP
+  loopback timing test failed once during the first full run, then passed alone and in the complete
+  rerun; no bridge source or test changes on this branch.
+- Behavior, integration and test reviewers approve exact code/test head `054f9c7f1` with no
+  protocol, file-format, plugin or map-interaction blocker.
+- The worktree still contains only the user's five pre-existing modifications in
+  `Drivers/inf2cat.bat`, `Drivers/uninstall_drivers.bat`, `ExtLibs/Mavlink/regenerate.bat`,
+  `ExtLibs/Mavlink/updatexmls.bat` and `graphs/updatexmls.bat`; none is staged or included. Claude
+  remains disabled.
+- Manual acceptance: rebuild and relaunch, add at least two Plan points and confirm the grid and map
+  show 1 and 2; upload/read the mission and confirm Flight Data uses the same numbers while current
+  mission status may still correctly report sequence 0 when the vehicle is idle.
+
+## Flight Data bearing-overlay zoom stability
+
+- Dedicated branch `fix/flight-data-bearing-overlay-zoom` starts from merged `master`
+  `47fc0de85`. The published branch first attempted screen-space parity in commits `005462291` and
+  `40de2497f`; live testing showed that keeping the default 500-pixel vectors constant made them
+  span countries at world zoom. Corrective commit `5acf3d98e` removes that viewport callback/cache
+  and keeps bearing vectors at a stable map distance instead. Published history was not rewritten.
+- Official Mission Planner draws heading, navigation, course and target bearings at a constant
+  screen-pixel length. This port now deliberately differs: `GMapMarkerBase_Length` is a map distance
+  in metres, and Planner Settings labels it **Line Length (m)**. The vector therefore shrinks with
+  the aircraft when the map is zoomed out instead of acquiring a continental geographic extent on
+  every telemetry refresh. Radius geometry retains its existing physical-distance behavior.
+- `FlightMapOverlayTests` passes **29/29**. The corrected regression verifies that a configured
+  500m bearing renders as 250px at resolution 2, shrinks to 62.5px after zooming to resolution 8,
+  and remains 62.5px after the next `PopulateVehicleLayer` telemetry redraw. The Release build
+  succeeds with **0 warnings / 0 errors**. The complete Avalonia suite ran **1567** cases: **1566
+  passed** and only the existing environment-sensitive
+  `VideoSourceResolverTests.NormalizesCommonStreamSources` `/dev/video0` case failed; neither the
+  resolver nor its test changes on this branch.
+- The worktree still contains only the user's five pre-existing modifications in `Drivers/inf2cat.bat`,
+  `Drivers/uninstall_drivers.bat`, `ExtLibs/Mavlink/regenerate.bat`,
+  `ExtLibs/Mavlink/updatexmls.bat` and `graphs/updatexmls.bat`; none is staged or included. Claude
+  remains disabled.
+- No code or automated-test blocker remains. Manual acceptance requires rebuilding and relaunching
+  this branch (the already running process predates it), connecting the live vehicle, and zooming
+  Flight Data out to a regional/world view: all enabled bearing lines must stay local to the
+  aircraft, shrink with the map and remain free of duplicated aircraft symbols.
+
+## Choice-dialog action layout
+
+- Dedicated branch `fix/dialog-choice-button-layout` starts from merged `master` `4700897ad`.
+  Commit `5e8d86341` makes choice dialogs size to their content within a 380px minimum and 760px
+  maximum and lets action buttons wrap when the window is constrained; commit `664f4d5e2` adds the
+  exact four-button updater-dialog regression.
+- `Dialogs.Choice` previously reused the fixed 380px generic dialog frame with a single horizontal
+  `StackPanel`. The updater actions required more width, so the final **Later** button painted past
+  the client edge and was clipped. The choice dialog now expands enough to keep those actions on
+  one row under normal sizing, while a `WrapPanel` keeps every action inside the window if the
+  platform constrains it to the minimum. Updater/version behavior is unchanged on this branch.
+- `DialogLayoutTests` passes **1/1** and renders the reported labels at both automatic width and a
+  verified 380px window width, checking horizontal and vertical containment. The automatic layout
+  also must retain one action row. `dotnet build MissionPlanner.csproj -c Release -m:1 --no-restore`
+  succeeds with **0 warnings / 0 errors**. The complete Avalonia suite ran **1566** cases: **1565
+  passed** and only the existing environment-sensitive
+  `VideoSourceResolverTests.NormalizesCommonStreamSources` `/dev/video0` case failed; neither the
+  resolver nor its test changes on this branch.
+- Behavior, integration and test reviewers approve the code/test tuple `5e8d86341` + `664f4d5e2`.
+  The worktree still contains only the user's five pre-existing modifications in
+  `Drivers/inf2cat.bat`, `Drivers/uninstall_drivers.bat`, `ExtLibs/Mavlink/regenerate.bat`,
+  `ExtLibs/Mavlink/updatexmls.bat` and `graphs/updatexmls.bat`; none is staged or included. Claude
+  remains disabled.
+- PR #31's first CI run `33410216298` published, signed and verified the x64 app, then failed while
+  creating its DMG; the arm64 package passed. An earlier run `33381702003` failed at the same
+  boundary on arm64 with `Resource temporarily unavailable`, while its x64 package passed. Commit
+  `f04397be3` gives DMG creation and immediate verification three bounded attempts with 2s/4s
+  backoff, removes a partial image before recreating it, and exposes `hdiutil` diagnostics. A
+  persistent packaging error still fails the build. `bash -n build/macos/make-dmg.sh` and
+  `git diff --check` pass; integration and test reviewers approve the CI hardening.
+- Follow-up CI run `33411440256` passed on pushed head `719b1858b`: the complete Linux build/test
+  and package job, Windows package build/install validation, and both macOS x64 and arm64 signed
+  app/DMG builds, mount checks and artifact uploads are green. No automated blocker remains. Manual
+  UI acceptance requires rebuilding and relaunching this branch and opening a four-action choice
+  such as the update prompt for a genuinely newer signed release: all four buttons must be visible
+  and clickable. After this UI fix lands, the next separate task is the Flight Data bearing/target
+  overlay behavior while zooming.
+
+## Updater equal-version metadata precedence
+
+- Dedicated branch `fix/updater-same-version-prompt` starts from merged `master` `3e7ce29e1`.
+  Commit `136118c40` stops Git commit and `.dirty` metadata from ordering otherwise equal builds;
+  commit `2652eb316` covers the reported `1.3.83.2` clean-release versus dirty-local-build case and
+  proves that a higher fourth numeric build still updates. Reviewer follow-up `a8434687f` limits
+  date ordering to legacy identities without an explicit fourth field, and `3111d8ebe` covers that
+  equal-four-part/different-date case.
+- `UpdateEngine.IsNewer` previously treated different hashes as newer after the official version,
+  local build number and legacy build date compared equal. This produced an update prompt whose
+  message showed the same `1.3.83.2` version on both sides. Hashes now remain display and artifact
+  identity metadata only. The four-part numeric version remains authoritative, while legacy
+  three-part dated builds and the one-time CalVer migration retain their existing ordering. The
+  release process already requires incrementing the repository-global local build number before
+  every materially new stable or beta release.
+- The combined `UpdaterTests` and `AppVersionTests` pass **51/51**, and
+  `dotnet build MissionPlanner.csproj -c Release -m:1 --no-restore` succeeds with **0 warnings / 0
+  errors**. The complete Avalonia suite ran **1565** cases: **1564 passed** and only the existing
+  environment-sensitive `VideoSourceResolverTests.NormalizesCommonStreamSources` `/dev/video0`
+  case failed; neither the resolver nor its test changes on this branch.
+- Behavior, integration and test reviewers approve the code/test tuple `136118c40` + `2652eb316`
+  + `a8434687f` + `3111d8ebe`. The worktree still contains only the user's five pre-existing
+  modifications in
+  `Drivers/inf2cat.bat`, `Drivers/uninstall_drivers.bat`, `ExtLibs/Mavlink/regenerate.bat`,
+  `ExtLibs/Mavlink/updatexmls.bat` and `graphs/updatexmls.bat`; none is staged or included. Claude
+  remains disabled.
+- No code or test blocker remains. Manual acceptance requires rebuilding and relaunching this
+  branch, then checking against a signed release with the same four-part version but a different
+  hash: it must report up to date and must not offer installation. A release with a higher fourth
+  numeric build must still prompt. After this updater fix lands, the next separate task is the
+  Flight Data bearing/target overlay behavior while zooming.
+
+## Flight Planner vehicle-home synchronization
+
+- Dedicated branch `fix/flight-planner-vehicle-home-sync` starts from merged `master`
+  `f02eefd87`. Commit `279db6eab` refreshes Flight Planner home state whenever PLAN is selected or
+  reselected; commit `d7132c4d0` adds the isolated helper and shell-navigation regressions. The
+  comparison source is official `ArduPilot/MissionPlanner` commit `2b5589f40`.
+- The persisted `TXT_homelat`/`TXT_homelng` values could remain at an earlier planning site after a
+  different vehicle connected. Adding enough local waypoints then correctly drew the official
+  `last -> home -> first` route, but against that stale home. PLAN activation now prefers the
+  autopilot-reported `HomeLocation`, falls back to `PlannedHomeLocation`, and retains the saved
+  planner home only when neither vehicle coordinate is valid. Route construction and its solid or
+  dashed styling are unchanged.
+- The focused `FlightPlannerHomeSyncTests` pass **4/4**, `PlannerPortParityTests` pass **59/59**,
+  and `dotnet build MissionPlanner.csproj -c Release -m:1 --no-restore` succeeds with **0 warnings /
+  0 errors**. The complete Avalonia suite ran **1562** cases: **1561 passed** and only the existing
+  environment-sensitive `VideoSourceResolverTests.NormalizesCommonStreamSources` `/dev/video0`
+  case failed; neither the resolver nor its test changes on this branch.
+- Behavior, integration and test reviewers approve the implementation and test tuple `279db6eab`
+  + `d7132c4d0`. The worktree still contains only the user's five pre-existing modifications in
+  `Drivers/inf2cat.bat`, `Drivers/uninstall_drivers.bat`,
+  `ExtLibs/Mavlink/regenerate.bat`, `ExtLibs/Mavlink/updatexmls.bat` and `graphs/updatexmls.bat`;
+  none is staged or included. Claude remains disabled.
+- No code or test blocker remains. The screenshot process loaded the older `7de82f8a`, so manual
+  acceptance requires rebuilding and relaunching this branch: connect a vehicle whose reported
+  home differs from the saved planner home, select and reselect PLAN, confirm the Home Location
+  fields follow the vehicle home, then add local waypoints and confirm the closing route remains
+  local. The separately observed Flight Data bearing-axis zoom behavior remains excluded.
+
+## Flight Planner waypoint viewport stability
+
+- Dedicated branch `fix/flight-planner-waypoint-viewport-stability` starts from merged `master`
+  `fb7896112`. Commit `788d49d32` preserves an already initialized Flight Planner viewport across
+  waypoint redraws; commit `27a4a899a` adds the SFO-home/Kyiv-mission regression and official
+  closing-route style checks; reviewer follow-up `cd13dfbfd` exercises the deferred repair ordering.
+- `SetWaypoints` snapshots centre, resolution and rotation only after the planner has established a
+  valid viewport. It restores an inline redraw mutation immediately and posts one version-gated
+  restore for an extent-reactive mutation queued by the same redraw. Initial startup and first-point
+  centring remain unchanged. The official `last -> home -> first` route is still rendered: a distant
+  route remains solid and a route whose two home legs are both under 5 km remains dashed.
+- Behavior, integration and test reviewers approve exact HEAD `cd13dfbfd`. The focused
+  `FlightPlannerViewportTests` pass **3/3**, and `PlannerPortParityTests` pass **59/59**.
+  `dotnet build MissionPlanner.csproj -c Release -m:1 --no-restore` succeeds with **0 warnings / 0
+  errors**. The complete Avalonia suite ran **1558** cases: **1557 passed** and only the existing
+  environment-sensitive `VideoSourceResolverTests.NormalizesCommonStreamSources` `/dev/video0`
+  case failed; neither the resolver nor its test changes on this branch.
+- The worktree still contains the user's five pre-existing modifications in
+  `Drivers/inf2cat.bat`, `Drivers/uninstall_drivers.bat`, `ExtLibs/Mavlink/regenerate.bat`,
+  `ExtLibs/Mavlink/updatexmls.bat` and `graphs/updatexmls.bat`; none is staged or included in these
+  commits. Claude remains disabled.
+- The currently running Debug process loaded older commit `8f63d8d1`, so it must be stopped and
+  relaunched from the repository root before manual acceptance. Keep a connected SFO home, pan Plan
+  to Kyiv, add at least three waypoints and confirm the local centre/zoom does not change; the long
+  solid closing route must remain rendered. The separately observed Flight Data bearing-axis
+  behavior while zooming remains excluded and is the next independent bug.
+
+## Flight Data vehicle-overlay marker rendering
+
+- Dedicated branch `fix/flight-data-vehicle-overlay-rendering` starts from pulled `master`
+  `5a1c11ea3`. Commit `7379e6dde` scopes the active aircraft triangle to its point feature;
+  commit `109872c5e` adds the rendering regression test, and reviewer follow-up `a4f218da0`
+  exercises the complete live fixed-wing layer with all four bearing lines and its radius arc.
+- Flight Data previously assigned `MavMarker.Vehicle` as the style of the complete `Vehicle`
+  layer, then added heading, course, navigation-bearing, target-bearing and turn-radius geometries
+  to that same layer. Mapsui consequently painted the aircraft symbol on those geometries too,
+  producing duplicated arrowheads and a striped fan along the turn-radius arc. The layer now has
+  no shared symbol style, while its aircraft point owns the triangle style; bearing and radius
+  features retain only their vector styles. Log Browse sample markers use the same safe path.
+- `dotnet build MissionPlanner.csproj -c Release -m:1 --no-restore` succeeds with **0 warnings / 0
+  errors**, and the focused `FlightMapOverlayTests` pass **28/28**. The complete Avalonia suite ran
+  **1555** cases: **1554 passed** and only the existing environment-sensitive
+  `VideoSourceResolverTests.NormalizesCommonStreamSources` `/dev/video0` case failed. Neither the
+  resolver nor its test changes on this branch.
+- The worktree still contains the user's five pre-existing modifications in
+  `Drivers/inf2cat.bat`, `Drivers/uninstall_drivers.bat`, `ExtLibs/Mavlink/regenerate.bat`,
+  `ExtLibs/Mavlink/updatexmls.bat` and `graphs/updatexmls.bat`; none is staged or included in these
+  commits. Claude remains disabled.
+- No code blocker remains. The next executable acceptance step is a fixed-wing SITL flight with
+  bearing and turn-radius overlays enabled: confirm exactly one aircraft triangle is rendered and
+  the colored guide lines and radius arc remain clean. The separately observed Flight Planner
+  viewport jump between a distant persisted home and new waypoints is intentionally excluded from
+  this branch and should be handled after this fix lands.
+
+## Flight Data Auto Pan settings parity
+
+- Dedicated branch `fix/flight-data-autopan-settings` carries four granular code/test commits:
+  `8540f8b74` restores the official setting behavior, `adea69d75` adds its initial regression
+  tests, `e6cf79aee` matches official handling of a malformed present value, and `7d570b224`
+  covers the complete absent/true/false/malformed settings matrix.
+  The comparison source is the official `ArduPilot/MissionPlanner` repository at commit
+  `2b5589f40` (`latest`).
+- PR #26 (`https://github.com/Rouniy/MissionPlanner10/pull/26`) tracks this branch. Merge commit
+  `cbe4c4db8` brings it onto current `origin/master` `2f99868f2`; its only textual conflict was
+  this status file, where both the Auto Pan record and upstream's dual-listener release record
+  were retained.
+- Official Mission Planner starts `CHK_autopan` enabled, restores an existing preference and
+  updates that preference when the checkbox changes. Mission Planner 10 instead initialized the
+  generated `AutoPan` property to false and never loaded or stored `CHK_autopan`. A restored
+  `maplast_lat`/`maplast_lng` viewport was therefore marked centred and stayed at an old location
+  while the live aircraft marker updated off-screen. The port now defaults Auto Pan on without
+  manufacturing a setting, restores an explicit true/false value, treats a malformed present
+  value as false like official Mission Planner, and persists later changes.
+- On the merged result, `dotnet build MissionPlanner.csproj -c Release -m:1 --no-restore` succeeds
+  with **0 warnings / 0 errors**. The focused Auto Pan tests pass **3/3**, and the complete
+  `PlannerPortParityTests` class passes **59/59**.
+- The complete merged Avalonia suite ran **1553** cases: **1552 passed** and one unrelated existing
+  `VideoSourceResolverTests.NormalizesCommonStreamSources` case failed because this workstation has
+  a real `/dev/video0`. `VideoSourceResolver.Resolve` treats an existing filesystem path as
+  `FromPath` before its later V4L2 normalization, while the test unconditionally expects
+  `v4l2:///dev/video0`. Neither file is changed on this branch; this is an environment-sensitive
+  pre-existing test/implementation mismatch rather than an Auto Pan regression.
+- The worktree still contains the user's five pre-existing modifications in
+  `Drivers/inf2cat.bat`, `Drivers/uninstall_drivers.bat`, `ExtLibs/Mavlink/regenerate.bat`,
+  `ExtLibs/Mavlink/updatexmls.bat` and `graphs/updatexmls.bat`; none is staged or included in these
+  commits. Claude remains disabled.
+- No Auto Pan code blocker remains. The next executable acceptance step is a fresh WP10 SITL
+  launch: confirm
+  Flight Data starts with Auto Pan checked and centres on the live aircraft, then uncheck it,
+  restart WP10 and confirm the explicit false preference is restored. Run the full suite on a host
+  without `/dev/video0`, or address that video test separately, before claiming an entirely green
+  repository suite.
+
+## Dual startup MAVLink UDP listeners and Debian handoff
+
+- Work is isolated on `port/avalonia-in-place`, as required by the repository handoff policy.
+  Functional commit `ccbfe7740` restores the two upstream default inbound MAVLink listeners at
+  application startup. UDP 14550 and 14551 bind immediately without waiting for a heartbeat and
+  are registered as two independent `MAVLinkInterface`/secondary-runtime connections. Their
+  vehicle lists, reads, writes, disconnect handling and active-link selection therefore remain
+  isolated; multiple systems received on one port continue to use the existing per-component
+  selector. A silent passive listener no longer makes the primary connection button report a
+  false connected session.
+- Planner Settings has a separate **Startup UDP Listeners** group with an enabled-by-default
+  toggle and validated primary/alternate ports (14550/14551). Invalid persisted values fall back
+  to the documented defaults, equal port values create one listener, and changes explicitly take
+  effect after restart. Each listener opens its telemetry log only when its first datagram is
+  ready, so launches without telemetry do not create empty `.tlog`/`.rlog` files. Binding failure
+  on one configured port is contained and does not prevent the other port or the application from
+  starting.
+- Regression coverage sends two real MAVLink heartbeat streams with different sysids to two real
+  loopback UDP sockets and proves that both remain open and that neither vehicle appears on the
+  other link. Default, disabled, duplicate-port and invalid-port behavior is also pinned. The
+  complete final Release suite passes **1550/1550**; `MissionPlanner.slnx` and the standalone SITL
+  harness build with **0 warnings / 0 errors**. All six migration/retirement/artifact gates pass
+  (1623 native rows, 0 blockers, 708/708 pinned port paths, no WinForms dependency, and clean
+  project/binary/key audits).
+- The intentional local sequence increment is isolated in commit `3b88492d1` (`1 -> 2`). The
+  clean-tree Debian artifact is
+  `out/packages/missionplanner10_1.3.83.2-3b88492d_amd64.deb`: 60,128,072 bytes, Debian version
+  `1:1.3.83.2+3b88492d`, installed size 193,792 KiB, SHA-256
+  `a8f111e1eb8bbb44f0a73618ecc1275b194fc355168403a7d0968a26b06bbfd1`. `lintian`, launcher,
+  executable, airport-resource and forbidden Windows-native-library payload checks pass. An
+  isolated extracted-package Xvfb launch reaches the normal event loop (expected timeout 124),
+  emits no stdout/stderr or crash log, creates no empty telemetry logs, and `ss` confirms the
+  packaged process owns both `0.0.0.0:14550` and `0.0.0.0:14551` simultaneously. This is the
+  pre-merge local acceptance package; the GitHub workflow rebuilds every platform artifact from
+  the exact final tagged commit and therefore uses that commit's hash in its filenames.
+- Release was explicitly requested on 2026-08-31. `port/avalonia-in-place` was merged without
+  conflict into `master` by merge commit `55bdaf2b1`; release checkpoint `22ec12fef` is published
+  on `origin/master`. Complete CI/package run `33370869010` passes Linux tests/DEB/TAR smoke,
+  Windows ZIP/MSI build-install-uninstall and both macOS app/DMG jobs. CodeQL run `33370869031`
+  passes on the same commit and the code-scanning API reports zero open alerts.
+- Annotated tag `v1.3.83.2-22ec12fe` resolves exactly to release checkpoint `22ec12fef`. Release
+  workflow `33371674803` passes tag-contract validation, all four fresh platform builds, signed
+  update-manifest generation, checksum aggregation and publication. The stable, non-draft,
+  non-prerelease GitHub Release is
+  `https://github.com/Rouniy/MissionPlanner10/releases/tag/v1.3.83.2-22ec12fe` and contains 19
+  uploaded assets: Linux TAR/DEB/update ZIP, Windows ZIP/MSI/update ZIP, both macOS ZIP/DMG pairs,
+  four manifest/signature pairs and `SHA256SUMS`. The checksum file names all other 18 assets;
+  every manifest reports `1.3.83.2+22ec12fe`, its published bundle URL/hash/size, and every Ed25519
+  signature independently verifies with `build/update-public-key.txt`.
+- This final status-only handoff is the sole commit after the immutable release tag; application
+  source and released binaries remain at `22ec12fef`. Remaining blocker: none for the release.
+  Next executable steps are physical simultaneous-input acceptance on UDP 14550/14551 and, before
+  any later release, an intentional `make bump-local-build` from **2 to 3**.
 
 ## Native dataflash log core, phase 1: vendored Rust workspace and build plumbing (branch feature/dflog-native-log-core)
 
