@@ -309,6 +309,62 @@ public class PlannerPortParityTests {
   }
 
   [AvaloniaFact]
+  public void Flight_data_auto_pan_defaults_on_without_creating_a_preference() {
+    const string key = "CHK_autopan";
+    string? saved = Settings.Instance[key];
+    try {
+      Settings.Instance[key] = null;
+
+      using var vm = new FlightDataViewModel();
+
+      Assert.True(vm.AutoPan);
+      Assert.Null(Settings.Instance[key]);
+    } finally {
+      Settings.Instance[key] = saved;
+    }
+  }
+
+  [AvaloniaFact]
+  public void Flight_data_auto_pan_restores_and_persists_the_official_preference() {
+    const string key = "CHK_autopan";
+    string? saved = Settings.Instance[key];
+    try {
+      Settings.Instance[key] = bool.TrueString;
+      using (var enabled = new FlightDataViewModel()) {
+        Assert.True(enabled.AutoPan);
+      }
+
+      Settings.Instance[key] = bool.FalseString;
+
+      using var vm = new FlightDataViewModel();
+
+      Assert.False(vm.AutoPan);
+      vm.AutoPan = true;
+      Assert.Equal(bool.TrueString, Settings.Instance[key]);
+      vm.AutoPan = false;
+      Assert.Equal(bool.FalseString, Settings.Instance[key]);
+    } finally {
+      Settings.Instance[key] = saved;
+    }
+  }
+
+  [AvaloniaFact]
+  public void Flight_data_auto_pan_treats_a_malformed_present_preference_like_official() {
+    const string key = "CHK_autopan";
+    string? saved = Settings.Instance[key];
+    try {
+      Settings.Instance[key] = "not-a-boolean";
+
+      using var vm = new FlightDataViewModel();
+
+      Assert.False(vm.AutoPan);
+      Assert.Equal("not-a-boolean", Settings.Instance[key]);
+    } finally {
+      Settings.Instance[key] = saved;
+    }
+  }
+
+  [AvaloniaFact]
   public void Flight_data_hud_and_quick_panels_detach_and_return_without_recreation() {
     var view = new FlightDataView();
     var vm = new FlightDataViewModel();
