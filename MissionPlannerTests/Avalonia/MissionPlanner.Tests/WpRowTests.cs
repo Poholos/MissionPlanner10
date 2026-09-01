@@ -7,6 +7,21 @@ namespace MissionPlanner.Tests;
 
 public class WpRowTests {
   [Fact]
+  public void Planner_display_number_is_one_based_without_changing_internal_sequence() {
+    var row = new WpRow { Seq = 0 };
+    var changes = new List<string>();
+    row.PropertyChanged += (_, args) => changes.Add(args.PropertyName ?? "");
+
+    Assert.Equal(1, row.DisplayNumber);
+
+    row.Seq = 4;
+
+    Assert.Equal(4, row.Seq);
+    Assert.Equal(5, row.DisplayNumber);
+    Assert.Contains(nameof(WpRow.DisplayNumber), changes);
+  }
+
+  [Fact]
   public void From_then_ToLocationwp_round_trips_fields() {
     var src = new Locationwp {
       id = (ushort)MAVLink.MAV_CMD.WAYPOINT,

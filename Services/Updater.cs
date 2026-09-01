@@ -654,17 +654,16 @@ public sealed class UpdateEngine {
       return numberComparison > 0;
     }
 
-    int dateComparison = string.CompareOrdinal(remoteParts.BuildDate, localParts.BuildDate);
-    if (dateComparison != 0) {
-      return dateComparison > 0;
+    if (!HasExplicitBuild(remoteParts.Number) && !HasExplicitBuild(localParts.Number)) {
+      int dateComparison = string.CompareOrdinal(remoteParts.BuildDate, localParts.BuildDate);
+      if (dateComparison != 0) {
+        return dateComparison > 0;
+      }
     }
 
-    // Git hashes do not have a useful ordering. If the release server and local build have
-    // different commits for the same official version/local build, install the server's selected
-    // release once; after the update their hashes match and it no longer prompts.
-    return remoteParts.Hash.Length > 0
-        && localParts.Hash.Length > 0
-        && !string.Equals(remoteParts.Hash, localParts.Hash, StringComparison.OrdinalIgnoreCase);
+    // Commit and dirty markers are build metadata, not version precedence. Two builds with the
+    // same official version and legacy build date are peers even when their source hashes differ.
+    return false;
   }
 
   private static (int, int, int, int) V4(string s) {
@@ -679,6 +678,19 @@ public sealed class UpdateEngine {
     var p = s.Split('.');
     int g(int i) => i < p.Length && int.TryParse(p[i], out var x) ? x : 0;
     return (g(0), g(1), g(2), g(3));
+  }
+
+  private static bool HasExplicitBuild(string s) {
+    s = (s ?? "").Trim();
+    if (s.StartsWith("v", StringComparison.OrdinalIgnoreCase)) {
+      s = s.Substring(1);
+    }
+    int cut = s.IndexOfAny(new[] { '-', '+', ' ' });
+    if (cut >= 0) {
+      s = s.Substring(0, cut);
+    }
+    string[] fields = s.Split('.');
+    return fields.Length >= 4 && int.TryParse(fields[3], out _);
   }
 
   private static bool IsLegacyCalVer((int Major, int Minor, int Patch, int Build) version) =>

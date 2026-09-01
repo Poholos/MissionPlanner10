@@ -33,6 +33,9 @@ public partial class App : Application {
     Services.SpeechAnnouncer.Start();
 
     if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) {
+      // Match upstream Mission Planner: keep both default MAVLink UDP inputs live from launch.
+      // They are independent secondary connections and do not block the ordinary primary port UI.
+      Services.StartupUdpListenerService.StartFromSettings(AppState.Connections);
       var mainViewModel = new MainWindowViewModel();
       desktop.MainWindow = new MainWindow { DataContext = mainViewModel };
       Services.PluginService.Initialize(mainViewModel);
