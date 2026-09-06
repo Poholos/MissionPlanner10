@@ -421,11 +421,27 @@ Updated: **2026-09-01**.
   notice added as `LICENSES/dflog-NOTICE.txt` (memmap2 and the Rust standard library,
   Apache-2.0; version-free filename since the vendored source re-syncs from upstream). Full C# suite: 1532/1544 locally, the failures being the known
   environment-dependent set, unchanged from master.
+- 2026-09-05, first live CI run (PR #34): the `package-macos (osx-x64)` leg failed. The macOS
+  runners are Apple Silicon, so their preinstalled Rust carries only `aarch64-apple-darwin`, and
+  `BuildDflogNative` probed for cargo's presence but not for its ability to build the requested
+  target - so a cross-build to `x86_64-apple-darwin` reached cargo and died on `can't find crate
+  for core` (MSB3073), failing the application build. The other three legs passed because each
+  one's triple is its runner's native target. Two fixes: the macOS job now installs both Apple
+  targets (the step phase 4 already carried, pulled forward byte-identically so the stack merge
+  stays a no-op), and the skip condition is now target-aware, since a toolchain that cannot build
+  for the requested RID is the same situation as no toolchain at all - the documented graceful
+  degradation had a hole that also hit any Apple Silicon developer publishing `osx-x64` locally.
+  The target probe reads `rustup target list --installed` from `rust/` so the toolchain file picks
+  the same toolchain cargo will use; it matches by substring and treats an unreadable list as
+  "attempt the build", so an unexpected reading fails loudly through cargo instead of silently
+  skipping the native library. All three paths verified locally: an uninstalled target
+  (`osx-x64` on this Windows host) prints the notice and exits 0, an installed target
+  (`win-x64`) still builds the cdylib, and a host-native build with no RID is unchanged.
 - Remaining blocker: none for this phase. Next executable step: phase 2 - port `DfLogNative`
   P/Invoke bindings into `ExtLibs/Utilities` on the `NativeGdalApi` availability pattern, add the
   `DFLogBuffer` native fast paths, and cover them with synthesized-log parity tests that skip
-  when the native library is absent. CI wiring for the four RIDs (rustup targets on the macOS
-  runner) is phase 4.
+  when the native library is absent. The remaining CI wiring for the four RIDs (the
+  `DFLOG_REQUIRE_NATIVE` test gate and the packaging payload assertions) is phase 4.
 
 ## NV4 parameter-catalog synchronization and Debian handoff
 
