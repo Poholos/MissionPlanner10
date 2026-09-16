@@ -2,6 +2,30 @@
 
 Updated: **2026-09-16**.
 
+## Retained standalone Linux launcher — 2026-09-16
+
+- Corrected the launch handoff: `bin/Release/net10.0/MissionPlanner` is framework-dependent
+  and ordinary desktop launch cannot find the SDK installed only in `/tmp/mp-dotnet`.
+  Published and **retained** the self-contained application at
+  `/home/alex/src/MissionPlanner10/out/linux-x64/MissionPlanner`. Launch this executable;
+  keep the entire `out/linux-x64` directory together. No `DOTNET_ROOT` or system .NET
+  installation is required. This supersedes the earlier temporary publish cleanup.
+- Git checkpoint: `port/avalonia-in-place` HEAD
+  `d8ccb13aac5570908a32755bddda87c9aa3aadf8`; this documentation-only commit follows it.
+  Product sources, master and remotes are unchanged. Only the pre-existing unstaged
+  `graphs/updatexmls.bat` change remains. `out/` is ignored and no binary is committed.
+- Validation: Linux x64 self-contained publish succeeded with embedded .NET/ASP.NET Core
+  10.0.12 and MCP payloads. A child process with all `DOTNET_ROOT*` variables removed
+  loaded `libhostfxr.so` and `libcoreclr.so` from the published directory and reached
+  Avalonia X11 initialization. The smoke deliberately used no display and stopped at
+  `XOpenDisplay`; it verifies runtime resolution, not graphical acceptance. Logs:
+  `/tmp/mp-mcp-launch-publish.log` and `/tmp/mp-launch-smoke-g9qxc_pt/`.
+  Restored the normal solution package graph afterwards. No source changes or test-suite
+  rerun; the 1608-pass product checkpoint below still applies.
+- Next executable step: run `./MissionPlanner` from `out/linux-x64` in the user's graphical
+  session, open **AI**, and proceed with the log/SITL acceptance described below. Remaining
+  hardware/model/native-platform acceptance limitations are unchanged.
+
 ## Embedded MCP diagnostics implementation — 2026-09-16
 
 - Implemented the complete local diagnostics/proposal/review workflow in the existing
