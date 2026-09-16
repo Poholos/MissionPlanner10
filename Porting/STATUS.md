@@ -807,7 +807,7 @@ Updated: **2026-09-16**.
   its title and description as the complete feature mapped to the three criteria above, and
   read the four RID legs of the run, macOS architecture asserts included.
 
-## Native dataflash log core, phase 4: CI and packaging wiring (branch feature/dflog-native-ci, stacked on phase 3)
+## Native dataflash log core, phase 4: CI and packaging wiring (part 4 of the combined delivery above)
 
 - ci.yml: the Linux test step sets `DFLOG_REQUIRE_NATIVE=1` (the runner has a Rust toolchain,
   so a missing or unloadable native library now fails the parity tests loudly instead of letting
@@ -838,7 +838,7 @@ Updated: **2026-09-16**.
   full feature: managed/native parity, native-required tests, package validation for all
   four RIDs), with the measured numbers from the phase-3 checkpoint in the description.
 
-## Native dataflash log core, phase 3: converted consumers (branch feature/dflog-native-consumers, stacked on phase 2)
+## Native dataflash log core, phase 3: converted consumers (part 3 of the combined delivery above)
 
 - `DataFlashLog.ReadField` takes the native columnar path (value column plus the same time field
   `DFItem.timems` resolves - TimeMS, then TimeUS, then T - with the managed enumeration loop as
@@ -897,7 +897,7 @@ Updated: **2026-09-16**.
   ci.yml/release.yml, `DFLOG_REQUIRE_NATIVE=1` in CI, and packaging assertions for the shipped
   library.
 
-## Native dataflash log core, phase 2: P/Invoke bindings and DFLogBuffer fast paths (branch feature/dflog-native-bindings, stacked on phase 1)
+## Native dataflash log core, phase 2: P/Invoke bindings and DFLogBuffer fast paths (part 2 of the combined delivery above)
 
 - `ExtLibs/Utilities/DFLogNative.cs` (ported from the upstream fork, ABI v5): internal P/Invoke
   surface over `dflog_ffi` - availability probe (`Available`, gated on the ABI version), whole-log
@@ -945,7 +945,7 @@ Updated: **2026-09-16**.
   `LogBrowseViewModel` columnar reads, then the FFT/spectrogram ISBD path, re-measuring against a
   large real log; phase 4 wires rustup targets into ci.yml/release.yml for the four RIDs.
 
-## Native dataflash log core, phase 1: vendored Rust workspace and build plumbing (branch feature/dflog-native-log-core)
+## Native dataflash log core, phase 1: vendored Rust workspace and build plumbing (part 1 of the combined delivery above)
 
 - Vendored the dflog parser core from the upstream fork (userepo/MissionPlanner
   `rust/dflog-core` branch, crates 0.7.1) into the top-level `rust/` directory: `dflog-core`
