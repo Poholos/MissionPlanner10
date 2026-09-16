@@ -9,7 +9,13 @@ using MissionPlanner.Utilities;
 
 namespace MissionPlanner.Services.Mcp;
 
-internal sealed record McpTarget(string Id, MavLinkConnection Connection, MAVState State, long Generation);
+internal sealed record McpTarget(string Id, MavLinkConnection Connection, MAVState State, long Generation) {
+  public override string ToString() => $"{State.sysid}:{State.compid} — {Connection.Endpoint}";
+}
+internal sealed record McpOnboardLog(ushort Id, uint Bytes, uint UtcUnixSeconds) {
+  public override string ToString() => $"Log {Id} — {Bytes / 1048576.0:0.0} MB";
+}
+internal sealed record McpOnboardLogs(bool Complete, McpOnboardLog[] Logs);
 internal sealed record ParameterChange(string Name, double Expected, double Proposed, string Reason);
 internal sealed record ParameterProposal(string Id, string TargetId, string Rationale,
     ParameterChange[] Changes, DateTime CreatedUtc) {
@@ -55,6 +61,11 @@ internal sealed class McpVehicleAccess {
 
   private static DateTime? PacketTime(MAVState state) => state.lastvalidpacket == DateTime.MinValue
       ? null : state.lastvalidpacket.ToUniversalTime();
+
+  internal McpTarget[] ListTargets() {
+    _ = ListVehicles();
+    lock (_sync) { return _targets.Values.ToArray(); }
+  }
 
   internal McpTarget Resolve(string id, bool requireFresh = false) {
     McpTarget target;
@@ -237,8 +248,8 @@ internal sealed class McpVehicleAccess {
       }
       Resolve(targetId);
       lock (sync) {
-        return new { complete, logs = entries.Values.Where(e => e.num_logs != 0).OrderBy(e => e.id)
-            .Select(e => new { id = e.id, bytes = e.size, utcUnixSeconds = e.time_utc }).ToArray() };
+        return new McpOnboardLogs(complete, entries.Values.Where(e => e.num_logs != 0).OrderBy(e => e.id)
+            .Select(e => new McpOnboardLog(e.id, e.size, e.time_utc)).ToArray());
       }
     } finally { link.OnPacketReceived -= Receive; _transfer.Release(); }
   }

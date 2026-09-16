@@ -10,6 +10,35 @@ namespace MissionPlanner.Tests;
 
 public sealed class McpServerTests {
   [Fact]
+  public async Task Http_client_reads_telemetry_and_opens_the_registered_analyzer_by_handle() {
+    using var file = new McpTelemetryLogTests.TlogFixture();
+    file.Add(0, MAVLink.MAVLINK_MSG_ID.VIBRATION, new MAVLink.mavlink_vibration_t { vibration_x = 20, clipping_0 = 4 }, 1);
+    file.Add(1, MAVLink.MAVLINK_MSG_ID.VIBRATION, new MAVLink.mavlink_vibration_t { vibration_x = 40, clipping_0 = 7 }, 1, signed: true);
+    string? opened = null;
+    await using var server = new MissionPlannerMcpServer(new McpVehicleAccess(() => [])) {
+      OpenLogAnalyzer = (path, _) => { opened = path; return Task.CompletedTask; },
+    };
+    await server.StartAsync(_ => Task.FromResult<object>(new { }));
+    string id = server.Logs.Attach(file.Path).Id;
+    using var http = new HttpClient();
+    http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", server.Token);
+    await using var transport = new HttpClientTransport(new HttpClientTransportOptions { Endpoint = server.Endpoint!, TransportMode = HttpTransportMode.StreamableHttp }, http);
+    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+    await using var client = await McpClient.CreateAsync(transport, cancellationToken: timeout.Token);
+    var report = await client.CallToolAsync("log_vibration_report", new Dictionary<string, object?> {
+      ["logId"] = id, ["startSeconds"] = 0, ["endSeconds"] = 2,
+    }, cancellationToken: timeout.Token);
+    Assert.NotEqual(true, report.IsError);
+    using var data = JsonDocument.Parse(Assert.IsType<TextContentBlock>(report.Content[0]).Text);
+    var sensor = data.RootElement.GetProperty("sensors")[0];
+    Assert.Equal("1:1", sensor.GetProperty("instance").GetString());
+    Assert.Equal(30, sensor.GetProperty("axes").GetProperty("VibeX").GetProperty("mean").GetDouble());
+    Assert.Equal(3, sensor.GetProperty("clipping").GetProperty("Clip0").GetProperty("observedIncrease").GetDouble());
+    var result = await client.CallToolAsync("open_log_analyzer", new Dictionary<string, object?> { ["logId"] = id }, cancellationToken: timeout.Token);
+    Assert.NotEqual(true, result.IsError); Assert.Equal(file.Path, opened);
+  }
+
+  [Fact]
   public async Task Real_http_client_discovers_tools_reads_log_and_receives_useful_errors() {
     using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(25));
     await using var server = new MissionPlannerMcpServer(new McpVehicleAccess(() => []));

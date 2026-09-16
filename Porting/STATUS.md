@@ -2,6 +2,38 @@
 
 Updated: **2026-09-16**.
 
+## BIN/TLOG flight-log workflow — 2026-09-16
+
+- Work started on dedicated `feat/mcp-flight-log-workflow` from fetched clean
+  master `db7b815d18e82907f871c25df7b58078e3f72f9c`. The old standalone port
+  directory remains absent; no user changes, history or repositories were removed.
+- **AI → Flight logs** now lists exact-target onboard logs, downloads DataFlash BIN
+  into the local catalogue, discovers/attaches BIN/LOG/TLOG and opens the selected
+  file in the existing analyzer. UI and MCP share the guarded download/retention
+  pipeline. TLOG is a ground-station recording, not an onboard DataFlash format.
+- Embedded Streamable HTTP now exposes **23 tools**, including `open_log_analyzer`.
+  TLOG schema, paginated records, per-source statistics, historical parameters and
+  VIBRATION/clipping analysis use a dedicated streaming MAVLink reader. The analyzer
+  supports telemetry scalar graphs, text records, parameters, messages and track
+  exports. Packet sources remain separate; receipt time is never presented as raw
+  IMU sampling. FFT/batch/response analysis retains its DataFlash requirement.
+- Fixed signed-packet CRC boundaries in the native MAVLink parser and its generator
+  template. Offline CRC validation does not claim signature authentication. Corrupt,
+  truncated, reversed-clock or unsupported-dialect recordings fail explicitly.
+- Local validation: **1625 passed / 0 failed / 0 skipped**, Release solution **0
+  warnings / 0 errors**, all six migration/artifact audits (1623 native rows with
+  zero blockers; 708/708 source paths), and `git diff --check`. Tests cover official
+  HTTP-client telemetry analysis/opening, signed packets, source isolation, encoding
+  evidence, malformed files, download retention/cancellation and all three AI tabs.
+  Isolated-XDG Xvfb startup stayed alive for 12 seconds (expected timeout 124);
+  automatic discovery observed ambient telemetry and unknown-packet warnings, so
+  this is startup evidence only, not aircraft/download acceptance. Final edits after
+  these local checks only clarify two tool/error description strings.
+- Next: publish this branch, verify platform/CodeQL PR gates, then integrate the
+  requested master/port branches. No physical log download, SITL flight or model-backed
+  session was tested; representative-aircraft acceptance remains. Claude stays disabled.
+  See [MCP_DIAGNOSTICS.md](MCP_DIAGNOSTICS.md) for the complete UI/MCP workflow.
+
 ## Published MCP integration — 2026-09-16
 
 - [PR #36](https://github.com/Rouniy/MissionPlanner10/pull/36) is merged into master

@@ -8,6 +8,8 @@ namespace MissionPlanner.Services.Mcp;
 
 /// <summary>Streaming, bounded summaries of native DataFlash records; no aircraft writes.</summary>
 internal static class McpFlightAnalysis {
+  internal sealed record VibrationRecord(double Time, string Instance, IReadOnlyDictionary<string, double> Fields);
+  private static readonly string[] VibrationFields = ["VibeX", "VibeY", "VibeZ", "Clip", "Clip0", "Clip1", "Clip2"];
   internal static object Overview(DFLogBuffer log, CancellationToken ct) {
     var messages = new Dictionary<string, MessageSummary>();
     int scanned = 0;
@@ -65,13 +67,20 @@ internal static class McpFlightAnalysis {
   internal static object Vibration(DFLogBuffer log, double start, double end, CancellationToken ct) {
     McpLogCatalog.ValidateWindow(start, end);
     if (!log.SeenMessageTypes.Contains("VIBE")) { throw new ArgumentException("This log has no VIBE records. Inspect log_schema for IMU/ACC or ISBH/ISBD."); }
+    return SummarizeVibration(log.GetEnumeratorType("VIBE").Select(row => new VibrationRecord(Time(row), McpLogCatalog.Instance(log, row),
+        VibrationFields.ToDictionary(f => f, f => McpLogCatalog.Number(row[f]) * (f.StartsWith("Vibe", StringComparison.Ordinal)
+            ? McpLogCatalog.Scale(log, "VIBE", f) : 1)))), start, end, ct, "DataFlash seconds since boot; instances identify IMUs.");
+  }
+
+  internal static object SummarizeVibration(IEnumerable<VibrationRecord> records, double start, double end, CancellationToken ct, string timeBasis) {
+    McpLogCatalog.ValidateWindow(start, end);
     var sensors = new Dictionary<string, VibrationSummary>();
     int scanned = 0;
-    foreach (var row in log.GetEnumeratorType("VIBE")) {
+    foreach (var row in records) {
       if ((scanned++ & 255) == 0) { ct.ThrowIfCancellationRequested(); }
-      double time = Time(row);
+      double time = row.Time;
       if (!double.IsFinite(time) || time < start || time > end) { continue; }
-      string instance = McpLogCatalog.Instance(log, row);
+      string instance = row.Instance;
       if (!sensors.TryGetValue(instance, out var sensor)) {
         if (sensors.Count >= 64) { throw new ArgumentException("Too many VIBE instances."); }
         sensors[instance] = sensor = new();
@@ -80,7 +89,7 @@ internal static class McpFlightAnalysis {
       if (sensor.Count++ == 0) { sensor.Start = time; }
       sensor.End = time;
       foreach (string field in new[] { "VibeX", "VibeY", "VibeZ" }) {
-        double value = McpLogCatalog.Number(row[field]) * McpLogCatalog.Scale(log, "VIBE", field);
+        double value = row.Fields.GetValueOrDefault(field, double.NaN);
         if (!double.IsFinite(value) || value < 0) { continue; }
         if (!sensor.Axes.TryGetValue(field, out var axis)) { sensor.Axes[field] = axis = new(); }
         axis.Count++; axis.Mean += (value - axis.Mean) / axis.Count;
@@ -90,7 +99,7 @@ internal static class McpFlightAnalysis {
       }
       // Modern logs use per-instance Clip; legacy Clip0/1/2 identify accelerometers.
       foreach (string field in new[] { "Clip", "Clip0", "Clip1", "Clip2" }) {
-        double value = McpLogCatalog.Number(row[field]);
+        double value = row.Fields.GetValueOrDefault(field, double.NaN);
         if (!double.IsFinite(value) || value < 0 || value != Math.Truncate(value)) { continue; }
         if (!sensor.Clipping.TryGetValue(field, out var counter)) { sensor.Clipping[field] = counter = new(); }
         if (counter.Samples++ == 0) { counter.First = value; }
@@ -99,7 +108,7 @@ internal static class McpFlightAnalysis {
         counter.Last = value;
       }
     }
-    return new { startSeconds = start, endSeconds = end, units = "m/s^2", sensors = sensors.OrderBy(p => p.Key).Select(p => new {
+    return new { startSeconds = start, endSeconds = end, units = "m/s^2", timeBasis, sensors = sensors.OrderBy(p => p.Key).Select(p => new {
       instance = p.Key, records = p.Value.Count, startSeconds = p.Value.Start, endSeconds = p.Value.End,
       axes = p.Value.Axes.ToDictionary(a => a.Key, a => new { samples = a.Value.Count, mean = a.Value.Mean,
         max = a.Value.Maximum, above30Samples = a.Value.Above30, above60Samples = a.Value.Above60 }),

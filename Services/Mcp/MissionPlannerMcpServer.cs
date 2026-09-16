@@ -28,6 +28,7 @@ internal sealed class MissionPlannerMcpServer : IAsyncDisposable {
   internal McpLogCatalog Logs { get; } = new();
   internal CancellationToken Stopping => _stop.Token;
   internal event Action<string>? Activity;
+  internal Func<string, CancellationToken, Task>? OpenLogAnalyzer { get; init; }
 
   internal MissionPlannerMcpServer(McpVehicleAccess vehicles) => Vehicles = vehicles;
 
@@ -50,7 +51,7 @@ internal sealed class MissionPlannerMcpServer : IAsyncDisposable {
         options.Limits.MaxConcurrentConnections = 16;
         options.Limits.RequestHeadersTimeout = TimeSpan.FromSeconds(10);
       });
-      var toolInstance = new MissionPlannerMcpTools(Vehicles, Logs, mission);
+      var toolInstance = new MissionPlannerMcpTools(Vehicles, Logs, mission, OpenLogAnalyzer);
       builder.Services.AddMcpServer(options => { options.ServerInstructions = MissionPlannerMcpTools.Instructions; })
           .WithHttpTransport(options => { options.SessionMode = HttpServerSessionMode.Stateless; })
           .WithTools(toolInstance);
