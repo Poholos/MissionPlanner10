@@ -1,6 +1,41 @@
 # Avalonia in-place migration status
 
-Updated: **2026-09-01**.
+Updated: **2026-09-16**.
+
+## Pull-request completeness audit — 2026-09-16
+
+- Scope: all PRs in `Rouniy/MissionPlanner10`, queried through the GitHub API. There is
+  exactly one open PR, [#34](https://github.com/Rouniy/MissionPlanner10/pull/34), reviewed
+  at head `5c208bfc8a21e99d502372f52c3e5fe34f8f6745`. All 34 closed PRs are merged;
+  `git merge-base --is-ancestor` confirms every reported merge commit is already included
+  in local `master` at `512d9f7104ccf6e211a698eaa4cf31af78b6a64d`, including #25 and #35.
+- Decision: defer #34. Its description explicitly identifies it as the first of four
+  planned PRs. The 26-file diff vendors the Rust parser and adds build/package plumbing,
+  but changes no C# source and provides no application consumer. P/Invoke and DFLogBuffer
+  fast paths belong to phase 2, log-viewer/FFT/expression consumers to phase 3, and required
+  native-path tests and package-payload assertions to phase 4. This does not satisfy the
+  user's requirement for a complete, independently useful feature. No PR code was imported.
+- Remote verification at that exact head: Linux build/tests, Windows packaging, macOS x64
+  and arm64 packaging, CodeQL analysis and the CodeQL PR check all report success
+  ([CI run](https://github.com/Rouniy/MissionPlanner10/actions/runs/34002587483),
+  [CodeQL run](https://github.com/Rouniy/MissionPlanner10/actions/runs/34002587485)). These
+  results establish the existing phase's checks, not end-to-end native-parser acceptance.
+  Reviewed the commit list, integration diff, status notes and discussion; no submitted
+  reviews or completed follow-up PRs are present in this repository.
+- Git handoff: audit work is on `port/avalonia-in-place`, created at the unchanged
+  `master == origin/master == 512d9f7104ccf6e211a698eaa4cf31af78b6a64d`. The documentation-only
+  audit commit is its direct child. The remote migration branch remains at
+  `802557e623c7d4e05fd2675805af52a726011f2c`; nothing was pushed or merged to master.
+  The pre-existing unstaged line-ending change in `graphs/updatexmls.bat` is preserved and
+  excluded from the commit. The read-only source repository was not modified.
+- Local validation: documentation diff checked with `git diff --check`. No application
+  build or test suite was run because no product code was changed; `dotnet` is also absent
+  from the current shell PATH. Earlier build/test results below are historical checkpoints,
+  not new validation of this audit.
+- Remaining integration blocker: #34 is an incomplete feature stack. Next executable step:
+  query open PRs again when the remaining phases are submitted, review the combined feature
+  against the then-current master, and require managed/native parity, native-required tests,
+  and package validation for all four RIDs before accepting the complete implementation.
 
 ## PR #25: safe DFLogBuffer index cache on .NET 10
 
