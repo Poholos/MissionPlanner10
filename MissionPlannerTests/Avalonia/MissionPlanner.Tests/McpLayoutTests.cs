@@ -4,17 +4,24 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using MissionPlanner.Views;
+using MissionPlanner.Services.Mcp;
 
 namespace MissionPlanner.Tests;
 
 public sealed class McpLayoutTests {
   [AvaloniaFact]
-  public void Agent_window_buttons_fit_at_minimum_size_in_all_tabs() {
-    var window = new AgentToolsWindow(null!);
+  public async Task Agent_window_buttons_fit_at_minimum_size_in_all_tabs() {
+    var window = new AgentToolsWindow(null!, _ => Task.FromResult<McpAgent[]>([
+      new(McpAgentKind.CodexCli, "Codex CLI", "/fake/codex", []),
+      new(McpAgentKind.ClaudeCode, "Claude Code", "/fake/claude", []),
+      new(McpAgentKind.OpenAiDesktop, "Codex Desktop", "/fake/desktop", []),
+    ]));
     try {
       window.Show(); window.Width = window.MinWidth; window.Height = window.MinHeight;
+      await window.FindAgentsAsync();
       Dispatcher.UIThread.RunJobs();
       var tabs = window.GetVisualDescendants().OfType<TabControl>().Single();
+      Assert.True(tabs.Items.OfType<TabItem>().Single(t => (string?)t.Header == "Desktop").IsVisible);
       for (int tab = 0; tab < tabs.ItemCount; tab++) {
         tabs.SelectedIndex = tab;
         Dispatcher.UIThread.RunJobs();
@@ -22,10 +29,36 @@ public sealed class McpLayoutTests {
           var start = button.TranslatePoint(new Point(), window)!.Value;
           Assert.True(start.X >= -1 && start.Y >= -1, $"{button.Content} starts outside window.");
           Assert.True(start.X + button.Bounds.Width <= window.ClientSize.Width + 1, $"{button.Content} overflows width.");
-          // The Flight logs workflow scrolls vertically at minimum height.
-          if (tab < 2) { Assert.True(start.Y + button.Bounds.Height <= window.ClientSize.Height + 1, $"{button.Content} overflows height."); }
+          // Agent, flight-log and desktop workflows scroll vertically at minimum height.
+          if (tab == 1) { Assert.True(start.Y + button.Bounds.Height <= window.ClientSize.Height + 1, $"{button.Content} overflows height."); }
         }
       }
     } finally { window.Close(); Dispatcher.UIThread.RunJobs(); }
   }
+  [AvaloniaFact]
+  public async Task Desktop_controls_are_hidden_when_only_cli_agents_are_found() {
+    var window = new AgentToolsWindow(null!, _ => Task.FromResult<McpAgent[]>([
+      new(McpAgentKind.ClaudeCode, "Claude Code", "/fake/claude", []),
+    ]));
+    try {
+      window.Show(); await window.FindAgentsAsync(); Dispatcher.UIThread.RunJobs();
+      var tabs = window.GetVisualDescendants().OfType<TabControl>().Single();
+      Assert.False(tabs.Items.OfType<TabItem>().Single(t => (string?)t.Header == "Desktop").IsVisible);
+    } finally { window.Close(); Dispatcher.UIThread.RunJobs(); }
+  }
+
+  [AvaloniaFact]
+  public async Task Refresh_switches_away_from_desktop_tab_if_application_disappears() {
+    McpAgent[] found = [new(McpAgentKind.OpenAiDesktop, "Codex Desktop", "/fake/app", [])];
+    var window = new AgentToolsWindow(null!, _ => Task.FromResult(found));
+    try {
+      window.Show(); await window.FindAgentsAsync(); Dispatcher.UIThread.RunJobs();
+      var tabs = window.GetVisualDescendants().OfType<TabControl>().Single();
+      tabs.SelectedIndex = 3;
+      found = []; await window.FindAgentsAsync(); Dispatcher.UIThread.RunJobs();
+      Assert.Equal(0, tabs.SelectedIndex);
+      Assert.False(tabs.Items.OfType<TabItem>().Single(t => (string?)t.Header == "Desktop").IsVisible);
+    } finally { window.Close(); Dispatcher.UIThread.RunJobs(); }
+  }
+
 }

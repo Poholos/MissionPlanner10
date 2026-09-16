@@ -22,15 +22,25 @@ internal sealed class MissionPlannerMcpServer : IAsyncDisposable {
   private readonly SemaphoreSlim _lifecycle = new(1, 1);
   private readonly CancellationTokenSource _stop = new();
   private int _stopped;
+  private readonly int _port;
+  private readonly bool _ownsLogs;
+  internal bool RequiresToken { get; }
   internal Uri? Endpoint { get; private set; }
   internal string Token { get; } = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
   internal McpVehicleAccess Vehicles { get; }
-  internal McpLogCatalog Logs { get; } = new();
+  internal McpLogCatalog Logs { get; }
   internal CancellationToken Stopping => _stop.Token;
   internal event Action<string>? Activity;
   internal Func<string, CancellationToken, Task>? OpenLogAnalyzer { get; init; }
 
-  internal MissionPlannerMcpServer(McpVehicleAccess vehicles) => Vehicles = vehicles;
+  internal MissionPlannerMcpServer(McpVehicleAccess vehicles, McpLogCatalog? logs = null,
+      int port = 0, bool requiresToken = true) {
+    if (port is < 0 or > 65535 || (!requiresToken && port < 1024)) {
+      throw new ArgumentException("Desktop MCP requires an explicit local port between 1024 and 65535.");
+    }
+    Vehicles = vehicles; Logs = logs ?? new(); _ownsLogs = logs == null;
+    _port = port; RequiresToken = requiresToken;
+  }
 
   internal async Task StartAsync(Func<CancellationToken, Task<object>> mission, CancellationToken ct = default) {
     await _lifecycle.WaitAsync(ct).ConfigureAwait(false);
@@ -46,7 +56,7 @@ internal sealed class MissionPlannerMcpServer : IAsyncDisposable {
       builder.Configuration["AllowedHosts"] = "127.0.0.1";
       builder.Logging.ClearProviders();
       builder.WebHost.ConfigureKestrel(options => {
-        options.Listen(IPAddress.Loopback, 0);
+        options.Listen(IPAddress.Loopback, _port);
         options.Limits.MaxRequestBodySize = 256 * 1024;
         options.Limits.MaxConcurrentConnections = 16;
         options.Limits.RequestHeadersTimeout = TimeSpan.FromSeconds(10);
@@ -66,7 +76,7 @@ internal sealed class MissionPlannerMcpServer : IAsyncDisposable {
           context.Response.StatusCode = 403; return;
         }
         byte[] supplied = SHA256.HashData(Encoding.UTF8.GetBytes(context.Request.Headers.Authorization.ToString()));
-        if (!CryptographicOperations.FixedTimeEquals(expected, supplied)) {
+        if (RequiresToken && !CryptographicOperations.FixedTimeEquals(expected, supplied)) {
           context.Response.StatusCode = 401; return;
         }
         if (!await requests.WaitAsync(0, context.RequestAborted).ConfigureAwait(false)) {
@@ -104,7 +114,7 @@ internal sealed class MissionPlannerMcpServer : IAsyncDisposable {
         _app = null;
       }
       Endpoint = null;
-      await Task.Run(Logs.Dispose).ConfigureAwait(false);
+      if (_ownsLogs) { await Task.Run(Logs.Dispose).ConfigureAwait(false); }
     } finally { _lifecycle.Release(); }
   }
 }

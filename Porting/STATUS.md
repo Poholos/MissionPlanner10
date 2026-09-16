@@ -2,6 +2,39 @@
 
 Updated: **2026-09-16**.
 
+## Agent discovery and desktop MCP implementation — 2026-09-16
+
+- Started on dedicated `feat/ai-agent-discovery` from clean fetched master
+  `816973a30ef9aeb6535bf7b0bfefbcf5ddf86b6f`. The old standalone port directory
+  remains absent; no user changes or historical commits were removed.
+- AI now discovers Codex CLI and Claude Code, offers refresh/manual executable selection,
+  and launches them with process-only MCP configuration. Each run owns a private temporary
+  workspace; Claude receives a private JSON, explicit MCP allowlist and 720-second tool
+  timeout, with built-in tools/hooks disabled. Auth stays in the agent's existing login.
+  Output supports both event formats. Completion/cancellation closes the random bearer-token
+  endpoint and removes temporary files, while preserving attached logs and proposals in the UI.
+- Detected OpenAI desktop apps expose a separate Desktop tab. Registration owns one marked
+  `missionplanner10_desktop` TOML section, validates syntax with pinned Tomlyn 2.10.1,
+  preserves other text/comments, makes a backup and atomically replaces configuration.
+  Invalid/conflicting/externally modified sections fail unchanged. Registration alone opens
+  no listener. Launch binds explicit loopback port 47183 (configurable), without a token,
+  then activates the app. Stop closes only desktop access; remove registration is separate.
+  Host/Origin, tool guards and operator-reviewed writes remain. Port conflicts fail explicitly.
+- CLI and desktop share aircraft/catalogue data with independent listener ownership. Linux
+  desktop entries, macOS app bundles and Windows StartApps/MSIX activation are supported.
+  CLI URL handlers are not desktop apps. Claude Desktop integration is deliberately deferred.
+- Local verification: complete suite **1646 passed / 0 failed / 0 skipped**; Release solution
+  **0 warnings / 0 errors**; six migration/artifact audits pass, as does `git diff --check`.
+  NuGet reports no known vulnerable direct/transitive application packages. Added coverage
+  includes real HTTP no-token handshake, authentication separation, Host/Origin rejection,
+  port conflicts, TOML preservation/backups/conflicts, private session files, failed startup,
+  real Unix fake-process exit/cancellation and all four AI tabs at minimum width. The shell
+  process fixture is Linux/macOS-only; other connection/configuration tests are portable.
+- Next: publish branch and verify platform/CodeQL PR gates before integration. Desktop login,
+  installed-app activation and actual paid model sessions remain manual acceptance; no real
+  Codex/Claude inference or global desktop registration was performed. Claude was not used
+  for delegation. See [MCP_DIAGNOSTICS.md](MCP_DIAGNOSTICS.md) for the new connection paths.
+
 ## Published BIN/TLOG workflow — 2026-09-16
 
 - [PR #37](https://github.com/Rouniy/MissionPlanner10/pull/37) merged into master

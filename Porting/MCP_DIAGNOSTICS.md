@@ -9,16 +9,21 @@ The server is off until requested. No separate server installation is needed.
 1. Connect the aircraft normally, or use **Attach flight log…** to select a DataFlash
    `.bin`/`.log` or telemetry `.tlog`. Offline log analysis works without an aircraft. The configured Mission
    Planner log directory is also discoverable by agents.
-2. Click **Start server**. Each session gets a new random loopback port and bearer token.
-3. With a locally installed, authenticated Codex CLI, edit the task and click **Run Codex**.
-   Select its executable if it is not on PATH; on Windows use the native `codex.exe`.
-   The launcher was checked against CLI 0.154.0. It uses per-process MCP configuration,
-   passes the token in `MP_MCP_TOKEN`, and does not edit the user's agent configuration.
-   Its working directory is Mission Planner's cache, with the CLI's read-only sandbox.
-4. Alternatively, **Copy connection settings** supplies a Codex TOML configuration with
-   URL and Authorization header. Other Streamable HTTP clients can use those same values.
-   Configure a 720-second tool timeout for onboard downloads. These settings contain a
-   session credential; **Stop / revoke access** invalidates it and stops the launched agent.
+2. On **Agent**, choose a detected **Codex CLI** or **Claude Code**. Discovery runs when
+   the AI window opens; **Find agents** refreshes it. **Executable…** supports nonstandard
+   installations; select the matching CLI type. Windows requires a native `.exe`.
+3. Enter a task and click **Run agent**. Mission Planner starts a random loopback endpoint
+   with a fresh bearer token automatically. Existing agent login is required. Codex receives
+   process-only `-c` settings, uses `--ignore-user-config` and a read-only sandbox; authentication
+   remains in its normal home. Claude Code receives `--mcp-config`/`--strict-mcp-config` pointing
+   at a private temporary JSON, with built-in tools, hooks and other settings sources disabled;
+   only Mission Planner MCP tools are preallowed. There is no permission-bypass flag.
+   Neither launcher edits global agent configuration. Each process gets a unique temporary
+   working directory; normal completion, cancellation and failed startup remove it.
+   The CLI endpoint closes when the process finishes; attached logs/proposals remain in the UI.
+4. Alternatively, **Start server → Copy connection settings** supplies a session URL and
+   Authorization header for another Streamable HTTP client. Configure a 720-second tool timeout
+   for onboard downloads. **Stop / revoke access** stops the CLI and both HTTP listeners.
 5. Read the agent's output and inspect **Parameter proposals**. Select a proposal to see
    evidence, expected/current values and proposed values. Export a `.param` file or use
    **Review / apply selected proposal**. An explicit UI action is required to apply.
@@ -31,11 +36,48 @@ An example task:
 > Report missing evidence. Propose only changes supported by this flight, with a staged
 > validation flight and criteria for keeping or reverting each change.
 
-The endpoint is local to this computer (`http://127.0.0.1:<port>/mcp`). Remote agents
-or agents in separate network containers need a separate deployment design. The built-in
-launcher supports Codex; any compatible local MCP client can connect independently.
-Claude is not launched. Provider authentication and model billing belong to the agent.
-Closing the diagnostics window stops its agent and revokes the server session.
+All endpoints are local to this computer (`http://127.0.0.1:<port>/mcp`). Remote agents
+or agents in separate network containers need a separate deployment design. Provider login
+and model billing belong to the selected agent. Closing the diagnostics window stops CLI
+processes and both MCP listeners. It does not close an independently running desktop client.
+The Codex command contract was checked with CLI 0.154.0; the Claude Code contract follows its
+[CLI reference](https://code.claude.com/docs/en/cli-reference). Validation uses fake agent
+processes, not a paid model invocation. Claude Code support does not enable Claude Desktop.
+
+## OpenAI desktop connection
+
+The **Desktop** tab appears only when an installed Codex/ChatGPT desktop application is found.
+CLI executables and Claude URL handlers do not count as desktop installations. Linux discovery
+uses XDG application entries and checks the launcher executable, macOS checks application bundles,
+and Windows queries Start applications, including Store/MSIX installations. A missing or unsupported
+installation can still use the copied HTTP connection settings; desktop discovery never installs software.
+
+1. Select the desktop app and local port (MP10 default **47183**, configurable).
+2. Click **Register MCP**. This adds only the managed `missionplanner10_desktop` section to
+   `$CODEX_HOME/config.toml` or `~/.codex/config.toml`. It does not open a network listener.
+   The [OpenAI MCP configuration](https://developers.openai.com/codex/mcp/) is shared with CLI;
+   this registration is therefore also visible there. Restart the desktop app after registration.
+3. Click **Launch desktop agent**. Mission Planner binds `http://127.0.0.1:47183/mcp` without a
+   token, then asks the OS to launch/activate the selected app. The tab reports requests when
+   they arrive; launching an app alone does not prove an MCP connection. Start a conversation in
+   the desktop app and select/use the registered Mission Planner tools.
+4. **Stop desktop access** closes only that listener, keeping CLI access and registration.
+   **Remove registration** also removes the managed configuration section. The desktop app stays open.
+
+This explicitly enabled desktop listener accepts any local process, not only the registered app.
+It still enforces Host/Origin checks, request limits, exact aircraft targeting and operator-reviewed
+parameter application. It never binds a LAN interface or opens a firewall rule. An occupied port
+fails explicitly; there is no silent fallback that would invalidate the registered address. Only
+one MP10 instance can own a given desktop port. The CLI listener keeps separate token authentication.
+
+Registration uses a TOML parser, preserves other configuration text/comments and makes a unique
+backup before atomic replacement. Repeated registration is idempotent. Invalid TOML, conflicting
+unmanaged entries, manually changed managed blocks and symbolic-link config files are left untouched
+with an error. It detects concurrent edits before replacement; the sidecar lock coordinates MP10
+instances, not unrelated editors. Unsupported TOML table arrangements should be configured manually
+through the client settings. Registration and startup are explicit UI actions, never startup side effects.
+
+Claude Desktop local bridging is deliberately deferred. No cloud connector or public tunnel is created.
 
 ## Available tools
 
@@ -86,7 +128,7 @@ Timestamp reversals within parameter history or an IMU stream are rejected by th
 summaries; separate logs from different boots before quantitative analysis.
 
 HTTP uses the official SDK's stateless **Streamable HTTP** transport at `/mcp`:
-authenticated POST requests can receive SSE responses, notifications receive HTTP 202,
+POST requests (token-authenticated for CLI, explicitly unauthenticated for desktop) can receive SSE responses, notifications receive HTTP 202,
 and standalone GET streams return HTTP 405. No transport session ID or resumable event
 history is advertised. This is distinct from the obsolete separate `/sse` + `/messages`
 transport; clients should use the displayed `/mcp` URL. Wire behavior is tested against
