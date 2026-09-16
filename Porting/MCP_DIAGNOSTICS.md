@@ -49,9 +49,9 @@ Closing the diagnostics window stops its agent and revokes the server session.
 | `list_onboard_logs`, `download_onboard_log` | MAVLink log directory and cancellable disarmed log download |
 | `open_log_analyzer` | Open a catalogued BIN/LOG/TLOG in the graphical Log Browser, with field graphs and record tables |
 | `list_local_logs`, `log_schema`, `read_log_records` | Opaque log handles, all decoded message fields/units, time/instance filters and lossless pagination |
-| `log_overview` | Full-log message counts, boot-time bounds, instances and available event types |
-| `log_parameters_at` | Paginated last-known PARM values at a boot time, source lines and observed changes; never uses future or live values |
-| `log_vibration_report` | Per-IMU VIBE means/maxima, samples above 30/60 m/s², observed clipping increments and counter resets |
+| `log_overview` | Full-log message counts, time bounds and sources; DataFlash boot time or TLOG elapsed receipt time |
+| `log_parameters_at` | Paginated last-known PARM/PARAM_VALUE values at a log time, with source evidence; never uses future or live values |
+| `log_vibration_report` | DataFlash VIBE per IMU or TLOG VIBRATION per source: means/maxima, threshold sample counts, clipping increments and resets |
 | `log_field_statistics` | Streaming mean, RMS, deviation, extrema, first/last and times for each message/instance/field |
 | `log_spectrum` | One-sided Welch PSD of a regularly sampled scalar field |
 | `log_batch_spectrum` | Raw ISBH/ISBD IMU batch PSD with actual sample rate, scaling and sequence validation |
@@ -64,7 +64,8 @@ fixed list of tuning parameters. Sensor instances remain separate, and `PID*.I` 
 integral term, not an instance number.
 
 The server exposes **23 tools** directly backed by Mission Planner's MAVLink connections,
-parameter metadata, mission draft and native DataFlash parser. For an offline investigation:
+parameter metadata, mission draft, native DataFlash parser and MAVLink telemetry reader.
+For a DataFlash investigation (TLOG differences are described below):
 
 1. Obtain a handle with `list_local_logs`; call `log_overview` and `log_schema`.
 2. Read available MODE/ARM/EV/ERR records to choose a flight segment in seconds since boot.
@@ -178,7 +179,7 @@ Tests use the official MCP client against real loopback Kestrel, synthetic DataF
 known signals, injected MAVLink exchanges and Avalonia layout at the minimum window size.
 See [STATUS.md](STATUS.md) for exact results and packaging limitations.
 
-The parser is the existing managed DFLogBuffer. Initial indexing is synchronous on a
+The DataFlash parser is the existing managed DFLogBuffer. Initial indexing is synchronous on a
 worker thread and cannot be interrupted mid-constructor; very large logs can delay shutdown.
 One indexed DataFlash reader is cached per server; TLOG analysis scans packets with cancellation
 and bounded result pages rather than loading the whole recording into memory. TLOG graph/map

@@ -2,6 +2,30 @@
 
 Updated: **2026-09-16**.
 
+## Published BIN/TLOG workflow — 2026-09-16
+
+- [PR #37](https://github.com/Rouniy/MissionPlanner10/pull/37) merged into master
+  at `510892a9b0a1d29ce4ae0c832b3cd5108173cdea`, preserving functional commit
+  `e6f33599186853d4683f2675b0813588d352cf1f`. The merge tree is byte-identical to
+  the verified PR head. This follow-up changes documentation only and is being
+  fast-forwarded to local/remote master and `port/avalonia-in-place`.
+- PR platform CI [35113077516](https://github.com/Rouniy/MissionPlanner10/actions/runs/35113077516)
+  passed Linux build, **1625 tests with zero failures/skips**, DEB/TAR installation
+  and startup checks, Windows ZIP/MSI validation and both macOS ZIP/DMG packages.
+  Build logs report zero warnings/errors; all five platform artifact bundles remain
+  available. CodeQL [35113077540](https://github.com/Rouniy/MissionPlanner10/actions/runs/35113077540)
+  passed and the code-scanning API reports **zero open alerts**. Automatic merge and
+  documentation runs are additional to these verified functional-tree results.
+- BIN downloads and local BIN/LOG/TLOG inspection are available in **AI → Flight logs**;
+  MCP exposes 23 tools, including opening the analyzer. TLOG source/time/encoding
+  distinctions and DataFlash-only FFT limits are documented in
+  [MCP_DIAGNOSTICS.md](MCP_DIAGNOSTICS.md). The detailed local checkpoint is below.
+- No remaining implementation/CI blocker. Next executable acceptance: connect a
+  representative disarmed aircraft, list/download a BIN, open it, then attach a
+  completed TLOG and exercise graphs and MCP reports. Physical downloads, SITL flight
+  and model-backed sessions remain untested. No new release/tag, archival, history
+  rewrite or Claude invocation occurred.
+
 ## BIN/TLOG flight-log workflow — 2026-09-16
 
 - Work started on dedicated `feat/mcp-flight-log-workflow` from fetched clean
