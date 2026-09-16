@@ -740,6 +740,52 @@ Updated: **2026-09-16**.
   Next executable steps are physical simultaneous-input acceptance on UDP 14550/14551 and, before
   any later release, an intentional `make bump-local-build` from **2 to 3**.
 
+## Native dataflash log core: combined delivery on PR #34 (all four phases on feature/dflog-native-log-core)
+
+- Why one PR: the 2026-09-16 completeness audit above deferred #34 as a phase-1-only change
+  with no application consumer and asked for the complete feature, reviewed against the
+  then-current master, with managed/native parity, native-required tests and package
+  validation for all four RIDs. The stacked branches were propagated 1 -> 2 -> 3 -> 4 on master
+  through #38 (`f1180f672`) and merged onto the PR's head branch, so #34 now carries the whole
+  feature. The four phase sections below stay as the detailed record of each part.
+- Merge notes: two content conflicts, both where #37's TLOG dispatch met phase 3's native
+  DataFlash paths (`Services/DataFlashLog.cs`, `ViewModels/LogBrowseViewModel.cs`), resolved by
+  keeping the TLOG early return ahead of the DataFlash path in both. `DataFlashLog.ReadFields`
+  (phase 3, public) gained the same TLOG guard: a tlog must never reach `DFLogBuffer`, which is
+  the bug #37 fixed. Everything else merged automatically.
+- The audit's criteria, by name:
+  - Managed/native parity: `DflogNativeTests` (index and column parity, 23 cases),
+    `DflogNativeConsumerTests` (the converted consumers, 16 cases) and the new
+    `DflogNativeMcpParityTests` (4 cases) for the consumer master gained in #36/#37: every
+    DataFlash MCP tool - log schema, flight overview, record pages (two pages, since
+    pagination rides on the line numbers the index assigns), field series plain and instanced,
+    the PARM snapshot, the VIBE report and the ISBH/ISBD spectrum - runs through
+    `McpLogCatalog.Read` (the server's cached-reader path) on all four corpus logs, managed
+    scan then native scan, and the JSON must be byte-identical. Exact equality is the right bar
+    there: those tools read rows through the enumerator and the native scan replaces only the
+    index, so any difference is a defect. Every output is real (1.2-1.3k PARM entries per
+    log, VIBE sensors, batches on rover and copter-isbd), not a rejection both scanners repeat.
+  - Native-required tests: `DFLOG_REQUIRE_NATIVE=1` on the Linux test step turns every parity
+    skip into a failure, and the ABI-drift test fails a built-but-unloadable library.
+  - Package validation for all four RIDs: the linux-x64 `.deb` payload, the win-x64 ZIP/MSI
+    required files, and the Mach-O architecture assert for both macOS RIDs, in the CI and
+    release workflows and in both local package scripts.
+- Verified on the combined tree (Windows host, Rust toolchain present): `cargo fmt --check`,
+  `cargo clippy --workspace --all-targets` and `cargo test` (24+2) clean; Release solution
+  build 0 errors, 3 warnings (the pre-existing `PInvoke005` lines in
+  `ExtLibs/WinUSBNet/NativeMethods.txt`, AnyCPU on a Windows host, none from this work);
+  dflog and MCP test groups 111/111 with `DFLOG_REQUIRE_NATIVE=1`; full suite 1677/1689, the
+  12 being the 11 known environment-dependent failures plus `PluginRuntimeTests`, which
+  passes on rerun (13/13); all six migration/artifact gates pass on the branch content -
+  five in this checkout, and `check-port-source-resolution` (708/708) in a fresh worktree,
+  because this checkout's stale CRLF copies of LF blobs trip its byte-identity checks;
+  `git diff --check` clean apart from upstream's `MavlinkParse.cs` lines, byte-identical to
+  master. Not exercised here: `lipo` - the first CI run on the pushed branch is the proof for
+  the two macOS legs.
+- Remaining blocker: none. Next executable step: push the combined branch to PR #34, rewrite
+  its title and description as the complete feature mapped to the three criteria above, and
+  read the four RID legs of the run, macOS architecture asserts included.
+
 ## Native dataflash log core, phase 4: CI and packaging wiring (branch feature/dflog-native-ci, stacked on phase 3)
 
 - ci.yml: the Linux test step sets `DFLOG_REQUIRE_NATIVE=1` (the runner has a Rust toolchain,
