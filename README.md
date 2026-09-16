@@ -65,7 +65,8 @@ application itself has no WinForms source, project, runtime dependency or submod
 
 The **AI** navigation button opens an embedded Streamable HTTP MCP server and local
 Codex launcher. Agents can inspect connected-vehicle telemetry and parameters, read
-DataFlash flight logs, calculate vibration spectra and rate-response metrics, and submit
+DataFlash and TLOG flight logs, download onboard BIN logs and open them in the graphical
+analyzer, calculate DataFlash vibration spectra and rate-response metrics, and submit
 parameter proposals for review and application in Mission Planner. See the
 [operating instructions and tool reference](Porting/MCP_DIAGNOSTICS.md).
 

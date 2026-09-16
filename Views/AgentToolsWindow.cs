@@ -31,13 +31,17 @@ internal sealed class AgentToolsWindow : Window {
         + "Compare flight-time parameters with current values. Explain missing evidence and propose justified changes with validation steps." };
   private readonly TextBox _output = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap };
   private readonly ListBox _proposals = new() { MinHeight = 70 };
+  private readonly ComboBox _logTarget = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
+  private readonly ListBox _onboardLogs = new() { MinHeight = 60 };
+  private readonly ListBox _localLogs = new() { MinHeight = 70 };
+  private string? _onboardTargetId;
   private readonly TextBox _details = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap };
   private readonly TextBlock _status = new() { Text = "Start the server, attach a log or connect a vehicle, then launch an agent.", TextWrapping = TextWrapping.Wrap };
   private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
   private readonly System.Text.StringBuilder _pendingOutput = new();
   private readonly object _outputSync = new();
   private bool _closing;
-  private bool _busy;
+  private int _activeOperations;
 
   internal AgentToolsWindow(MainWindowViewModel main) {
     _main = main;
@@ -76,6 +80,7 @@ internal sealed class AgentToolsWindow : Window {
     var tabs = new TabControl { Items = {
       new TabItem { Header = "Agent", Content = agentPanel },
       new TabItem { Header = "Parameter proposals", Content = proposalPanel },
+      new TabItem { Header = "Flight logs", Content = BuildLogPanel() },
     } };
     Content = new Avalonia.Controls.Grid { Margin = new Thickness(12), RowDefinitions = new RowDefinitions("Auto,*,Auto"), RowSpacing = 10,
       Children = { top, tabs, _status } };
@@ -86,14 +91,73 @@ internal sealed class AgentToolsWindow : Window {
     };
   }
 
+  private Control BuildLogPanel() {
+    _logTarget.SelectionChanged += (_, _) => { _onboardLogs.ItemsSource = null; _onboardTargetId = null; };
+    return new ScrollViewer { Content = new StackPanel { Spacing = 8, Children = {
+      new TextBlock { Text = "Download DataFlash BIN from a disarmed aircraft, or attach BIN/LOG/TLOG files. "
+          + "TLOG is recorded by the ground station during telemetry connection.", TextWrapping = TextWrapping.Wrap },
+      new WrapPanel { Children = { Button("Refresh vehicles", RefreshLogTargetsAsync), Button("List onboard logs", ListOnboardLogsAsync) } },
+      _logTarget, _onboardLogs,
+      new WrapPanel { Children = { Button("Download selected BIN", DownloadSelectedLogAsync) } },
+      new TextBlock { Text = "Logs available to the agent and analyzer", FontWeight = FontWeight.Bold },
+      new WrapPanel { Children = { Button("Discover local logs", DiscoverLogsAsync), Button("Attach files…", AttachAsync),
+        Button("Open selected in analyzer", OpenSelectedLogAsync) } },
+      _localLogs,
+    } } };
+  }
+
+  private async Task RefreshLogTargetsAsync() {
+    await StartAsync();
+    _logTarget.ItemsSource = _server!.Vehicles.ListTargets();
+    _logTarget.SelectedIndex = 0;
+  }
+
+  private async Task ListOnboardLogsAsync() {
+    await StartAsync();
+    var server = _server!;
+    var target = _logTarget.SelectedItem as McpTarget ?? throw new InvalidOperationException("Refresh vehicles and select a target.");
+    _onboardLogs.ItemsSource = null; _onboardTargetId = null;
+    _status.Text = "Requesting onboard log directory…";
+    var result = (McpOnboardLogs)await server.Vehicles.OnboardLogs(target.Id, server.Stopping);
+    if (_server != server || !ReferenceEquals(_logTarget.SelectedItem, target)) { return; }
+    _onboardTargetId = target.Id; _onboardLogs.ItemsSource = result.Logs;
+    _onboardLogs.SelectedIndex = 0;
+    _status.Text = $"{result.Logs.Length} onboard logs. " + (result.Complete ? "Directory complete." : "Directory incomplete; retry if needed.");
+  }
+
+  private async Task DownloadSelectedLogAsync() {
+    var server = _server ?? throw new InvalidOperationException("Start the server first.");
+    var target = _logTarget.SelectedItem as McpTarget ?? throw new InvalidOperationException("Select a vehicle.");
+    var log = _onboardLogs.SelectedItem as McpOnboardLog ?? throw new InvalidOperationException("List and select an onboard log.");
+    if (target.Id != _onboardTargetId) { throw new InvalidOperationException("Target changed; list onboard logs again."); }
+    _status.Text = $"Downloading log {log.Id} from {target.State.sysid}:{target.State.compid}… Stop / revoke access cancels.";
+    var info = await McpFlightLogWorkflow.DownloadAsync(ct => server.Vehicles.Download(target.Id, log.Id, ct), server.Logs,
+        Path.Combine(Settings.Instance.LogDir, "agent-downloads"), log.Id, server.Stopping);
+    if (_server != server) { return; }
+    Refresh(); _localLogs.SelectedItem = info;
+    _status.Text = $"Downloaded {info.Name}. Available to MCP; open it in the analyzer below.";
+  }
+
+  private async Task DiscoverLogsAsync() {
+    await StartAsync();
+    var server = _server!;
+    await Task.Run(() => server.Logs.Discover(Settings.Instance.LogDir));
+    if (_server == server) { Refresh(); _status.Text = "Local BIN/LOG/TLOG catalogue refreshed."; }
+  }
+
+  private async Task OpenSelectedLogAsync() {
+    var server = _server ?? throw new InvalidOperationException("Start the server first.");
+    var log = _localLogs.SelectedItem as McpLogInfo ?? throw new InvalidOperationException("Select a local or downloaded log.");
+    await LogBrowseWindow.OpenWith(server.Logs.PathFor(log.Id));
+  }
+
   private Button Button(string label, Func<Task> action, bool interrupt = false) {
     var button = new Button { Content = label, Margin = new Thickness(0, 0, 6, 4) };
     button.Click += async (_, _) => {
-      if (_busy && !interrupt) { return; }
-      bool previousBusy = _busy;
-      _busy = true;
+      if (_activeOperations != 0 && !interrupt) { return; }
+      _activeOperations++;
       try { await action(); } catch (Exception e) { _status.Text = e.Message; }
-      finally { _busy = previousBusy; }
+      finally { _activeOperations--; }
     };
     return button;
   }
@@ -105,6 +169,11 @@ internal sealed class AgentToolsWindow : Window {
         _output.Text = value.Length <= 65536 ? value : value[^65536..];
         _pendingOutput.Clear();
       }
+    }
+    var logs = _server?.Logs.List() ?? [];
+    if (_localLogs.ItemsSource is not McpLogInfo[] displayed || !displayed.SequenceEqual(logs)) {
+      object? selected = _localLogs.SelectedItem;
+      _localLogs.ItemsSource = logs; _localLogs.SelectedItem = selected;
     }
     var proposals = _server?.Vehicles.Proposals() ?? [];
     var current = _proposals.ItemsSource as ParameterProposal[];
@@ -124,7 +193,15 @@ internal sealed class AgentToolsWindow : Window {
 
   private async Task StartAsync() {
     if (_server != null) { return; }
-    var server = new MissionPlannerMcpServer(new McpVehicleAccess(() => AppState.Connections.Snapshot()));
+    var server = new MissionPlannerMcpServer(new McpVehicleAccess(() => AppState.Connections.Snapshot())) {
+      OpenLogAnalyzer = async (path, ct) => {
+        ct.ThrowIfCancellationRequested();
+        await Dispatcher.UIThread.InvokeAsync(() => {
+          ct.ThrowIfCancellationRequested();
+          return LogBrowseWindow.OpenWith(path);
+        });
+      },
+    };
     server.Activity += text => Output(text + Environment.NewLine);
     _server = server;
     try {
@@ -166,14 +243,17 @@ internal sealed class AgentToolsWindow : Window {
 
   private async Task AttachAsync() {
     await StartAsync();
+    var server = _server!;
     var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions {
-      Title = "Attach DataFlash flight logs", AllowMultiple = true,
-      FileTypeFilter = [new FilePickerFileType("DataFlash") { Patterns = ["*.bin", "*.log"] }],
+      Title = "Attach flight logs", AllowMultiple = true,
+      FileTypeFilter = [new FilePickerFileType("Flight logs") { Patterns = ["*.bin", "*.log", "*.tlog"] }],
     });
+    if (_server != server) { return; }
     foreach (var file in files) {
       string? path = file.TryGetLocalPath();
       if (path != null) {
-        var info = _server!.Logs.Attach(path);
+        var info = server.Logs.Attach(path);
+        Refresh(); _localLogs.SelectedItem = info;
         Output($"Attached {info.Name}; log ID {info.Id}\n");
       }
     }

@@ -9,7 +9,9 @@ using MissionPlanner.Utilities;
 
 namespace MissionPlanner.Services.Mcp;
 
-internal sealed record McpLogInfo(string Id, string Name, long Bytes, DateTime ModifiedUtc);
+internal sealed record McpLogInfo(string Id, string Name, long Bytes, DateTime ModifiedUtc, string Format = "dataflash") {
+  public override string ToString() => $"{Name} — {Bytes / 1048576.0:0.0} MB ({Format})";
+}
 internal sealed record McpLogRow(int Line, double TimeSeconds, string Type, string Instance,
     IReadOnlyDictionary<string, string> Fields);
 
@@ -24,8 +26,8 @@ internal sealed class McpLogCatalog : IDisposable {
 
   internal McpLogInfo Attach(string path) {
     path = Path.GetFullPath(path);
-    if (!new[] { ".bin", ".log" }.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase)) {
-      throw new ArgumentException("Select a DataFlash .bin or .log file. MAVLink .tlog is not a DataFlash flight log.");
+    if (!new[] { ".bin", ".log", ".tlog" }.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase)) {
+      throw new ArgumentException("Select a DataFlash .bin/.log or telemetry .tlog file.");
     }
     var file = new FileInfo(path);
     if (!file.Exists) { throw new FileNotFoundException("Log does not exist."); }
@@ -35,7 +37,8 @@ internal sealed class McpLogCatalog : IDisposable {
           && f.Info.Bytes == file.Length && f.Info.ModifiedUtc == file.LastWriteTimeUtc);
       if (existing.Info != null) { return existing.Info; }
       if (_files.Count >= 1000) { throw new InvalidOperationException("Log catalog limit reached; restart the MCP session."); }
-      var info = new McpLogInfo(Guid.NewGuid().ToString("N"), file.Name, file.Length, file.LastWriteTimeUtc);
+      var info = new McpLogInfo(Guid.NewGuid().ToString("N"), file.Name, file.Length, file.LastWriteTimeUtc,
+          McpTelemetryLog.IsTlog(path) ? "tlog" : "dataflash");
       _files.Add(info.Id, (path, info));
       return info;
     }
@@ -51,12 +54,38 @@ internal sealed class McpLogCatalog : IDisposable {
       AttributesToSkip = FileAttributes.ReparsePoint, MaxRecursionDepth = 5 };
     foreach (string path in Directory.EnumerateFiles(directory, "*", options)
         .Where(p => Path.GetExtension(p).Equals(".bin", StringComparison.OrdinalIgnoreCase)
-            || Path.GetExtension(p).Equals(".log", StringComparison.OrdinalIgnoreCase)).Take(500)) {
+            || Path.GetExtension(p).Equals(".log", StringComparison.OrdinalIgnoreCase)
+            || McpTelemetryLog.IsTlog(p)).Take(500)) {
       try { Attach(path); } catch (IOException) { }
     }
   }
 
+  internal string PathFor(string id) {
+    lock (_sync) {
+      ObjectDisposedException.ThrowIf(_disposed, this);
+      if (!_files.TryGetValue(id, out var entry)) { throw new ArgumentException("Unknown log ID; discover or attach the log first."); }
+      var file = new FileInfo(entry.Path);
+      if (!file.Exists || file.Length != entry.Info.Bytes || file.LastWriteTimeUtc != entry.Info.ModifiedUtc) {
+        throw new InvalidOperationException("Log changed since discovery; attach/discover it again to get a new ID.");
+      }
+      return entry.Path;
+    }
+  }
+
+  internal bool IsTelemetry(string id) => McpTelemetryLog.IsTlog(PathFor(id));
+
+  internal async Task<T> ReadFile<T>(string id, Func<string, CancellationToken, T> action, CancellationToken ct) {
+    await _readGate.WaitAsync(ct).ConfigureAwait(false);
+    try {
+      string path = PathFor(id);
+      T result = await Task.Run(() => action(path, ct), ct).ConfigureAwait(false);
+      _ = PathFor(id);
+      return result;
+    } finally { _readGate.Release(); }
+  }
+
   internal async Task<T> Read<T>(string id, Func<DFLogBuffer, CancellationToken, T> action, CancellationToken ct) {
+    if (IsTelemetry(id)) { throw new ArgumentException("This operation requires a DataFlash .bin/.log. For tlogs use log_schema, read_log_records or log_field_statistics; receipt timestamps cannot establish raw IMU sampling."); }
     await _readGate.WaitAsync(ct).ConfigureAwait(false);
     try {
       (string Path, McpLogInfo Info) entry;
@@ -129,7 +158,7 @@ internal sealed class McpLogCatalog : IDisposable {
 
   internal static void ValidateWindow(double start, double end) {
     if (!double.IsFinite(start) || !double.IsFinite(end) || start < 0 || end < start) {
-      throw new ArgumentException("Time window must be finite with 0 <= start <= end (seconds since boot).");
+      throw new ArgumentException("Time window must be finite with 0 <= start <= end (DataFlash boot seconds or TLOG elapsed receipt seconds).");
     }
   }
 
