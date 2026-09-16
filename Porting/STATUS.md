@@ -2,6 +2,30 @@
 
 Updated: **2026-09-16**.
 
+## MCP Streamable HTTP feasibility — 2026-09-16
+
+- Assessed embedded MCP hosting and locally launched external agents; findings, concrete
+  integration points, source links, proposed workflow and effort estimates are in
+  [MCP_INTEGRATION_ASSESSMENT.md](MCP_INTEGRATION_ASSESSMENT.md). The transport is a small
+  integration; shared UI/MCP operation ownership and vehicle identity are the main work.
+- Verified official C# SDK v2.2.0's net10/ASP.NET Core graph and current Codex HTTP MCP
+  configuration documentation. Local `codex --version` reports `0.154.0`; `exec --help`
+  confirms per-run configuration. Only version/help commands were executed: no agent
+  task, listener, model request, package installation or product change was made.
+- Git checkpoint before this documentation-only change:
+  `port/avalonia-in-place` HEAD `37b6876add2aa6852e069407a1b2171bcd904292`;
+  `master == origin/master == 512d9f7104ccf6e211a698eaa4cf31af78b6a64d`;
+  `origin/port/avalonia-in-place == 802557e623c7d4e05fd2675805af52a726011f2c`.
+  The assessment commit directly follows that HEAD and is not pushed. The pre-existing
+  unstaged `graphs/updatexmls.bat` change remains excluded; source port stays untouched.
+- Validation: documentation whitespace check only. No new build/test result is claimed;
+  `dotnet` remains unavailable on the current PATH. Runtime compatibility, actual package
+  growth and an end-to-end agent connection remain unmeasured.
+- Next executable step if implementation is requested: validate an embedded Kestrel/MCP
+  spike against a real local CLI and self-contained publishing, then deliver the complete
+  read/analysis workflow with launch/stop UI and regression coverage. Remote-agent access
+  and vehicle-write permissions require their own concrete scope.
+
 ## Pull-request completeness audit — 2026-09-16
 
 - Scope: all PRs in `Rouniy/MissionPlanner10`, queried through the GitHub API. There is
