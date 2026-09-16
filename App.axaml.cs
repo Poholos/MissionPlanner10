@@ -46,6 +46,7 @@ public partial class App : Application {
           });
 
       desktop.Exit += (_, _) => {
+        (desktop.MainWindow as MainWindow)?.StopAgentTools();
         try {
           Services.PluginService.ShutdownAsync().AsTask().Wait(System.TimeSpan.FromSeconds(4));
         } catch {

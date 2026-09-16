@@ -50,6 +50,14 @@ This repository integrates a native cross-platform Avalonia user interface direc
 - `IronPython.StdLib` 3.4.2 packages the Python 3.4 standard library. Its complete PSF, BeOpen,
   CNRI and CWI license history is retained in `LICENSES/Python-3.4-StdLib.txt`.
 
+## MCP diagnostics dependencies
+
+- `ModelContextProtocol`, `ModelContextProtocol.Core` and `ModelContextProtocol.AspNetCore`
+  2.2.0 © Model Context Protocol a Series of LF Projects, LLC provide the embedded
+  Streamable HTTP server under Apache License 2.0; see `LICENSES/Apache-2.0.txt`.
+  Source: <https://github.com/modelcontextprotocol/csharp-sdk>, release commit
+  `6fa3825973949a9c4f0cd8af344e15a8db09dc35`.
+
 ## License of this project
 
 Because this work links Mission Planner's GPLv3 code, the combined work is a **derivative work and is
