@@ -61,6 +61,14 @@ installation paths, Avalonia extension API, binary compatibility for non-visual 
 the explicit source-adaptation boundary for legacy plugins that embed WinForms controls. The
 application itself has no WinForms source, project, runtime dependency or submodule.
 
+## AI flight diagnostics
+
+The **AI** navigation button opens an embedded Streamable HTTP MCP server and local
+Codex launcher. Agents can inspect connected-vehicle telemetry and parameters, read
+DataFlash flight logs, calculate vibration spectra and rate-response metrics, and submit
+parameter proposals for review and application in Mission Planner. See the
+[operating instructions and tool reference](Porting/MCP_DIAGNOSTICS.md).
+
 ## Platform targets
 
 Release automation builds self-contained artifacts for Windows x64, macOS x64, macOS ARM64 and

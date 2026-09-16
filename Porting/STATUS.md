@@ -1,6 +1,160 @@
 # Avalonia in-place migration status
 
-Updated: **2026-09-02**.
+Updated: **2026-09-16**.
+
+## Retained standalone Linux launcher — 2026-09-16
+
+- Corrected the launch handoff: `bin/Release/net10.0/MissionPlanner` is framework-dependent
+  and ordinary desktop launch cannot find the SDK installed only in `/tmp/mp-dotnet`.
+  Published and **retained** the self-contained application at
+  `/home/alex/src/MissionPlanner10/out/linux-x64/MissionPlanner`. Launch this executable;
+  keep the entire `out/linux-x64` directory together. No `DOTNET_ROOT` or system .NET
+  installation is required. This supersedes the earlier temporary publish cleanup.
+- Git checkpoint: `port/avalonia-in-place` HEAD
+  `d8ccb13aac5570908a32755bddda87c9aa3aadf8`; this documentation-only commit follows it.
+  Product sources, master and remotes are unchanged. Only the pre-existing unstaged
+  `graphs/updatexmls.bat` change remains. `out/` is ignored and no binary is committed.
+- Validation: Linux x64 self-contained publish succeeded with embedded .NET/ASP.NET Core
+  10.0.12 and MCP payloads. A child process with all `DOTNET_ROOT*` variables removed
+  loaded `libhostfxr.so` and `libcoreclr.so` from the published directory and reached
+  Avalonia X11 initialization. The smoke deliberately used no display and stopped at
+  `XOpenDisplay`; it verifies runtime resolution, not graphical acceptance. Logs:
+  `/tmp/mp-mcp-launch-publish.log` and `/tmp/mp-launch-smoke-g9qxc_pt/`.
+  Restored the normal solution package graph afterwards. No source changes or test-suite
+  rerun; the 1608-pass product checkpoint below still applies.
+- Next executable step: run `./MissionPlanner` from `out/linux-x64` in the user's graphical
+  session, open **AI**, and proceed with the log/SITL acceptance described below. Remaining
+  hardware/model/native-platform acceptance limitations are unchanged.
+
+## Embedded MCP diagnostics implementation — 2026-09-16
+
+- Implemented the complete local diagnostics/proposal/review workflow in the existing
+  MissionPlanner product. **AI** in the navigation bar opens a loopback Streamable HTTP
+  server, Codex launcher, log attachment and parameter proposal review. The 18 tools expose
+  connected targets, telemetry, parameter metadata/refresh, mission draft, onboard/local
+  DataFlash logs, field statistics, Welch spectra, raw IMU batches and target/actual lag.
+  Operating instructions and limitations: [MCP_DIAGNOSTICS.md](MCP_DIAGNOSTICS.md).
+- SDK: `ModelContextProtocol.AspNetCore` 2.2.0 with `Microsoft.AspNetCore.App`. No second
+  application or source dependency was introduced. Per-session tokens, Host/Origin checks,
+  loopback-only binding, bounded requests and revocation are covered by real HTTP tests.
+  The launcher passes credentials through the child environment and does not edit agent
+  settings. Claude remains disabled and was not invoked.
+- Changes require explicit review/application in Mission Planner. The apply path requires
+  a fresh disarmed heartbeat, checks connection generation, serializes parameter writes,
+  compares a fresh value with the reviewed value, preserves typed acknowledgements and
+  refuses integer precision loss. Backup/review and incremental result files precede and
+  track writes; partial failure stops the batch without automatic rollback or reboot.
+  Log downloads pin system/component/signing context and cannot release another operation's
+  transport ownership. No MCP tool arms, flies, deletes aircraft logs or executes code.
+- Git code checkpoint: `port/avalonia-in-place` HEAD
+  `1af2f1655058e4c14b2945d7cc718e76a5e39677`. This status-only handoff commit directly follows
+  that checkpoint. Atomic changes: `b69a7fd7cf0d1ec241f8984379022f02192eb797` fixes the inherited
+  DroneCAN test's assumption of a globally single discovered node;
+  `f65023c4483b6a5030db208ff2d891298566b8b9` adds guarded MAVLink writes/download ownership;
+  `a9cab1f67fd561f226481e6a754a06d397f13457` implements MCP/UI/analysis/tests/docs;
+  `1af2f1655058e4c14b2945d7cc718e76a5e39677` rejects lossy C-cast integer proposals.
+  `master == origin/master == 512d9f7104ccf6e211a698eaa4cf31af78b6a64d` and
+  `origin/port/avalonia-in-place == 802557e623c7d4e05fd2675805af52a726011f2c` remain unchanged.
+  No push or master merge occurred. Only the pre-existing unstaged `graphs/updatexmls.bat`
+  line-ending change remains outside these commits. The reference source repository was
+  not modified. The earlier PR #34 decision remains: defer its incomplete feature stack.
+- Local verification used SDK **10.0.401**, installed outside the repository at
+  `/tmp/mp-dotnet` because the initial PATH had no SDK:
+  - `dotnet restore MissionPlanner.slnx`: pass.
+  - `dotnet build MissionPlanner.slnx -c Release --no-restore`: **0 warnings, 0 errors**.
+  - `dotnet test MissionPlannerTests/Avalonia/MissionPlanner.Tests/MissionPlanner.Tests.csproj
+    -c Release --no-restore`: **1608 passed, 0 failed, 0 skipped** (27 added tests).
+    Coverage includes real Kestrel/official MCP client negotiation/auth/revocation, DataFlash
+    pagination and raw-batch integrity, known-frequency/known-delay numerical signals,
+    target invalidation, heartbeat checks, stale proposals, integer encodings, guarded
+    protocol writes/download cancellation, launcher configuration and minimum-width UI.
+  - Six migration/artifact gates pass: native surface **1623 rows / 0 blockers**, source
+    resolution **708/708**, no-WinForms, project artifacts, binary artifacts and key artifacts.
+    `git diff --check` passes. The optional native `--require-closed` variant still rejects
+    the inherited self-replacement entry for `Program.cs`; the normal CI gate passes.
+  - Self-contained publishes pass for **linux-x64, win-x64, osx-x64 and osx-arm64**,
+    using `dotnet publish MissionPlanner.csproj -c Release -r <RID> --self-contained true
+    -m:1 -p:DebugType=none -p:BaseOutputPath=/tmp/mp-mcp-build/ -o /tmp/mp-mcp-publish-<RID>`.
+    Verified apphost/main assembly, all MCP assemblies and ASP.NET Core/Kestrel runtime
+    payloads, plus macOS SimpleBLE/VLC libraries/plugins. These are cross-publish/payload
+    checks, not native installer/runtime acceptance.
+- Packaging initially exhausted the separate `/home` filesystem while copying Windows VLC
+  files into test output. Removed only this task's temporary/generated outputs, restored
+  the normal solution graph and moved cross-RID build outputs to `/tmp`; final checks above
+  supersede that failed attempt. Publish payloads were verified and removed afterwards to
+  conserve disk. Logs remain in `/tmp/mp-mcp-verified-tests.log`,
+  `/tmp/mp-mcp-release-build.log`, `/tmp/mp-mcp-publish-summary.log` and per-RID publish logs.
+- Remaining acceptance: no paid/model-backed external-agent run, SITL session, physical
+  vehicle write or flight was performed. Native Windows/macOS execution, installer checks,
+  Linux GUI smoke (no Xvfb here) and new CI/CodeQL runs remain unverified in this environment.
+  Managed log indexing cannot cancel mid-constructor; live snapshots are not per-field
+  freshness guarantees; legacy plugins do not share a universal transaction service.
+  Those limits are explicit in the operating instructions. Flight stability is not certified.
+- Next executable step: in a graphical session run
+  `/tmp/mp-dotnet/dotnet run --project MissionPlanner.csproj -c Release`, open **AI**, attach a
+  representative flight log and launch an authenticated local Codex. Use the built-in
+  **SIMULATION** workflow from [SITL-TESTING.md](../SITL-TESTING.md) to exercise discovery,
+  refresh/download, proposal review, stale-value rejection and revocation before physical
+  aircraft acceptance. Native platform CI/package and CodeQL gates precede any release.
+
+## MCP Streamable HTTP feasibility — 2026-09-16
+
+- Assessed embedded MCP hosting and locally launched external agents; findings, concrete
+  integration points, source links, proposed workflow and effort estimates are in
+  [MCP_INTEGRATION_ASSESSMENT.md](MCP_INTEGRATION_ASSESSMENT.md). The transport is a small
+  integration; shared UI/MCP operation ownership and vehicle identity are the main work.
+- Verified official C# SDK v2.2.0's net10/ASP.NET Core graph and current Codex HTTP MCP
+  configuration documentation. Local `codex --version` reports `0.154.0`; `exec --help`
+  confirms per-run configuration. Only version/help commands were executed: no agent
+  task, listener, model request, package installation or product change was made.
+- Git checkpoint before this documentation-only change:
+  `port/avalonia-in-place` HEAD `37b6876add2aa6852e069407a1b2171bcd904292`;
+  `master == origin/master == 512d9f7104ccf6e211a698eaa4cf31af78b6a64d`;
+  `origin/port/avalonia-in-place == 802557e623c7d4e05fd2675805af52a726011f2c`.
+  The assessment commit directly follows that HEAD and is not pushed. The pre-existing
+  unstaged `graphs/updatexmls.bat` change remains excluded; source port stays untouched.
+- Validation: documentation whitespace check only. No new build/test result is claimed;
+  `dotnet` remains unavailable on the current PATH. Runtime compatibility, actual package
+  growth and an end-to-end agent connection remain unmeasured.
+- Next executable step if implementation is requested: validate an embedded Kestrel/MCP
+  spike against a real local CLI and self-contained publishing, then deliver the complete
+  read/analysis workflow with launch/stop UI and regression coverage. Remote-agent access
+  and vehicle-write permissions require their own concrete scope.
+
+## Pull-request completeness audit — 2026-09-16
+
+- Scope: all PRs in `Rouniy/MissionPlanner10`, queried through the GitHub API. There is
+  exactly one open PR, [#34](https://github.com/Rouniy/MissionPlanner10/pull/34), reviewed
+  at head `5c208bfc8a21e99d502372f52c3e5fe34f8f6745`. All 34 closed PRs are merged;
+  `git merge-base --is-ancestor` confirms every reported merge commit is already included
+  in local `master` at `512d9f7104ccf6e211a698eaa4cf31af78b6a64d`, including #25 and #35.
+- Decision: defer #34. Its description explicitly identifies it as the first of four
+  planned PRs. The 26-file diff vendors the Rust parser and adds build/package plumbing,
+  but changes no C# source and provides no application consumer. P/Invoke and DFLogBuffer
+  fast paths belong to phase 2, log-viewer/FFT/expression consumers to phase 3, and required
+  native-path tests and package-payload assertions to phase 4. This does not satisfy the
+  user's requirement for a complete, independently useful feature. No PR code was imported.
+- Remote verification at that exact head: Linux build/tests, Windows packaging, macOS x64
+  and arm64 packaging, CodeQL analysis and the CodeQL PR check all report success
+  ([CI run](https://github.com/Rouniy/MissionPlanner10/actions/runs/34002587483),
+  [CodeQL run](https://github.com/Rouniy/MissionPlanner10/actions/runs/34002587485)). These
+  results establish the existing phase's checks, not end-to-end native-parser acceptance.
+  Reviewed the commit list, integration diff, status notes and discussion; no submitted
+  reviews or completed follow-up PRs are present in this repository.
+- Git handoff: audit work is on `port/avalonia-in-place`, created at the unchanged
+  `master == origin/master == 512d9f7104ccf6e211a698eaa4cf31af78b6a64d`. The documentation-only
+  audit commit is its direct child. The remote migration branch remains at
+  `802557e623c7d4e05fd2675805af52a726011f2c`; nothing was pushed or merged to master.
+  The pre-existing unstaged line-ending change in `graphs/updatexmls.bat` is preserved and
+  excluded from the commit. The read-only source repository was not modified.
+- Local validation: documentation diff checked with `git diff --check`. No application
+  build or test suite was run because no product code was changed; `dotnet` is also absent
+  from the current shell PATH. Earlier build/test results below are historical checkpoints,
+  not new validation of this audit.
+- Remaining integration blocker: #34 is an incomplete feature stack. Next executable step:
+  query open PRs again when the remaining phases are submitted, review the combined feature
+  against the then-current master, and require managed/native parity, native-required tests,
+  and package validation for all four RIDs before accepting the complete implementation.
 
 ## Flight Planner DO_JUMP defaults
 
@@ -21,6 +175,7 @@ Updated: **2026-09-02**.
   executable step is to push this branch and run the normal Linux, Windows, both macOS and CodeQL
   PR gates before merge. Manual acceptance should open PLAN, choose Jump, confirm target **1**, and
   inspect the new row for repeat count **5**.
+
 
 ## PR #25: safe DFLogBuffer index cache on .NET 10
 
