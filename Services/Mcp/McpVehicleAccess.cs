@@ -258,6 +258,11 @@ internal sealed class McpVehicleAccess {
       MAVLink.MAV_PARAM_TYPE.REAL32 => (-float.MaxValue, float.MaxValue),
       _ => throw new ArgumentException("Unsupported MAVLink wire type: " + parameter.TypeAP),
     };
+    if (parameter.TypeAP != MAVLink.MAV_PARAM_TYPE.REAL32
+        && !MAVLinkInterface.UsesBytewiseParameterEncoding(target.State.cs.capabilities, target.State.apname)
+        && (double)(float)change.Proposed != change.Proposed) {
+      throw new ArgumentException("Integer value cannot be represented exactly by this vehicle's C-cast parameter encoding: " + change.Name);
+    }
     if (change.Proposed < low || change.Proposed > high) { throw new ArgumentException("Outside wire-type range: " + change.Name); }
     if (parameter.TypeAP != MAVLink.MAV_PARAM_TYPE.REAL32 && parameter.TypeAP != MAVLink.MAV_PARAM_TYPE.REAL64
         && change.Proposed != Math.Truncate(change.Proposed)) { throw new ArgumentException("Integer parameter requires an integer: " + change.Name); }

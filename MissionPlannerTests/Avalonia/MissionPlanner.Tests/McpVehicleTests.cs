@@ -58,4 +58,17 @@ public sealed class McpVehicleTests {
     Heartbeat(0, DateTime.UtcNow);
     McpVehicleAccess.RequireDisarmed(target);
   }
+  [Fact]
+  public void Integer_proposal_rejects_precision_loss_with_c_cast_but_accepts_bytewise_encoding() {
+    using var link = new MAVLinkInterface { BaseStream = new CommsInjection() };
+    var state = link.MAVlist[42, 1];
+    state.apname = MAVLink.MAV_AUTOPILOT.ARDUPILOTMEGA;
+    state.param["DEVICE_CODE"] = new MAVLink.MAVLinkParam("DEVICE_CODE", 12, MAVLink.MAV_PARAM_TYPE.UINT32);
+    var connection = new MavLinkConnection(link, "test", true, null);
+    var target = new McpTarget("test", connection, state, connection.Generation);
+    var change = new ParameterChange("DEVICE_CODE", 12, 60180513, "Test exact integer value");
+    Assert.Throws<ArgumentException>(() => McpVehicleAccess.ValidateChange(target, change));
+    state.cs.capabilities = (uint)MAVLink.MAV_PROTOCOL_CAPABILITY.PARAM_ENCODE_BYTEWISE;
+    McpVehicleAccess.ValidateChange(target, change);
+  }
 }

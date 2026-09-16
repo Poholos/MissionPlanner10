@@ -1707,6 +1707,11 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
                 validateTarget();
                 if (MAVlist[sysid, compid].param[name]?.Value != expected)
                     throw new InvalidOperationException("Parameter changed since analysis: " + name);
+                var state = MAVlist[sysid, compid];
+                if (state.param[name].TypeAP != MAV_PARAM_TYPE.REAL32
+                    && !UsesBytewiseParameterEncoding(state.cs.capabilities, state.apname)
+                    && (double)(float)proposed != proposed)
+                    throw new ArgumentException("Integer value cannot be represented exactly by C-cast parameter encoding: " + name);
                 return await SetParamCoreAsync(sysid, compid, name, proposed, true, validateTarget, cancel).ConfigureAwait(false);
             }
             finally { _parameterWriteGate.Release(); }
