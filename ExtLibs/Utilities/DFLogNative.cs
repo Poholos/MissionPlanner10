@@ -175,7 +175,7 @@ namespace MissionPlanner.Utilities
                     {
                         columns[c] = new double[rows];
                         if (rows > 0)
-                            Marshal.Copy(IntPtr.Add(native.values, c * rows * sizeof(double)), columns[c], 0, rows);
+                            Marshal.Copy(new IntPtr(native.values.ToInt64() + (long)c * rows * sizeof(double)), columns[c], 0, rows);
                     }
 
                     return true;
@@ -232,7 +232,7 @@ namespace MissionPlanner.Utilities
                     for (var r = 0; r < count; r++)
                     {
                         rows[r] = new short[elems];
-                        Marshal.Copy(IntPtr.Add(native.values, r * elems * sizeof(short)), rows[r], 0, elems);
+                        Marshal.Copy(new IntPtr(native.values.ToInt64() + (long)r * elems * sizeof(short)), rows[r], 0, elems);
                     }
 
                     return true;

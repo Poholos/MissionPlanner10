@@ -782,6 +782,27 @@ Updated: **2026-09-16**.
   `git diff --check` clean apart from upstream's `MavlinkParse.cs` lines, byte-identical to
   master. Not exercised here: `lipo` - the first CI run on the pushed branch is the proof for
   the two macOS legs.
+- 2026-09-16 review of the combined diff (eight angles, every finding verified against the
+  code, one empirically). Fixed here: the log browser's rows view had been rebuilt in phase 3 by
+  zipping per-field numeric series from `ReadFields`, which emptied the grid and the CSV export
+  for any type with a text column (PARM/MSG/MODE showed 0 rows on the corpus against 1373 PARM
+  rows on master), formatted every cell as `0.###` (GPS.Lat -35.3632621 became -35.363), and
+  decoded the whole log for a 5000-row preview; it is the row-oriented enumerator again (one
+  record per row, the decoder's display strings, `Take(maxRows)`), pinned by
+  `Rows_view_keeps_text_columns_and_decoder_strings` with and without the library. The
+  per-instance `SaveCache` decision read the process-wide `LastScanNative` mirror, which a
+  concurrent construction (LogIndexService's parallel opens, the MCP catalog's worker) can
+  rewrite; it now reads a method-local. The FFI column offsets were 32-bit products (overflow
+  past ~45M rows of a 7-field query); they are 64-bit. The column fast path is gated on `binary`
+  like the scan, so a text .log no longer gets an extra native scan and a WARN per field. The
+  timed track reads GPS Lat/Lng through one `ReadFields` open instead of two `ReadField` opens.
+  Deferred, recorded here: every column-querying buffer still scans the file natively twice
+  (`dflog_scan_file` for the index, then `dflog_open` rebuilding its own) - removing that needs
+  an FFI accessor for the open handle's index and a crate bump; `ReadFieldCore` duplicates
+  `ReadFields`' native block (a behavior-preserving collapse); the ISBH/ISBD merge is written in
+  both FFT and spectrogram, mirroring master's duplicated enumeration loops. After the fixes:
+  dflog/MCP/log-browser/expression groups 139/139 with `DFLOG_REQUIRE_NATIVE=1`; full suite
+  1679/1691, the same 11 environment-dependent failures plus the flaky `PluginRuntimeTests` case.
 - Remaining blocker: none. Next executable step: push the combined branch to PR #34, rewrite
   its title and description as the complete feature mapped to the three criteria above, and
   read the four RID legs of the run, macOS architecture asserts included.
@@ -821,9 +842,10 @@ Updated: **2026-09-16**.
 
 - `DataFlashLog.ReadField` takes the native columnar path (value column plus the same time field
   `DFItem.timems` resolves - TimeMS, then TimeUS, then T - with the managed enumeration loop as
-  in-place fallback); this feeds LogBrowse curves, the timed track, and the rows view. New
-  `ReadFields` decodes one type's fields in a single pass for the rows view instead of one full
-  enumeration per field. Seconds are computed with the same two-step division as the managed path
+  in-place fallback); this feeds LogBrowse curves and the timed track. New `ReadFields` decodes
+  one type's fields in a single pass (the timed track's GPS Lat/Lng). The rows view was converted
+  onto it too and reverted in the combined-delivery review above - a text table cannot be built
+  from numeric series. Seconds are computed with the same two-step division as the managed path
   - a single multiplication by the combined reciprocal differs by 1 ULP and the parity tests
   catch it.
 - `DataFlashExpressionEvaluator.Evaluate` (the preset/expression graphing path) gained a
@@ -863,7 +885,9 @@ Updated: **2026-09-16**.
   rows) and 4.0.9Stable_AltitudeRunaway.BIN (259.4 MiB, 2021, 906k IMU rows). Native vs
   managed: open 1.5-2.4x (0.48 s -> 0.20 s on the 259 MiB log); ReadField (one curve, open +
   decode) 1.4-2.0x; rows view (7 IMU fields) 7.6 s -> 0.67 s, 3.2 s -> 0.32 s, and 10.4 s ->
-  0.52 s (20x, the dense-IMU real log) - one pass and one open instead of seven; decode alone on
+  0.52 s (20x, the dense-IMU real log) - one pass and one open instead of seven, measured on the
+  `ReadFields`-based rows view that the combined-delivery review later reverted, so this number
+  no longer describes the shipped rows view (a bounded row enumerator); decode alone on
   an open buffer 3-10x; expression evaluation 1.4-1.9x. Row counts cross-checked managed vs
   native before timing on every log. Observation for a later change: every consumer re-opens the
   DFLogBuffer per call, so the open dominates single-curve numbers - a shared buffer per loaded

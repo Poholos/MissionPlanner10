@@ -120,7 +120,7 @@ namespace MissionPlanner.Utilities
             linenos = null;
             columns = null;
 
-            if (!UseNativeScan || string.IsNullOrEmpty(_filename))
+            if (!binary || !UseNativeScan || string.IsNullOrEmpty(_filename))
                 return false;
 
             lock (locker)
@@ -153,7 +153,7 @@ namespace MissionPlanner.Utilities
             linenos = null;
             rows = null;
 
-            if (!UseNativeScan || string.IsNullOrEmpty(_filename))
+            if (!binary || !UseNativeScan || string.IsNullOrEmpty(_filename))
                 return false;
 
             lock (locker)
@@ -232,6 +232,10 @@ namespace MissionPlanner.Utilities
             var nativeCapable = binary && UseNativeScan &&
                                 !string.IsNullOrEmpty(_filename) && DFLogNative.Available;
             LastScanNative = false;
+            // the static above is a test-observable mirror; another buffer
+            // constructed concurrently rewrites it, so this instance's own
+            // outcome decides whether it saves a cache
+            var scannedNative = false;
 
             CacheSourceIdentity sourceIdentity;
             var hasSourceIdentity = TryGetSourceIdentity(out sourceIdentity);
@@ -264,6 +268,7 @@ namespace MissionPlanner.Utilities
                         }
 
                         LastScanNative = true;
+                        scannedNative = true;
                     }
                     else
                     {
@@ -365,7 +370,7 @@ namespace MissionPlanner.Utilities
                     }
                 }
 
-                if (!LastScanNative && hasSourceIdentity)
+                if (!scannedNative && hasSourceIdentity)
                     SaveCache(sourceIdentity);
             }
 

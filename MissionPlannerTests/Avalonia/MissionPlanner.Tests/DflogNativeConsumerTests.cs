@@ -1,5 +1,6 @@
 using MissionPlanner.Services;
 using MissionPlanner.Utilities;
+using MissionPlanner.ViewModels;
 
 namespace MissionPlanner.Tests;
 
@@ -137,6 +138,47 @@ public class DflogNativeConsumerTests {
       Exception? managedOutcome = Record.Exception(
           () => DataFlashExpressionEvaluator.Evaluate(TestData("copter"), "MODE.Mode + 0"));
       Assert.Equal(managedOutcome == null, nativeOutcome == null);
+    } finally {
+      DFLogBuffer.UseNativeScan = old;
+    }
+  }
+
+  /// <summary>
+  /// The rows view is a text table: one record per row, the decoder's own
+  /// display strings, bounded by maxRows. A type with a text column
+  /// (PARM.Name, MODE.Mode) has no numeric series for it and must still list
+  /// its rows, and numeric cells must match the decoder verbatim - the same
+  /// with and without the native library.
+  /// </summary>
+  [Theory]
+  [InlineData(false)]
+  [InlineData(true)]
+  public async Task Rows_view_keeps_text_columns_and_decoder_strings(bool nativeScan) {
+    if (nativeScan && NativeMissing) {
+      return;
+    }
+
+    bool old = DFLogBuffer.UseNativeScan;
+    try {
+      DFLogBuffer.UseNativeScan = nativeScan;
+      var vm = new LogBrowseViewModel();
+      await vm.LoadFileAsync(TestData("copter"));
+
+      foreach ((string type, string textColumn) in new[] { ("PARM", "Name"), ("MODE", "Mode") }) {
+        var (columns, rows) = vm.ReadRows(type);
+        int column = columns.ToList().IndexOf(textColumn);
+        Assert.True(column > 0, $"{type} has no {textColumn} column");
+        Assert.NotEmpty(rows);
+        Assert.All(rows, row => Assert.False(string.IsNullOrEmpty(row[column]),
+            $"{type}.{textColumn} rendered empty"));
+      }
+
+      var (gpsColumns, gpsRows) = vm.ReadRows("GPS", 10);
+      Assert.Equal(10, gpsRows.Count);
+      using var log = new DFLogBuffer(TestData("copter"));
+      var expected = log.GetEnumeratorType("GPS").Take(10).Select(item => item["Lat"]).ToList();
+      int lat = gpsColumns.ToList().IndexOf("Lat");
+      Assert.Equal(expected, gpsRows.Select(row => row[lat]).ToList());
     } finally {
       DFLogBuffer.UseNativeScan = old;
     }
