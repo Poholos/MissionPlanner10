@@ -61,6 +61,17 @@ installation paths, Avalonia extension API, binary compatibility for non-visual 
 the explicit source-adaptation boundary for legacy plugins that embed WinForms controls. The
 application itself has no WinForms source, project, runtime dependency or submodule.
 
+## AI flight diagnostics
+
+The **AI** navigation button opens an embedded Streamable HTTP MCP server and local
+Codex/Claude Code CLI launcher with automatic discovery and session-only configuration.
+Detected OpenAI desktop apps can register a fixed loopback MCP connection from the **Desktop**
+tab; access starts only on request. Agents can inspect connected-vehicle telemetry and parameters, read
+DataFlash and TLOG flight logs, download onboard BIN logs and open them in the graphical
+analyzer, calculate DataFlash vibration spectra and rate-response metrics, and submit
+parameter proposals for review and application in Mission Planner. See the
+[operating instructions and tool reference](Porting/MCP_DIAGNOSTICS.md).
+
 ## Platform targets
 
 Release automation builds self-contained artifacts for Windows x64, macOS x64, macOS ARM64 and

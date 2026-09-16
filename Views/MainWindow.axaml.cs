@@ -15,6 +15,18 @@ public partial class MainWindow : Window {
         handledEventsToo: true);
   }
 
+  private AgentToolsWindow? _agentTools;
+
+  private void OnAgentTools(object? sender, RoutedEventArgs e) {
+    if (Vm == null) { return; }
+    if (_agentTools != null) { _agentTools.Activate(); return; }
+    _agentTools = new AgentToolsWindow(Vm);
+    _agentTools.Closed += (_, _) => _agentTools = null;
+    _agentTools.Show(this);
+  }
+
+  internal void StopAgentTools() => _agentTools?.BeginShutdown();
+
   private MainWindowViewModel? Vm => DataContext as MainWindowViewModel;
 
   private void OnKeyDown(object? sender, KeyEventArgs e) {

@@ -42,6 +42,11 @@ sealed class Program {
   public static AppBuilder BuildAvaloniaApp() =>
       AppBuilder.Configure<App>()
           .UsePlatformDetect()
+          // Embed popups in the top-level window instead of creating separate X11 override-redirect
+          // windows. Avalonia's X11 ManagedPopupPositioner mislocates ComboBox dropdowns under HiDPI
+          // + GNOME fractional scaling (e.g. the FlightData "Set Mode" list flipping over the HUD or
+          // jumping to the top-left corner). Overlay popups bypass that positioner entirely.
+          .With(new X11PlatformOptions { OverlayPopups = true })
           .WithInterFont()
           .LogToTrace();
 }
