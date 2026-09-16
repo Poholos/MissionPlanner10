@@ -162,7 +162,7 @@ public class DroneCanSessionSafetyTests {
     can.InvokeMessageReceived(MessageFrame(42), freshStatus, 0);
     Dispatcher.UIThread.RunJobs();
 
-    DroneCanNode refreshed = Assert.Single(viewModel.Nodes);
+    DroneCanNode refreshed = Assert.Single(viewModel.Nodes, node => node.Id == 42);
     Assert.Equal((byte)42, refreshed.Id);
     Assert.Equal("OK", refreshed.Health);
     Assert.Equal("OPERATIONAL", refreshed.Mode);

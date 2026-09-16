@@ -376,6 +376,9 @@ internal static class ConnectionListService {
 
 internal sealed class MavLinkConnection {
   private int _logicallyClosed;
+  private long _generation;
+
+  internal long Generation => Interlocked.Read(ref _generation);
 
   internal MavLinkConnection(
       MAVLinkInterface link, string endpoint, bool primary, ConnectionListEndpoint? source) {
@@ -394,9 +397,15 @@ internal sealed class MavLinkConnection {
   internal bool IsOpen => Volatile.Read(ref _logicallyClosed) == 0
       && Link.BaseStream?.IsOpen == true;
 
-  internal void MarkOpened() => Volatile.Write(ref _logicallyClosed, 0);
+  internal void MarkOpened() {
+    Interlocked.Increment(ref _generation);
+    Volatile.Write(ref _logicallyClosed, 0);
+  }
 
-  internal void MarkClosed() => Volatile.Write(ref _logicallyClosed, 1);
+  internal void MarkClosed() {
+    Volatile.Write(ref _logicallyClosed, 1);
+    Interlocked.Increment(ref _generation);
+  }
 }
 
 /// <summary>

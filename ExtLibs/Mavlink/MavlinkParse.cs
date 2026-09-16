@@ -213,7 +213,10 @@ public partial class MAVLink
             MAVLinkMessage message = new MAVLinkMessage(buffer, packettime);
 
             // calc crc
-            ushort crc = MavlinkCRC.crc_calculate(buffer, buffer.Length - 2);
+            // The signature follows the checksum and is not part of the CRC input.
+            int signatureLength = message.ismavlink2 && (message.incompat_flags & MAVLINK_IFLAG_SIGNED) != 0
+                ? MAVLINK_SIGNATURE_BLOCK_LEN : 0;
+            ushort crc = MavlinkCRC.crc_calculate(buffer, buffer.Length - signatureLength - 2);
 
             // calc extra bit of crc for mavlink 1.0+
             if (message.header == MAVLINK_STX || message.header == MAVLINK_STX_MAVLINK1)

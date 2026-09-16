@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using MissionPlanner.Utilities;
 using MissionPlanner.Services;
+using MissionPlanner.Services.Mcp;
 
 namespace MissionPlanner.ViewModels;
 
@@ -101,6 +102,7 @@ public partial class LogBrowseViewModel : ViewModelBase {
   }
 
   public async Task LoadFileAsync(string path) {
+    if (Busy) { throw new InvalidOperationException("A log is already loading."); }
     CurrentPath = path;
     Busy = true;
     Status = "Parsing log…";
@@ -127,6 +129,8 @@ public partial class LogBrowseViewModel : ViewModelBase {
       Status = $"Loaded {types.Count} message types.";
       TrackChanged?.Invoke();
     } catch (Exception ex) {
+      CurrentPath = null; _formats.Clear(); MessageTypes.Clear(); Tree.Clear(); Fields.Clear();
+      Track = []; TimedTrack = []; TrackChanged?.Invoke();
       Info = $"Failed to read log:\n{ex.Message}";
       Status = "Parse failed.";
     } finally {
@@ -138,7 +142,8 @@ public partial class LogBrowseViewModel : ViewModelBase {
     if (CurrentPath == null) {
       return null;
     }
-    var series = DataFlashLog.ReadField(CurrentPath, type, field);
+    var series = McpTelemetryLog.IsTlog(CurrentPath) ? McpTelemetryLog.Series(CurrentPath, type, field)
+        : DataFlashLog.ReadField(CurrentPath, type, field);
     if (series.Count == 0) {
       return null;
     }
@@ -151,6 +156,7 @@ public partial class LogBrowseViewModel : ViewModelBase {
     if (CurrentPath == null) {
       return null;
     }
+    if (McpTelemetryLog.IsTlog(CurrentPath)) { throw new InvalidOperationException("For telemetry logs select a message/source and numeric field directly. DataFlash expressions require BIN/LOG files."); }
     var points = DataFlashExpressionEvaluator.Evaluate(CurrentPath, expr);
     return (points.Select(point => point.TimeSeconds).ToArray(),
         points.Select(point => point.Value).ToArray());
@@ -161,6 +167,7 @@ public partial class LogBrowseViewModel : ViewModelBase {
   }
 
   public IReadOnlyList<IReadOnlyList<GraphCurve>> ResolvePresetAlternatives(GraphPreset preset) {
+    if (CurrentPath != null && McpTelemetryLog.IsTlog(CurrentPath)) { return []; }
     return preset.Alternatives
         .Select(alternative => (IReadOnlyList<GraphCurve>)alternative.Curves
             .Where(curve => DataFlashExpressionEvaluator.CanEvaluate(curve.Expression, _formats))
@@ -207,6 +214,13 @@ public partial class LogBrowseViewModel : ViewModelBase {
       return Array.Empty<(double, string)>();
     }
     var answer = new List<(double, string)>();
+    if (McpTelemetryLog.IsTlog(CurrentPath)) {
+      foreach (var row in McpTelemetryLog.Select(CurrentPath, type, 0, 1e12, null, default)) {
+        string value = McpTelemetryLog.Text(McpTelemetryLog.Fields(row.Packet).FirstOrDefault(f => f.Name == labelField)?.GetValue(row.Packet.data));
+        if (value.Length > 0) { answer.Add((row.TimeSeconds, $"{row.Key} {value}")); }
+      }
+      return answer;
+    }
     using var log = new DFLogBuffer(CurrentPath);
     foreach (var item in log.GetEnumeratorType(type)) {
       string? value = item[labelField];
@@ -221,16 +235,21 @@ public partial class LogBrowseViewModel : ViewModelBase {
     return answer;
   }
 
-  public IReadOnlyList<DataFlashParameter> ReadParameters() =>
-      CurrentPath == null ? [] : DataFlashLog.ReadParameters(CurrentPath);
+  public IReadOnlyList<DataFlashParameter> ReadParameters() => ReadParameterHistory().FinalValues;
 
-  public DataFlashParameterHistory ReadParameterHistory() =>
-      CurrentPath == null
-          ? new DataFlashParameterHistory([], [])
-          : DataFlashLog.ReadParameterHistory(CurrentPath);
+  public DataFlashParameterHistory ReadParameterHistory() {
+    if (CurrentPath == null) { return new([], []); }
+    if (!McpTelemetryLog.IsTlog(CurrentPath)) { return DataFlashLog.ReadParameterHistory(CurrentPath); }
+    string? instance = SelectedType?.Split('[').LastOrDefault()?.TrimEnd(']');
+    var changes = McpTelemetryLog.ParameterHistory(CurrentPath).Where(p => p.Instance == instance && p.Value.HasValue)
+        .Select(p => new DataFlashParameterChange(p.TimeSeconds, p.Name, p.Value!.Value.ToString("R", System.Globalization.CultureInfo.InvariantCulture), "")).ToArray();
+    return new(changes, changes.GroupBy(p => p.Name).Select(g => new DataFlashParameter(g.Key, g.Last().Value, "")).ToArray());
+  }
 
-  public IReadOnlyList<DataFlashMessage> ReadMessages() =>
-      CurrentPath == null ? [] : DataFlashLog.ReadMessages(CurrentPath);
+  public IReadOnlyList<DataFlashMessage> ReadMessages() => CurrentPath == null ? [] : McpTelemetryLog.IsTlog(CurrentPath)
+      ? McpTelemetryLog.Select(CurrentPath, "STATUSTEXT", 0, 1e12, null, default).Select(row =>
+          new DataFlashMessage(row.TimeSeconds, $"[{row.Instance}] " + McpTelemetryLog.Text(row.Packet.ToStructure<MAVLink.mavlink_statustext_t>().text))).ToArray()
+      : DataFlashLog.ReadMessages(CurrentPath);
 
   public (IReadOnlyList<string> columns, IReadOnlyList<IReadOnlyList<string>> rows) ReadRows(
       string type, int maxRows = 5000) {
@@ -238,17 +257,26 @@ public partial class LogBrowseViewModel : ViewModelBase {
       return (Array.Empty<string>(), Array.Empty<IReadOnlyList<string>>());
     }
     var columns = new[] { "time" }.Concat(fields).ToList();
-    var perField = DataFlashLog.ReadFields(CurrentPath, type, fields);
-    int n = Math.Min(maxRows, perField.Count > 0 ? perField.Min(s => s.Count) : 0);
-    var rows = new List<IReadOnlyList<string>>(n);
-    for (int i = 0; i < n; i++) {
-      var row = new List<string> {
-        perField[0][i].time.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture)
-      };
-      foreach (var s in perField) {
-        row.Add(s[i].value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture));
+    var rows = new List<IReadOnlyList<string>>();
+    maxRows = Math.Clamp(maxRows, 0, 5000);
+    if (McpTelemetryLog.IsTlog(CurrentPath)) {
+      foreach (var item in McpTelemetryLog.Select(CurrentPath, type, 0, 1e12, null, default).Take(maxRows)) {
+        var values = McpTelemetryLog.Fields(item.Packet).ToDictionary(f => f.Name, f => McpTelemetryLog.Text(f.GetValue(item.Packet.data)));
+        rows.Add(new[] { item.TimeSeconds.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture) }
+            .Concat(fields.Select(f => values.GetValueOrDefault(f, ""))).ToArray());
       }
-      rows.Add(row);
+    } else {
+      var perField = DataFlashLog.ReadFields(CurrentPath, type, fields);
+      int n = Math.Min(maxRows, perField.Count > 0 ? perField.Min(s => s.Count) : 0);
+      for (int i = 0; i < n; i++) {
+        var row = new List<string> {
+          perField[0][i].time.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture)
+        };
+        foreach (var s in perField) {
+          row.Add(s[i].value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture));
+        }
+        rows.Add(row);
+      }
     }
     return (columns, rows);
   }
@@ -256,6 +284,7 @@ public partial class LogBrowseViewModel : ViewModelBase {
   private static (string summary, Dictionary<string, string[]> formats, List<string> types,
       IReadOnlyList<(double lat, double lng)> track,
       IReadOnlyList<(double time, double lat, double lng)> timedTrack) Parse(string path) {
+    if (McpTelemetryLog.IsTlog(path)) { return ParseTelemetry(path); }
     var formats = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
     List<string> types;
 
@@ -278,6 +307,33 @@ public partial class LogBrowseViewModel : ViewModelBase {
     var timedTrack = ReadTimedTrack(path, types);
     var summary = BuildSummary(path, types.Count, fullTrack);
     return (summary, formats, types, track, timedTrack);
+  }
+
+  private static (string summary, Dictionary<string, string[]> formats, List<string> types,
+      IReadOnlyList<(double lat, double lng)> track, IReadOnlyList<(double time, double lat, double lng)> timedTrack) ParseTelemetry(string path) {
+    var formats = new Dictionary<string, string[]>();
+    var timed = new List<(double time, double lat, double lng)>();
+    string? trackSource = null; int count = 0;
+    foreach (var row in McpTelemetryLog.Read(path)) {
+      count++;
+      if (!formats.ContainsKey(row.Key)) {
+        if (formats.Count >= 4096) { throw new InvalidDataException("Too many telemetry message/source combinations."); }
+        formats[row.Key] = McpTelemetryLog.Fields(row.Packet).Select(f => f.Name).ToArray();
+      }
+      if (row.Packet.data is MAVLink.mavlink_global_position_int_t p) {
+        double lat = p.lat / 1e7, lng = p.lon / 1e7;
+        if (lat is < -90 or > 90 || lng is < -180 or > 180 || (lat == 0 && lng == 0)) { continue; }
+        trackSource ??= row.Instance;
+        if (trackSource == row.Instance) {
+          if (timed.Count >= 2_000_000) { throw new InvalidDataException("Map track exceeds two million points."); }
+          timed.Add((row.TimeSeconds, lat, lng));
+        }
+      }
+    }
+    if (count == 0) { throw new InvalidDataException("No MAVLink packets in this telemetry log."); }
+    return ($"{Path.GetFileName(path)}\n{count} telemetry packets; {formats.Count} message/source combinations. Map source: {trackSource ?? "none"}.\n"
+        + "Time: seconds from first receipt. Graphs show MAVLink wire values; select TYPE[system:component] to keep vehicles separate.",
+        formats, formats.Keys.Order(StringComparer.Ordinal).ToList(), timed.Select(p => (p.lat, p.lng)).ToArray(), timed);
   }
 
   private static IReadOnlyList<(double time, double lat, double lng)> ReadTimedTrack(
