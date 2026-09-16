@@ -200,8 +200,15 @@ jobs:
           test -s "out/$RID/libsimpleble-c.dylib"
           test -s "out/$RID/libsimpleble.0.dylib"
           test -s "out/$RID/lib/libvlc.5.dylib"
-          test -s "out/$RID/libdflog_ffi.dylib"
           test -d "out/$RID/plugins"
+          # the arm64 runner cross-compiles osx-x64, and the dylib only reaches
+          # the publish output through the RID's target path - assert the
+          # Mach-O architecture rather than trusting that plumbing
+          case "$RID" in
+            osx-x64) DFLOG_ARCH=x86_64 ;;
+            osx-arm64) DFLOG_ARCH=arm64 ;;
+          esac
+          test "$(lipo -archs "out/$RID/libdflog_ffi.dylib")" = "$DFLOG_ARCH"
 
       - name: Build ad-hoc signed app archive and DMG
         shell: bash

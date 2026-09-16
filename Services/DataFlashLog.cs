@@ -30,6 +30,18 @@ public class DataFlashLog {
   public static IReadOnlyList<(double lat, double lng, double alt, DateTime time)> ReadTrack(string binPath) {
     var track = new List<(double lat, double lng, double alt, DateTime time)>();
 
+    if (Mcp.McpTelemetryLog.IsTlog(binPath)) {
+      string? source = null;
+      foreach (var row in Mcp.McpTelemetryLog.Read(binPath)) {
+        if (row.Packet.data is not MAVLink.mavlink_global_position_int_t p) { continue; }
+        double lat = p.lat / 1e7, lng = p.lon / 1e7;
+        if (lat is < -90 or > 90 || lng is < -180 or > 180 || (lat == 0 && lng == 0)) { continue; }
+        source ??= row.Instance;
+        if (row.Instance == source) { track.Add((lat, lng, p.alt / 1000.0, row.Packet.rxtime)); }
+      }
+      return track;
+    }
+
     using var log = new DFLogBuffer(binPath);
 
     foreach (var item in log.GetEnumeratorType(new[] { "GPS" })) {
@@ -58,6 +70,7 @@ public class DataFlashLog {
   }
 
   public static IReadOnlyList<(double time, double value)> ReadField(string binPath, string msgType, string field) {
+    if (Mcp.McpTelemetryLog.IsTlog(binPath)) { return Mcp.McpTelemetryLog.Series(binPath, msgType, field); }
     using var log = new DFLogBuffer(binPath);
     return ReadFieldCore(log, msgType, field);
   }
@@ -70,6 +83,9 @@ public class DataFlashLog {
   /// </summary>
   public static IReadOnlyList<IReadOnlyList<(double time, double value)>> ReadFields(
       string binPath, string msgType, IReadOnlyList<string> fields) {
+    if (Mcp.McpTelemetryLog.IsTlog(binPath)) {
+      return fields.Select(field => Mcp.McpTelemetryLog.Series(binPath, msgType, field)).ToList();
+    }
     using var log = new DFLogBuffer(binPath);
 
     if (TimeField(log, msgType) is { } time
@@ -170,6 +186,7 @@ public class DataFlashLog {
   }
 
   public static void ConvertBinToLog(string binPath, string outTextLogPath) {
+    if (Mcp.McpTelemetryLog.IsTlog(binPath)) { throw new ArgumentException("BIN-to-LOG conversion requires a DataFlash file. Use the telemetry CSV/text export for TLOG."); }
     BinaryLog.ConvertBin(binPath, outTextLogPath);
   }
 

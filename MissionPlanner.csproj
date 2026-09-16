@@ -109,6 +109,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" />
+    <PackageReference Include="Tomlyn" />
+    <Compile Include="Services/Mcp/*.cs" />
+    <Compile Include="Views/AgentToolsWindow.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Remove="app.config" />
     <AvaloniaResource Include="Assets/**" />
   </ItemGroup>
@@ -328,7 +336,33 @@
     <Message Condition="'$(DflogCargoProbeExitCode)' != '0'"
              Importance="high"
              Text="dflog: cargo not found on PATH; skipping the native log parser build (the managed parser is used at runtime)" />
-    <Exec Condition="'$(DflogCargoProbeExitCode)' == '0'"
+
+    <!-- A toolchain that cannot build for this target is treated like no
+         toolchain at all: skip, do not fail the build. Cross-building osx-x64
+         on an Apple Silicon host is the common case. -->
+    <Exec Condition="'$(DflogCargoProbeExitCode)' == '0' And '$(DflogRustTriple)' != ''"
+          Command="rustup target list --installed"
+          IgnoreExitCode="true"
+          EchoOff="true"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="low"
+          StandardErrorImportance="low"
+          WorkingDirectory="$(MSBuildProjectDirectory)/rust">
+      <Output TaskParameter="ExitCode" PropertyName="DflogRustupProbeExitCode" />
+      <Output TaskParameter="ConsoleOutput" PropertyName="DflogInstalledTargets" />
+    </Exec>
+    <PropertyGroup Condition="'$(DflogRustupProbeExitCode)' == '0' And '$(DflogInstalledTargets)' != ''">
+      <!-- Substring rather than exact match, deliberately: an unreadable or
+           unexpected list must leave the build attempted (cargo then fails
+           loudly), never silently skipped. -->
+      <DflogTargetInstalled>$(DflogInstalledTargets.Contains('$(DflogRustTriple)'))</DflogTargetInstalled>
+      <DflogTargetMissing Condition="'$(DflogTargetInstalled)' == 'false'">true</DflogTargetMissing>
+    </PropertyGroup>
+    <Message Condition="'$(DflogTargetMissing)' == 'true'"
+             Importance="high"
+             Text="dflog: the Rust target $(DflogRustTriple) is not installed (add it with 'rustup target add $(DflogRustTriple)'); skipping the native log parser build (the managed parser is used at runtime)" />
+
+    <Exec Condition="'$(DflogCargoProbeExitCode)' == '0' And '$(DflogTargetMissing)' != 'true'"
           Command="cargo build --release --package dflog-ffi --target-dir &quot;$(DflogNativeDir)&quot;$(DflogCargoTargetArg)"
           WorkingDirectory="$(MSBuildProjectDirectory)/rust" />
   </Target>

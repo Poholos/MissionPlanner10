@@ -30,6 +30,7 @@ public class LogBrowseWindow : Window {
     }
     if (w.DataContext is LogBrowseViewModel vm) {
       await vm.LoadFileAsync(path);
+      if (vm.CurrentPath == null) { throw new System.IO.InvalidDataException(vm.Info); }
     }
   }
 }
