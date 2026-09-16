@@ -176,6 +176,9 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Install Rust cross-compilation targets
+        run: rustup target add x86_64-apple-darwin aarch64-apple-darwin
+
       - name: Publish macOS self-contained application
         shell: bash
         run: |
