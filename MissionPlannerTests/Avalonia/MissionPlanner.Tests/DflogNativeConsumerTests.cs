@@ -80,24 +80,38 @@ public class DflogNativeConsumerTests {
 
   /// <summary>
   /// The managed fallback of ReadFields (one shared buffer, one enumeration
-  /// per field) must match per-field ReadField exactly. No skip guard: this
-  /// is the permanent path on hosts without the native library, including CI
-  /// before the toolchain is wired up.
+  /// for every field) must match a direct walk of the decoder: the same
+  /// records, the same display-string parse, per field. ReadField is that
+  /// call with one field, so the oracle is the enumerator itself. No skip
+  /// guard: this is the permanent path on hosts without the native library,
+  /// including CI before the toolchain is wired up.
   /// </summary>
   [Fact]
-  public void Read_fields_fallback_matches_per_field_reads() {
+  public void Read_fields_fallback_matches_the_enumeration_path() {
     string[] fields = { "Roll", "Pitch", "TimeUS" };
     bool old = DFLogBuffer.UseNativeScan;
     try {
       DFLogBuffer.UseNativeScan = false;
-      var perField = fields
-          .Select(field => DataFlashLog.ReadField(TestData("copter"), "ATT", field)).ToList();
-      var combined = DataFlashLog.ReadFields(TestData("copter"), "ATT", fields);
-
-      Assert.Equal(perField.Count, combined.Count);
-      for (int f = 0; f < perField.Count; f++) {
-        Assert.Equal(perField[f], combined[f]);
+      var expected = fields.Select(_ => new List<(double time, double value)>()).ToList();
+      using (var log = new DFLogBuffer(TestData("copter"))) {
+        foreach (var item in log.GetEnumeratorType(new[] { "ATT" })) {
+          for (int f = 0; f < fields.Length; f++) {
+            if (double.TryParse(item[fields[f]], System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out double value)) {
+              expected[f].Add((item.timems / 1000.0, value));
+            }
+          }
+        }
       }
+
+      Assert.NotEmpty(expected[0]);
+      var combined = DataFlashLog.ReadFields(TestData("copter"), "ATT", fields);
+      Assert.Equal(expected.Count, combined.Count);
+      for (int f = 0; f < expected.Count; f++) {
+        Assert.Equal(expected[f], combined[f]);
+      }
+
+      Assert.Equal(expected[1], DataFlashLog.ReadField(TestData("copter"), "ATT", "Pitch"));
     } finally {
       DFLogBuffer.UseNativeScan = old;
     }

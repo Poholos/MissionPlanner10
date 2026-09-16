@@ -798,9 +798,12 @@ Updated: **2026-09-16**.
   timed track reads GPS Lat/Lng through one `ReadFields` open instead of two `ReadField` opens.
   Deferred, recorded here: every column-querying buffer still scans the file natively twice
   (`dflog_scan_file` for the index, then `dflog_open` rebuilding its own) - removing that needs
-  an FFI accessor for the open handle's index and a crate bump; `ReadFieldCore` duplicates
-  `ReadFields`' native block (a behavior-preserving collapse); the ISBH/ISBD merge is written in
-  both FFT and spectrogram, mirroring master's duplicated enumeration loops. After the fixes:
+  an FFI accessor for the open handle's index and a crate bump; the ISBH/ISBD merge is written in
+  both FFT and spectrogram, mirroring master's duplicated enumeration loops. `ReadField` is now
+  `ReadFields` with one field: the private per-field core that duplicated the native block is
+  gone, and the managed fallback enumerates the log once for every requested field instead of
+  once per field, pinned against a direct decoder walk by
+  `Read_fields_fallback_matches_the_enumeration_path`. After the fixes:
   dflog/MCP/log-browser/expression groups 139/139 with `DFLOG_REQUIRE_NATIVE=1`; full suite
   1679/1691, the same 11 environment-dependent failures plus the flaky `PluginRuntimeTests` case.
 - Remaining blocker: none. Next executable step: push the combined branch to PR #34, rewrite

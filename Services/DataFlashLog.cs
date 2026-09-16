@@ -69,17 +69,17 @@ public class DataFlashLog {
     return track;
   }
 
-  public static IReadOnlyList<(double time, double value)> ReadField(string binPath, string msgType, string field) {
-    if (Mcp.McpTelemetryLog.IsTlog(binPath)) { return Mcp.McpTelemetryLog.Series(binPath, msgType, field); }
-    using var log = new DFLogBuffer(binPath);
-    return ReadFieldCore(log, msgType, field);
-  }
+  public static IReadOnlyList<(double time, double value)> ReadField(string binPath, string msgType, string field) =>
+      ReadFields(binPath, msgType, new[] { field })[0];
 
   /// <summary>
   /// Reads several fields of one message type with a single pass over the
-  /// log. Each series has exactly the shape ReadField produces for that
-  /// field; on the native path the log is decoded once instead of once per
-  /// field.
+  /// log, natively or managed. Native values are the raw decoded values; the
+  /// managed path parses the decoder's display strings, which round floats
+  /// to 7 significant digits. 'M' (flight mode) fields keep every requested
+  /// field on the managed path: the display string is resolver-dependent
+  /// text there, a plain number natively, and a graph must show the same
+  /// thing either way.
   /// </summary>
   public static IReadOnlyList<IReadOnlyList<(double time, double value)>> ReadFields(
       string binPath, string msgType, IReadOnlyList<string> fields) {
@@ -103,47 +103,21 @@ public class DataFlashLog {
       }
     }
 
-    return fields.Select(field => ReadFieldCore(log, msgType, field)).ToList();
-  }
-
-  private static IReadOnlyList<(double time, double value)> ReadFieldCore(
-      DFLogBuffer log, string msgType, string field) {
-    // native fast path: the typed columns plus the same time field DFItem
-    // uses, decoded straight from the file. Values are the raw decoded
-    // values; the managed path below parses display strings, which round
-    // floats to 7 significant digits. 'M' (flight mode) fields stay managed:
-    // the display string is resolver-dependent text there, a plain number
-    // natively, and a graph must show the same thing either way.
-    if (TimeField(log, msgType) is { } time
-        && log.GetFieldFormatChar(msgType, field) != 'M') {
-      // the requested field may be the time field itself - never query a
-      // duplicate column name
-      string[] query = field == time.field ? new[] { field } : new[] { field, time.field };
-      if (log.TryGetColumnsNative(msgType, query, out _, out double[][] columns)) {
-        double[] raw = columns[^1];
-        var native = new List<(double time, double value)>(columns[0].Length);
-        for (int i = 0; i < columns[0].Length; i++) {
-          native.Add((raw[i] / time.divisorToMs / 1000.0, columns[0][i]));
-        }
-        return native;
-      }
-    }
-
-    var data = new List<(double time, double value)>();
+    // managed fallback: one enumeration shared by every field, each value
+    // parsed from its display string exactly as before
+    var series = fields.Select(_ => new List<(double time, double value)>()).ToList();
     foreach (var item in log.GetEnumeratorType(new[] { msgType })) {
-      var raw = item[field];
-      if (raw == null) {
-        continue;
+      double seconds = item.timems / 1000.0;
+      for (int f = 0; f < fields.Count; f++) {
+        var raw = item[fields[f]];
+        if (raw != null
+            && double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out var value)) {
+          series[f].Add((seconds, value));
+        }
       }
-
-      if (!double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out var value)) {
-        continue;
-      }
-
-      data.Add((item.timems / 1000.0, value));
     }
 
-    return data;
+    return series;
   }
 
   /// <summary>
