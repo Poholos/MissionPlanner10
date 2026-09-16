@@ -1,6 +1,34 @@
 # Avalonia in-place migration status
 
-Updated: **2026-09-16**.
+Updated: **2026-09-17**.
+
+## MCP flight-context extension — 2026-09-17
+
+- Dedicated branch `feat/mcp-flight-context` starts from clean fetched master
+  `f1180f67293469a1002f1635bc8fc153e7b00c5d`. Existing user changes were absent;
+  the old standalone port directory remains absent and was not removed or archived.
+- The diagnostic gap review selected six read-only additions, taking MCP from
+  **23 to 29 tools**: `read_vehicle_messages`, `telemetry_packet_inventory`,
+  `log_events`, `log_time_series`, `compare_log_parameters` and
+  `compare_vehicle_parameters_to_log`. Both CLI and desktop endpoints expose them.
+  Existing downloads, analysis and operator-reviewed proposals remain available.
+- Native MAVState now offers locked packet snapshots and retains 256 STATUSTEXT
+  packets per exact component independently of the UI queue. MCP preserves receipt
+  times, severity, chunk IDs, cursor pagination and history-loss indicators.
+- DataFlash/TLOG event evidence retains original clock/source/line information;
+  TLOG state deduplication spans page boundaries. Trend envelopes scan every sample
+  into bounded per-source bins, preserve spike times and report invalid samples and
+  gaps without interpolation. Parameter comparisons retain unknown encodings and
+  missing values, require explicit TLOG sources, and distinguish wire-type changes.
+  Current-cache comparisons report completeness and do not stage or write changes.
+- Local verification: **1658 passed / 0 failed / 0 skipped**, including new
+  concurrent cache, cursor, event, trend, source, historical comparison and HTTP
+  client coverage. Release solution build has **0 warnings / 0 errors**. All six
+  migration/source/artifact audits and `git diff --check` pass.
+- Next: publish the reviewable branch and verify platform/CodeQL PR gates. Real
+  aircraft messages, flight-log corpus acceptance and model-backed sessions remain
+  manual checks; no aircraft writes, inference or Claude delegation occurred.
+  See [MCP_DIAGNOSTICS.md](MCP_DIAGNOSTICS.md) for the gap analysis and usage.
 
 ## Published AI agent connections — 2026-09-16
 

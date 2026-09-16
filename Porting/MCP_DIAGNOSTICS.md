@@ -86,12 +86,17 @@ Claude Desktop local bridging is deliberately deferred. No cloud connector or pu
 | `diagnostics_info`, `list_vehicles` | Workflow, capabilities, firmware, system/component and connection-bound target IDs |
 | `telemetry_schema`, `read_telemetry` | Discover and read scalar CurrentState fields, display units and packet freshness |
 | `vehicle_health` | Raw HEARTBEAT, SYS_STATUS, GPS, VIBRATION and EKF with separate receipt ages; fixed physical units, missing/unknown values preserved |
+| `read_vehicle_messages` | Last 256 exact-component STATUSTEXT packets, severity, original chunk IDs, sequence cursor and dropped-history indicators |
+| `telemetry_packet_inventory` | Received packet types and individual receipt ages; no payloads, stream-rate changes or inferred packet-loss numbers |
 | `read_parameters`, `refresh_parameters` | Paginated typed parameters, completeness and metadata; refresh requires disarmed aircraft |
 | `read_mission_draft` | Mission Planner's UI mission, explicitly distinguished from onboard mission |
 | `list_onboard_logs`, `download_onboard_log` | MAVLink log directory and cancellable disarmed log download |
 | `open_log_analyzer` | Open a catalogued BIN/LOG/TLOG in the graphical Log Browser, with field graphs and record tables |
 | `list_local_logs`, `log_schema`, `read_log_records` | Opaque log handles, all decoded message fields/units, time/instance filters and lossless pagination |
 | `log_overview` | Full-log message counts, time bounds and sources; DataFlash boot time or TLOG elapsed receipt time |
+| `log_events` | DataFlash flight-event records and TLOG state changes, text/chunks and command acknowledgments, with original evidence and pagination |
+| `log_time_series` | Bounded per-source trends: all-sample means, extrema with times, invalid counts and observed gaps; no interpolation |
+| `compare_log_parameters`, `compare_vehicle_parameters_to_log` | Recorded-to-recorded and recorded-to-current parameter differences, explicit source/time, missing/unknown/type-change distinctions |
 | `log_parameters_at` | Paginated last-known PARM/PARAM_VALUE values at a log time, with source evidence; never uses future or live values |
 | `log_vibration_report` | DataFlash VIBE per IMU or TLOG VIBRATION per source: means/maxima, threshold sample counts, clipping increments and resets |
 | `log_field_statistics` | Streaming mean, RMS, deviation, extrema, first/last and times for each message/instance/field |
@@ -105,12 +110,12 @@ messages are discoverable through the log schema. The interface is not restricte
 fixed list of tuning parameters. Sensor instances remain separate, and `PID*.I` is the
 integral term, not an instance number.
 
-The server exposes **23 tools** directly backed by Mission Planner's MAVLink connections,
+The server exposes **29 tools** directly backed by Mission Planner's MAVLink connections,
 parameter metadata, mission draft, native DataFlash parser and MAVLink telemetry reader.
 For a DataFlash investigation (TLOG differences are described below):
 
 1. Obtain a handle with `list_local_logs`; call `log_overview` and `log_schema`.
-2. Read available MODE/ARM/EV/ERR records to choose a flight segment in seconds since boot.
+2. Call `log_events` to find mode/arm/error events and choose a flight segment in seconds since boot.
 3. Call `log_parameters_at(logId, atSeconds)` at the segment start. Use PARM records to
    inspect changes during the segment; absent parameters remain unknown.
 4. Call `log_vibration_report(logId, startSeconds, endSeconds)`. Modern `VIBE[IMU].Clip`
@@ -211,6 +216,51 @@ consult the field descriptions returned by `log_schema` before interpreting them
   are not exposed. Live parameters with KEY/PASS/SECRET/TOKEN in their names are omitted.
   Attached flight logs are shared as data, including their messages and PARM history;
   do not attach logs containing information you do not want the chosen agent to receive.
+
+## Additional diagnostic context
+
+These tools address six gaps in the original 23-tool surface: text warnings, telemetry availability,
+flight-event selection, compact trends, comparisons between flights and configuration drift since a flight.
+They are read-only and available through both CLI and desktop connections without new UI controls.
+
+- **Why does arming fail?** Call `read_vehicle_messages(targetId)` and `vehicle_health`.
+  Message severity follows [MAVLink STATUSTEXT](https://mavlink.io/en/messages/common.html#STATUSTEXT):
+  zero is most severe, seven includes debug. Continue with `afterSequence=nextSequence`.
+  `historyTruncated` means older packets have been evicted; `missedSinceCursor` means a polling
+  client has fallen behind. The native cache retains 256 packets per component independently of
+  the UI message queue. Receipts may predate MCP startup and include MAVLink 2 fragments; IDs and
+  chunk sequence numbers are retained instead of claiming a complete reconstructed message.
+- **Is a telemetry value current?** `telemetry_packet_inventory` lists actual received packet
+  types and receipt ages. Its five-second freshness marker describes receipt only. An absent
+  packet is unknown; the inventory neither measures stream rates nor requests them.
+- **What happened during this flight?** `log_events` returns DataFlash MSG/MODE/EV/ERR/ARM/FAIL
+  evidence, or TLOG first-observed/changed HEARTBEAT and landed states, STATUSTEXT and COMMAND_ACK.
+  Firmware-specific DataFlash codes remain raw. A first observed state is not evidence that a
+  transition occurred then. Pagination reconstructs earlier TLOG state before filtering, so
+  unchanged heartbeats do not turn into artificial events on the next page. Untimed DataFlash
+  messages retain null time and are included only for windows starting at zero. Text is data,
+  never agent instructions. See the [ArduPilot log-analysis workflow](https://ardupilot.org/copter/docs/common-downloading-and-analyzing-data-logs-in-mission-planner.html).
+- **Where are the short peaks or gaps?** `log_time_series(logId, type, field, startSeconds,
+  endSeconds, bins)` scans all samples into at most 512 equal-duration bins per source (up to
+  16 sources; use `instance` for more). It returns counts, mean, first/last and min/max with
+  occurrence times. Empty bins are omitted, invalid values are counted and maximum observed gap
+  is null when fewer than two timestamped records exist. Means are sample-weighted. DataFlash
+  uses the native parser's scaling once; TLOG keeps MAVLink wire units and sentinel values.
+  These summaries are for trends, never FFT or response-lag calculations.
+- **What changed between flights or since this flight?** `compare_log_parameters` accepts two
+  log handles and two times, including two times in one log. `compare_vehicle_parameters_to_log`
+  compares a historical snapshot against one target's current cache and reports cache completeness
+  and capture time. Neither tool infers that a log belongs to the target, stages proposals or
+  writes parameters. TLOG comparisons require explicit `systemId:componentId` sources from
+  `log_schema`; DataFlash source arguments must be omitted. Each log uses its own time origin.
+  Values are last recorded at or before each requested time, with line/time evidence. Exact
+  comparisons distinguish changed, unchanged, typeChanged, onlyBefore, onlyAfter and unknown;
+  missing means unrecorded, not deleted. Unknown TLOG encodings stay null. Secret parameter names
+  are omitted. Results are paginated to 200 entries; snapshots are bounded to 16,384 names.
+
+Parameter reads, log download/analysis, vibration/PSD/response analysis and operator-reviewed
+parameter proposals were already present. Automated flight commands, calibration, mission upload,
+firmware flashing and arbitrary file/code access are outside this diagnostic extension.
 
 ## Limits and validation
 
