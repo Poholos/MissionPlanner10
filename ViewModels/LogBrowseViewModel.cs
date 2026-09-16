@@ -266,10 +266,16 @@ public partial class LogBrowseViewModel : ViewModelBase {
             .Concat(fields.Select(f => values.GetValueOrDefault(f, ""))).ToArray());
       }
     } else {
-      using var log = new DFLogBuffer(CurrentPath);
-      foreach (var item in log.GetEnumeratorType(type).Take(maxRows)) {
-        rows.Add(new[] { (item.timems / 1000).ToString("0.000", System.Globalization.CultureInfo.InvariantCulture) }
-            .Concat(fields.Select(f => item[f] ?? "")).ToArray());
+      var perField = DataFlashLog.ReadFields(CurrentPath, type, fields);
+      int n = Math.Min(maxRows, perField.Count > 0 ? perField.Min(s => s.Count) : 0);
+      for (int i = 0; i < n; i++) {
+        var row = new List<string> {
+          perField[0][i].time.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture)
+        };
+        foreach (var s in perField) {
+          row.Add(s[i].value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture));
+        }
+        rows.Add(row);
       }
     }
     return (columns, rows);
