@@ -42,6 +42,7 @@
           <Separator />
           <MenuItem Header="Link Stats" Click="OnLinkStats" />
           <MenuItem Header="Connection Options" Click="OnConnectionOptions" />
+          <MenuItem Header="AI diagnostics / MCP…" Click="OnAgentTools" />
           <MenuItem Header="Download Logs (MAVLink)" Click="OnDownloadLogs" />
           <MenuItem Header="Tlog Convert / Extract" Click="OnMavlinkLogConvert" />
           <Separator />
@@ -116,6 +117,7 @@
                 <TextBlock Classes="navtxt" Text="SIMULATION" />
               </StackPanel>
             </Button>
+            <Button Classes="nav" Content="AI" Click="OnAgentTools" ToolTip.Tip="AI diagnostics / MCP" />
             <Button
               Classes="nav"
               IsVisible="{Binding ShowHelp}"
@@ -157,6 +159,7 @@
             <Separator />
             <MenuItem Header="Link Statistics" Click="OnLinkStats" />
             <MenuItem Header="Connection Options" Click="OnConnectionOptions" />
+            <MenuItem Header="AI diagnostics / MCP…" Click="OnAgentTools" />
             <MenuItem Header="Download Logs (MAVLink)" Click="OnDownloadLogs" />
             <MenuItem Header="Tlog Convert / Extract" Click="OnMavlinkLogConvert" />
             <MenuItem Header="OSD Video — Telemetry Overlay" Click="OnOsdVideoOverlay" />
