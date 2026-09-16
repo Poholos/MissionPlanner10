@@ -1,6 +1,26 @@
 # Avalonia in-place migration status
 
-Updated: **2026-09-01**.
+Updated: **2026-09-02**.
+
+## Flight Planner DO_JUMP defaults
+
+- Dedicated branch `fix/planner-jump-defaults` starts from clean
+  `master == origin/master` `b9a62d96d83f`. Behavior and regression commit `fd92b02fd`
+  restores the original Mission Planner defaults for the general Jump action: the target prompt
+  starts at waypoint **1**, and the resulting `DO_JUMP` row receives `P1=target`, `P2=5` instead
+  of the incorrect `P1=0`, `P2=-1`. The existing explicit Jump Start action is unchanged.
+- The reference is the local current Mission Planner clone at
+  `/home/alex/SRC/MP/Oroginal/MissionPlanner`, specifically the Jump handlers in
+  `GCSViews/FlightPlanner.cs`. The fix keeps the existing Avalonia dialog and undo boundary and
+  only centralizes the two original defaults in `FlightPlannerViewModel`.
+- The new focused regression passes **1/1** and the complete `PlannerPortParityTests` group passes
+  **60/60**. The complete Release test project passes **1582/1582**. A Release build of
+  `MissionPlanner.slnx` succeeds with **0 warnings / 0 errors**. All commands ran locally without
+  restore; only the root agent launched builds, with MSBuild concurrency capped at 12.
+- Remaining local code/test blocker: none. `master` and `origin/master` remain unchanged. The next
+  executable step is to push this branch and run the normal Linux, Windows, both macOS and CodeQL
+  PR gates before merge. Manual acceptance should open PLAN, choose Jump, confirm target **1**, and
+  inspect the new row for repeat count **5**.
 
 ## PR #25: safe DFLogBuffer index cache on .NET 10
 
