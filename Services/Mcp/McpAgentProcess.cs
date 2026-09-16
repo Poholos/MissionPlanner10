@@ -8,28 +8,40 @@ using System.Threading.Tasks;
 namespace MissionPlanner.Services.Mcp;
 
 internal sealed class McpAgentProcess {
-  internal static ProcessStartInfo BuildStart(string executable, Uri endpoint, string token, string workingDirectory) {
-    if (string.IsNullOrWhiteSpace(executable)) { throw new ArgumentException("Select the Codex executable."); }
+  internal static ProcessStartInfo BuildStart(string executable, Uri endpoint, string token, string workingDirectory,
+      McpAgentKind kind = McpAgentKind.CodexCli, string? claudeConfig = null) {
+    if (string.IsNullOrWhiteSpace(executable)) { throw new ArgumentException("Select the agent executable."); }
+    if (kind == McpAgentKind.OpenAiDesktop) { throw new ArgumentException("Desktop applications use the desktop launcher."); }
+    if (OperatingSystem.IsWindows() && !Path.GetExtension(executable).Equals(".exe", StringComparison.OrdinalIgnoreCase)) {
+      throw new ArgumentException("Select the native codex.exe or claude.exe, not a shell script.");
+    }
     var start = new ProcessStartInfo(executable) {
       UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = workingDirectory,
       RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true,
     };
-    foreach (string argument in new[] { "exec", "--json", "--skip-git-repo-check", "--ephemeral", "--ignore-user-config",
+    string[] arguments = kind == McpAgentKind.ClaudeCode
+        ? new[] { "-p", "--output-format", "stream-json", "--verbose", "--no-session-persistence",
+          "--strict-mcp-config", "--mcp-config", claudeConfig ?? throw new ArgumentException("Missing session MCP config."),
+          "--tools", "", "--allowedTools", "mcp__missionplanner__*", "--permission-mode", "dontAsk",
+          "--setting-sources", "", "--settings", "{\"disableAllHooks\":true}", "--disable-slash-commands" }
+        : new[] { "exec", "--json", "--skip-git-repo-check", "--ephemeral", "--ignore-user-config",
         "--sandbox", "read-only", "-c", "mcp_servers.missionplanner.url=" + JsonSerializer.Serialize(endpoint.AbsoluteUri),
         "-c", "mcp_servers.missionplanner.bearer_token_env_var=\"MP_MCP_TOKEN\"",
-        "-c", "mcp_servers.missionplanner.tool_timeout_sec=720", "-c", "mcp_servers.missionplanner.required=true", "-" }) {
+        "-c", "mcp_servers.missionplanner.tool_timeout_sec=720", "-c", "mcp_servers.missionplanner.required=true", "-" };
+    foreach (string argument in arguments) {
       start.ArgumentList.Add(argument);
     }
     start.Environment["MP_MCP_TOKEN"] = token;
+    if (kind == McpAgentKind.ClaudeCode) { start.Environment["MCP_TOOL_TIMEOUT"] = "720000"; }
     return start;
   }
 
   internal static async Task<int> RunAsync(string executable, Uri endpoint, string token, string task,
-      Action<string> output, CancellationToken ct) {
+      Action<string> output, CancellationToken ct, McpAgentKind kind = McpAgentKind.CodexCli, string? sessionParent = null) {
     if (task.Length is < 5 or > 32000) { throw new ArgumentException("Task must contain 5..32000 characters."); }
-    string directory = Path.Combine(AppPaths.CacheRoot, "agent-work");
-    Directory.CreateDirectory(directory);
-    using var process = new Process { StartInfo = BuildStart(executable, endpoint, token, directory) };
+    ct.ThrowIfCancellationRequested();
+    using var files = new McpAgentSessionFiles(kind, endpoint, token, sessionParent);
+    using var process = new Process { StartInfo = BuildStart(executable, endpoint, token, files.DirectoryPath, kind, files.ClaudeConfigPath) };
     process.Start();
     using var registration = ct.Register(() => {
       try { if (!process.HasExited) { process.Kill(entireProcessTree: true); } }
@@ -68,6 +80,8 @@ internal sealed class McpAgentProcess {
       try { if (!process.HasExited) { process.Kill(entireProcessTree: true); } }
       catch (InvalidOperationException) { }
       catch (System.ComponentModel.Win32Exception) { }
+      await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+      try { await Task.WhenAll(stdout, stderr).ConfigureAwait(false); } catch (OperationCanceledException) { }
     }
   }
   internal static string FormatLine(string line) {
@@ -75,6 +89,21 @@ internal sealed class McpAgentProcess {
       using var parsed = JsonDocument.Parse(line);
       var root = parsed.RootElement;
       if (!root.TryGetProperty("type", out var type)) { return line + "\n"; }
+      if (type.GetString() == "assistant" && root.TryGetProperty("message", out var message)
+          && message.TryGetProperty("content", out var content) && content.ValueKind == JsonValueKind.Array) {
+        var text = new System.Text.StringBuilder();
+        foreach (var block in content.EnumerateArray()) {
+          if (block.TryGetProperty("text", out var value)) { text.AppendLine(value.GetString()); }
+          else if (block.TryGetProperty("type", out var blockType) && blockType.GetString() == "tool_use"
+              && block.TryGetProperty("name", out var name)) { text.AppendLine("Tool: " + name.GetString()); }
+        }
+        return text.ToString();
+      }
+      if (type.GetString() == "result") {
+        return root.TryGetProperty("is_error", out var failed) && failed.ValueKind == JsonValueKind.True
+            ? "Agent failed: " + (root.TryGetProperty("result", out var result) ? result.GetString() : line) + "\n"
+            : "Analysis complete.\n";
+      }
       if (root.TryGetProperty("item", out var item)) {
         if (item.TryGetProperty("text", out var text) && type.GetString() == "item.completed") {
           return text.GetString() + "\n";

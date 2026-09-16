@@ -46,7 +46,7 @@ public sealed class McpDiagnosticsTests {
 
   [Fact]
   public void Launcher_passes_connection_as_arguments_and_keeps_token_out_of_command_line() {
-    var start = McpAgentProcess.BuildStart("/tmp/path with spaces/codex", new Uri("http://127.0.0.1:32123/mcp"),
+    var start = McpAgentProcess.BuildStart(OperatingSystem.IsWindows() ? "C:\\agent path\\codex.exe" : "/tmp/path with spaces/codex", new Uri("http://127.0.0.1:32123/mcp"),
         "private-test-token", Path.GetTempPath());
     Assert.False(start.UseShellExecute);
     Assert.DoesNotContain("private-test-token", string.Join(" ", start.ArgumentList));
