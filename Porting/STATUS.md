@@ -25,8 +25,10 @@ Updated: **2026-09-17**.
   concurrent cache, cursor, event, trend, source, historical comparison and HTTP
   client coverage. Release solution build has **0 warnings / 0 errors**. All six
   migration/source/artifact audits and `git diff --check` pass.
-- Next: publish the reviewable branch and verify platform/CodeQL PR gates. Real
-  aircraft messages, flight-log corpus acceptance and model-backed sessions remain
+- [PR #39](https://github.com/Rouniy/MissionPlanner10/pull/39) contains the reviewable
+  extension (functional commit `27806ce8df33e21412ff163dd7ae446ff1e93a00`). The
+  recorded checks above are local; platform packaging and CodeQL results are linked
+  on the PR. Real aircraft messages, flight-log corpus acceptance and model-backed sessions remain
   manual checks; no aircraft writes, inference or Claude delegation occurred.
   See [MCP_DIAGNOSTICS.md](MCP_DIAGNOSTICS.md) for the gap analysis and usage.
 
