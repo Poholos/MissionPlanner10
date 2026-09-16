@@ -94,6 +94,54 @@ internal sealed class McpVehicleAccess {
   internal object TelemetrySchema() => TelemetryProperties.Select(p => new { name = p.Name, type = p.PropertyType.Name,
     description = p.GetCustomAttribute<System.ComponentModel.DescriptionAttribute>()?.Description }).ToArray();
 
+  internal object Health(string targetId) {
+    var target = Resolve(targetId);
+    DateTime now = DateTime.UtcNow;
+    object Packet<T>(MAVLink.MAVLINK_MSG_ID id, Func<T, object> project) where T : struct {
+      var packet = target.State.getPacketLast((uint)id);
+      if (packet == null) { return new { available = false }; }
+      DateTime received = packet.rxtime.ToUniversalTime();
+      double age = (now - received).TotalSeconds;
+      return new { available = true, receivedUtc = received, ageSeconds = age,
+        fresh = age is >= 0 and <= 5, values = project(packet.ToStructure<T>()) };
+    }
+    static double? Finite(float value) => float.IsFinite(value) ? value : null;
+    var result = new { targetId, capturedUtc = now,
+      heartbeat = Packet<MAVLink.mavlink_heartbeat_t>(MAVLink.MAVLINK_MSG_ID.HEARTBEAT, p => new {
+        armed = (p.base_mode & (byte)MAVLink.MAV_MODE_FLAG.SAFETY_ARMED) != 0,
+        systemStatus = ((MAVLink.MAV_STATE)p.system_status).ToString(), customMode = p.custom_mode,
+      }),
+      system = Packet<MAVLink.mavlink_sys_status_t>(MAVLink.MAVLINK_MSG_ID.SYS_STATUS, p => new {
+        sensorsPresent = p.onboard_control_sensors_present, sensorsEnabled = p.onboard_control_sensors_enabled,
+        sensorsHealthy = p.onboard_control_sensors_health,
+        unhealthyEnabledSensors = p.onboard_control_sensors_present & p.onboard_control_sensors_enabled & ~p.onboard_control_sensors_health,
+        loadPercent = p.load / 10.0,
+        batteryVolts = p.voltage_battery == ushort.MaxValue ? (double?)null : p.voltage_battery / 1000.0,
+        batteryAmps = p.current_battery == -1 ? (double?)null : p.current_battery / 100.0,
+        batteryRemainingPercent = p.battery_remaining < 0 ? (int?)null : p.battery_remaining,
+        communicationDropPercent = p.drop_rate_comm / 100.0, communicationErrors = p.errors_comm,
+      }),
+      gps = Packet<MAVLink.mavlink_gps_raw_int_t>(MAVLink.MAVLINK_MSG_ID.GPS_RAW_INT, p => new {
+        fixType = p.fix_type, satellites = p.satellites_visible == byte.MaxValue ? (int?)null : p.satellites_visible,
+        hdop = p.eph == ushort.MaxValue ? (double?)null : p.eph / 100.0,
+        vdop = p.epv == ushort.MaxValue ? (double?)null : p.epv / 100.0,
+      }),
+      vibration = Packet<MAVLink.mavlink_vibration_t>(MAVLink.MAVLINK_MSG_ID.VIBRATION, p => new {
+        timeUsec = p.time_usec, x = Finite(p.vibration_x), y = Finite(p.vibration_y), z = Finite(p.vibration_z),
+        units = "m/s^2", clipping0 = p.clipping_0, clipping1 = p.clipping_1, clipping2 = p.clipping_2,
+      }),
+      ekf = Packet<MAVLink.mavlink_ekf_status_report_t>(MAVLink.MAVLINK_MSG_ID.EKF_STATUS_REPORT, p => new {
+        flags = p.flags, velocityVariance = Finite(p.velocity_variance), horizontalPositionVariance = Finite(p.pos_horiz_variance),
+        verticalPositionVariance = Finite(p.pos_vert_variance), compassVariance = Finite(p.compass_variance),
+        terrainAltitudeVariance = Finite(p.terrain_alt_variance),
+      }),
+      note = "Latest raw MAVLink packets for this exact system/component, with separate receipt ages. Missing is unknown, not healthy. "
+          + "Packets are not an atomic snapshot. Clipping counters are cumulative; compare over time. No stream rates or aircraft state were changed.",
+    };
+    Resolve(targetId);
+    return result;
+  }
+
   internal object Telemetry(string targetId, string fields) {
     var target = Resolve(targetId);
     var names = fields.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);

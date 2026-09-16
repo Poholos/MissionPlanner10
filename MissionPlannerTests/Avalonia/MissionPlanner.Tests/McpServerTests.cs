@@ -23,6 +23,8 @@ public sealed class McpServerTests {
     var tools = await client.ListToolsAsync(cancellationToken: timeout.Token);
     Assert.Contains(tools, t => t.Name == "read_parameters");
     Assert.Contains(tools, t => t.Name == "log_batch_spectrum");
+    Assert.Contains(tools, t => t.Name == "vehicle_health");
+    Assert.Contains(tools, t => t.Name == "log_vibration_report");
     Assert.DoesNotContain(tools, t => t.Name.Contains("arm") || t.Name == "apply_parameter_changes");
     var info = await client.CallToolAsync("diagnostics_info", cancellationToken: timeout.Token);
     Assert.NotEqual(true, info.IsError);
@@ -36,6 +38,22 @@ public sealed class McpServerTests {
     string path = TemporaryLog();
     try {
       string id = server.Logs.Attach(path).Id;
+      var overview = await client.CallToolAsync("log_overview", new Dictionary<string, object?> {
+        ["logId"] = id,
+      }, cancellationToken: timeout.Token);
+      Assert.NotEqual(true, overview.IsError);
+      Assert.Contains("PARM", Assert.IsType<TextContentBlock>(overview.Content[0]).Text);
+      var snapshot = await client.CallToolAsync("log_parameters_at", new Dictionary<string, object?> {
+        ["logId"] = id, ["atSeconds"] = 1.5,
+      }, cancellationToken: timeout.Token);
+      Assert.NotEqual(true, snapshot.IsError);
+      using var snapshotJson = JsonDocument.Parse(Assert.IsType<TextContentBlock>(snapshot.Content[0]).Text);
+      Assert.Equal(0.5, snapshotJson.RootElement.GetProperty("parameters")[0].GetProperty("value").GetDouble());
+      var missingVibe = await client.CallToolAsync("log_vibration_report", new Dictionary<string, object?> {
+        ["logId"] = id, ["startSeconds"] = 0, ["endSeconds"] = 10,
+      }, cancellationToken: timeout.Token);
+      Assert.True(missingVibe.IsError);
+      Assert.Contains("no VIBE", Assert.IsType<TextContentBlock>(missingVibe.Content[0]).Text);
       var first = await client.CallToolAsync("read_log_records", new Dictionary<string, object?> {
         ["logId"] = id, ["types"] = "PARM", ["count"] = 1,
       }, cancellationToken: timeout.Token);
@@ -50,6 +68,34 @@ public sealed class McpServerTests {
       Assert.Single(parsed2.RootElement.GetProperty("rows").EnumerateArray());
       Assert.Equal("0.8", parsed2.RootElement.GetProperty("rows")[0].GetProperty("fields").GetProperty("Value").GetString()!.Trim());
     } finally { await server.DisposeAsync(); File.Delete(path); }
+  }
+
+  [Fact]
+  public async Task Streamable_http_negotiates_sse_accepts_notifications_and_rejects_unsupported_versions() {
+    await using var server = new MissionPlannerMcpServer(new McpVehicleAccess(() => []));
+    await server.StartAsync(_ => Task.FromResult<object>(new { }));
+    using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+    http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", server.Token);
+    http.DefaultRequestHeaders.Accept.ParseAdd("application/json, text/event-stream");
+    using var init = new StringContent("""
+        {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"wire-test","version":"1"}}}
+        """, Encoding.UTF8, "application/json");
+    using var response = await http.PostAsync(server.Endpoint, init);
+    Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    Assert.Equal("text/event-stream", response.Content.Headers.ContentType?.MediaType);
+    Assert.Contains("\"protocolVersion\":\"2025-11-25\"", await response.Content.ReadAsStringAsync());
+    Assert.False(response.Headers.Contains("Mcp-Session-Id"));
+    http.DefaultRequestHeaders.Add("MCP-Protocol-Version", "2025-11-25");
+    using var notification = new StringContent("""{"jsonrpc":"2.0","method":"notifications/initialized"}""", Encoding.UTF8, "application/json");
+    using var accepted = await http.PostAsync(server.Endpoint, notification);
+    Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
+    using var get = await http.GetAsync(server.Endpoint);
+    Assert.Equal(HttpStatusCode.MethodNotAllowed, get.StatusCode);
+    http.DefaultRequestHeaders.Remove("MCP-Protocol-Version");
+    http.DefaultRequestHeaders.Add("MCP-Protocol-Version", "not-a-version");
+    using var ping = new StringContent("""{"jsonrpc":"2.0","id":2,"method":"ping"}""", Encoding.UTF8, "application/json");
+    using var invalid = await http.PostAsync(server.Endpoint, ping);
+    Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
   }
 
   [Fact]

@@ -43,10 +43,14 @@ Closing the diagnostics window stops its agent and revokes the server session.
 | --- | --- |
 | `diagnostics_info`, `list_vehicles` | Workflow, capabilities, firmware, system/component and connection-bound target IDs |
 | `telemetry_schema`, `read_telemetry` | Discover and read scalar CurrentState fields, display units and packet freshness |
+| `vehicle_health` | Raw HEARTBEAT, SYS_STATUS, GPS, VIBRATION and EKF with separate receipt ages; fixed physical units, missing/unknown values preserved |
 | `read_parameters`, `refresh_parameters` | Paginated typed parameters, completeness and metadata; refresh requires disarmed aircraft |
 | `read_mission_draft` | Mission Planner's UI mission, explicitly distinguished from onboard mission |
 | `list_onboard_logs`, `download_onboard_log` | MAVLink log directory and cancellable disarmed log download |
 | `list_local_logs`, `log_schema`, `read_log_records` | Opaque log handles, all decoded message fields/units, time/instance filters and lossless pagination |
+| `log_overview` | Full-log message counts, boot-time bounds, instances and available event types |
+| `log_parameters_at` | Paginated last-known PARM values at a boot time, source lines and observed changes; never uses future or live values |
+| `log_vibration_report` | Per-IMU VIBE means/maxima, samples above 30/60 m/s², observed clipping increments and counter resets |
 | `log_field_statistics` | Streaming mean, RMS, deviation, extrema, first/last and times for each message/instance/field |
 | `log_spectrum` | One-sided Welch PSD of a regularly sampled scalar field |
 | `log_batch_spectrum` | Raw ISBH/ISBD IMU batch PSD with actual sample rate, scaling and sequence validation |
@@ -57,6 +61,35 @@ PIDR/PIDP/PIDY, RATE, VIBE, IMU, ESC, RCOU, XKF/NKF, PARM, MSG and other availab
 messages are discoverable through the log schema. The interface is not restricted to a
 fixed list of tuning parameters. Sensor instances remain separate, and `PID*.I` is the
 integral term, not an instance number.
+
+The server exposes **22 tools** directly backed by Mission Planner's MAVLink connections,
+parameter metadata, mission draft and native DataFlash parser. For an offline investigation:
+
+1. Obtain a handle with `list_local_logs`; call `log_overview` and `log_schema`.
+2. Read available MODE/ARM/EV/ERR records to choose a flight segment in seconds since boot.
+3. Call `log_parameters_at(logId, atSeconds)` at the segment start. Use PARM records to
+   inspect changes during the segment; absent parameters remain unknown.
+4. Call `log_vibration_report(logId, startSeconds, endSeconds)`. Modern `VIBE[IMU].Clip`
+   and legacy `Clip0/1/2` are both supported. Counts above thresholds are sample counts,
+   not durations. Clipping increments exclude the first observed value and reset/wrap
+   intervals; they are lower bounds, not lifetime totals. Missing fields are omitted.
+5. Use `log_batch_spectrum` or `log_spectrum` for raw IMU resonance and `log_response`
+   for rate tracking. Use `log_field_statistics` and records for battery, ESC, actuator
+   and estimator evidence. On a connected aircraft, compare `vehicle_health` and
+   `read_parameters` before submitting a proposal.
+
+The vibration thresholds follow [ArduPilot's measurement guidance](https://ardupilot.org/copter/docs/common-measuring-vibration.html).
+They are context for investigation, not an automatic flight-safety classification.
+Timestamp reversals within parameter history or an IMU stream are rejected by these
+summaries; separate logs from different boots before quantitative analysis.
+
+HTTP uses the official SDK's stateless **Streamable HTTP** transport at `/mcp`:
+authenticated POST requests can receive SSE responses, notifications receive HTTP 202,
+and standalone GET streams return HTTP 405. No transport session ID or resumable event
+history is advertised. This is distinct from the obsolete separate `/sse` + `/messages`
+transport; clients should use the displayed `/mcp` URL. Wire behavior is tested against
+the [MCP transport specification](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports)
+and with the official C# MCP client, including unsupported-version rejection.
 
 ## Interpretation and write behavior
 

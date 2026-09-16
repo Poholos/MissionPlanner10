@@ -15,7 +15,8 @@ namespace MissionPlanner.Services.Mcp;
 [McpServerToolType]
 internal sealed class MissionPlannerMcpTools {
   internal const string Instructions = "Analyze the exact vehicle and flight, not generic PID defaults. Start with list_vehicles, "
-      + "parameters and log_schema. Match firmware, frame, payload, sensor instance, units and timestamps. "
+      + "vehicle_health, log_overview and log_schema. Match firmware, frame, payload, sensor instance, units and timestamps. "
+      + "Use log_parameters_at for flight-time values and log_vibration_report for per-sensor vibration and clipping. "
       + "Use flight-time PARM history; current parameters may differ. Investigate clipping, vibration, EKF and actuator saturation before PID. "
       + "Never infer a safe optimum or stability proof from one log. Identify missing evidence and propose a validation flight. "
       + "Parameter proposals require operator review in Mission Planner; tools cannot arm, fly, erase logs or execute code. "
@@ -47,7 +48,24 @@ internal sealed class MissionPlannerMcpTools {
   public string Info() => Json(new { application = "MissionPlanner", workflow = Instructions,
     logFormats = new[] { "DataFlash binary (.bin)", "DataFlash text (.log)" },
     writePolicy = "Parameter proposals only; an operator reviews and applies them in Mission Planner.",
-    analysis = new[] { "arbitrary log fields and instances", "field statistics", "Welch PSD", "target/actual correlation lag" } });
+    analysis = new[] { "packet-aged vehicle health", "log overview", "flight-time parameter snapshots", "vibration and clipping report",
+      "arbitrary log fields and instances", "field statistics", "Welch PSD", "target/actual correlation lag" } });
+
+  [McpServerTool(Name = "vehicle_health", ReadOnly = true), Description("Read exact-target HEARTBEAT, system/sensor health, battery, GPS, vibration/clipping and EKF packets. Separate packet ages, fixed physical units and explicit missing data; does not request new streams.")]
+  public string Health(string targetId) => Guard(() => _vehicles.Health(targetId));
+
+  [McpServerTool(Name = "log_overview", ReadOnly = true), Description("Summarize a DataFlash log: message counts, boot-time bounds, sensor instances and available event types. Scan the full log without returning every record.")]
+  public Task<string> Overview(string logId, CancellationToken cancellationToken) =>
+      GuardAsync(() => _logs.Read(logId, McpFlightAnalysis.Overview, cancellationToken));
+
+  [McpServerTool(Name = "log_parameters_at", ReadOnly = true), Description("Page the last recorded PARM values at or before a flight boot time, including last source line/time and observed change counts. Missing values stay unknown; current vehicle values are never substituted.")]
+  public Task<string> LogParameters(string logId, double atSeconds, CancellationToken cancellationToken,
+      string filter = "", int offset = 0, int count = 100) =>
+      GuardAsync(() => _logs.Read(logId, (log, ct) => McpFlightAnalysis.Parameters(log, atSeconds, filter, offset, count, ct), cancellationToken));
+
+  [McpServerTool(Name = "log_vibration_report", ReadOnly = true), Description("Per-instance VIBE axis means/maxima and samples above ArduPilot's 30/60 m/s^2 guidance, plus clipping increments and counter resets. Analyze an explicit flight window; missing data is not healthy data.")]
+  public Task<string> Vibration(string logId, double startSeconds, double endSeconds, CancellationToken cancellationToken) =>
+      GuardAsync(() => _logs.Read(logId, (log, ct) => McpFlightAnalysis.Vibration(log, startSeconds, endSeconds, ct), cancellationToken));
 
   [McpServerTool(Name = "list_vehicles", ReadOnly = true), Description("List connected MAVLink systems/components and session-bound target IDs. IDs expire on reconnect.")]
   public string Vehicles() => Guard(_vehicles.ListVehicles);
