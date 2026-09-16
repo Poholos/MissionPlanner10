@@ -2,6 +2,31 @@
 
 Updated: **2026-09-16**.
 
+## Published AI agent connections — 2026-09-16
+
+- [PR #38](https://github.com/Rouniy/MissionPlanner10/pull/38) merged normally at
+  `cbc0f2e03c9c03c6ccef6b3cf69bec9b7d9b3b63`, preserving functional commit
+  `ea05fd1b562902562d915d41832ca3f717ad6a23`. The merge tree is identical to the
+  verified PR head. This follow-up changes status documentation only and is being
+  fast-forwarded to local/remote master and `port/avalonia-in-place`.
+- PR platform CI [35120915147](https://github.com/Rouniy/MissionPlanner10/actions/runs/35120915147)
+  passed Linux build, **1646 tests with zero failures/skips**, DEB/TAR validation
+  and startup checks, Windows ZIP/MSI validation and macOS x64/arm64 ZIP/DMG builds.
+  All five platform artifact bundles are retained. CodeQL
+  [35120915193](https://github.com/Rouniy/MissionPlanner10/actions/runs/35120915193)
+  passed; the code-scanning API reports zero open alerts. Local Release build has
+  zero warnings/errors and all six migration/artifact audits pass. Automatic
+  merge/documentation runs are additional to these recorded PR results.
+- **AI → Agent → Run agent** discovers Codex CLI/Claude Code and creates a temporary
+  authenticated HTTP session. Detected OpenAI desktop apps expose **Desktop →
+  Register MCP → Launch desktop agent**, using explicit loopback port 47183 by
+  default without a token. Existing parameters, telemetry and BIN/TLOG analysis
+  tools are available through both modes. Claude Desktop remains deferred.
+- Remaining acceptance: actual authenticated model sessions, installed desktop
+  activation on supported operating systems and physical-aircraft log download.
+  No real agent inference, global client registration, release/tag, archival or
+  Claude delegation was performed. See [MCP_DIAGNOSTICS.md](MCP_DIAGNOSTICS.md).
+
 ## Agent discovery and desktop MCP implementation — 2026-09-16
 
 - Started on dedicated `feat/ai-agent-discovery` from clean fetched master
