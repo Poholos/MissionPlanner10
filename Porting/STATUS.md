@@ -2,6 +2,39 @@
 
 Updated: **2026-09-16**.
 
+## MCP core diagnostics integration — 2026-09-16
+
+- User authorized integrating `fix/planner-jump-defaults` and
+  `origin/port/avalonia-in-place` into master and extending the MCP implementation.
+  Work started from clean fetched `origin/master` `512d9f710` on dedicated branch
+  `feat/mcp-core-diagnostics`. Both histories are preserved by ordinary merges;
+  the only conflict was this journal, resolved by retaining both sets of entries.
+  The former `MissionPlanner-Avalonia` directory is absent in this workspace;
+  no archive, removal or reference-repository change was performed. Actual origin is
+  `git@github.com:Rouniy/MissionPlanner10.git`, superseding older repository URLs below.
+- Functional commit `5c72bf707` expands the existing Streamable HTTP server from 18 to
+  **22 tools**. `vehicle_health` reads exact-target raw MAVLink health packets with
+  individual timestamps, protocol units and unknown-value handling. `log_overview`
+  summarizes available messages/instances/time ranges. `log_parameters_at` returns
+  flight-time values and change counts without future/live substitution.
+  `log_vibration_report` separates IMUs, supports modern `Clip` and legacy `Clip0/1/2`,
+  and reports counter resets without negative or invented clipping increments.
+  Existing operator-reviewed parameter application remains the write boundary.
+- Validation on SDK 10.0.111: Release solution **0 warnings / 0 errors**, complete suite
+  **1616 passed / 0 failed / 0 skipped**, focused MCP suite **29/29**. New coverage checks
+  packet age/unit/target isolation, historical parameter selection, VIBE variants and
+  missing fields, resets, bounds, cancellation and HTTP tool calls. A raw HTTP test
+  verifies SSE response framing, initialization, HTTP 202 notifications, stateless GET
+  405 and unsupported-version 400, in addition to existing authentication/revocation tests.
+  All six migration/artifact gates pass (1623 native rows, zero blockers, 708/708 source
+  paths); `git diff --check` passes. An isolated XDG/Xvfb application launch stayed in
+  the event loop for 12 seconds with empty output (expected timeout exit 124).
+- This checkpoint precedes publication and remote CI; the next step is to push the
+  integration to `port/avalonia-in-place`, run the normal PR platform/CodeQL gates and
+  merge the verified history into master as requested. No new tag/release is requested.
+  Physical aircraft writes, SITL and a paid model-backed agent session were not run.
+  Claude remains disabled. See [MCP_DIAGNOSTICS.md](MCP_DIAGNOSTICS.md) for usage.
+
 ## Retained standalone Linux launcher — 2026-09-16
 
 - Corrected the launch handoff: `bin/Release/net10.0/MissionPlanner` is framework-dependent
