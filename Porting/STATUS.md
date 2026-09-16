@@ -2,6 +2,27 @@
 
 Updated: **2026-09-16**.
 
+## Published MCP integration — 2026-09-16
+
+- [PR #36](https://github.com/Rouniy/MissionPlanner10/pull/36) is merged into master
+  at `e989103e7dd3eb8d55d7d4c1c9ec976b515cc884`. The merge tree is byte-identical
+  to verified PR head `2ee5d7c0a56901349068540f838d1a70cf2ca989`, preserving the
+  planner fix, existing MCP branch and diagnostics extension without squash/rebase.
+  This documentation-only follow-up is being fast-forwarded to both master and
+  `port/avalonia-in-place`; no branch or historical commit is deleted.
+- PR platform CI [35108073056](https://github.com/Rouniy/MissionPlanner10/actions/runs/35108073056)
+  passed Linux build/tests/DEB/TAR/smoke, Windows ZIP/MSI validation and macOS x64/arm64
+  ZIP/DMG jobs. PR CodeQL [35108073057](https://github.com/Rouniy/MissionPlanner10/actions/runs/35108073057)
+  passed; branch-push platform/CodeQL runs `35108044983` and `35108045027` also passed.
+  GitHub confirms **1616 passed, zero failed/skipped** and zero build warnings/errors.
+  The code-scanning API reports **zero open alerts**. All five platform bundles were
+  retained. New automatic runs for the merge/documentation follow-up are separate
+  from these verified functional-head results.
+- No remaining code/test blocker. The next manual acceptance step is **AI → Start
+  server**, attach a representative DataFlash log and exercise the documented analysis
+  workflow with a local agent/SITL. Physical writes and flight acceptance remain untested;
+  no release/tag or Claude invocation occurred. The checkpoint below records local tests.
+
 ## MCP core diagnostics integration — 2026-09-16
 
 - User authorized integrating `fix/planner-jump-defaults` and
