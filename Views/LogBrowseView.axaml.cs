@@ -177,7 +177,7 @@ public partial class LogBrowseView : UserControl {
       var ys = ApplyTransform(curve.Value.ys, scale, offset);
       Plot.SetSeries($"{type}.{field}{(rightAxis ? " (R)" : "")}{TransformSuffix(scale, offset)}",
           curve.Value.xs, ys, rightAxis: rightAxis);
-      Plot.SetAxisLabels("Time (s)", "Value", "DataFlash");
+      Plot.SetAxisLabels("Time (s)", "Value", System.IO.Path.GetExtension(vm.CurrentPath).Equals(".tlog", StringComparison.OrdinalIgnoreCase) ? "Telemetry" : "DataFlash");
       vm.Status = $"Plotted {curve.Value.xs.Count} points of {type}.{field}.";
     } catch (Exception ex) {
       vm.Status = $"Graph failed: {ex.Message}";
@@ -303,19 +303,24 @@ public partial class LogBrowseView : UserControl {
     }
   }
 
-  private void OnGridToggle(object? sender, RoutedEventArgs e) {
+  private async void OnGridToggle(object? sender, RoutedEventArgs e) {
     if (GridToggle.IsChecked == true && Vm is { SelectedType: { } type } vm) {
-      var (columns, rows) = vm.ReadRows(type);
-      _gridColumns = columns;
-      RowsGrid.Columns.Clear();
-      for (int c = 0; c < columns.Count; c++) {
-        int idx = c;
-        RowsGrid.Columns.Add(new DataGridTextColumn {
-          Header = columns[c],
-          Binding = new Avalonia.Data.Binding($"[{idx}]"),
-        });
-      }
-      RowsGrid.ItemsSource = rows;
+      if (vm.Busy) { return; }
+      vm.Busy = true;
+      try {
+        var (columns, rows) = await Task.Run(() => vm.ReadRows(type));
+        _gridColumns = columns;
+        RowsGrid.Columns.Clear();
+        for (int c = 0; c < columns.Count; c++) {
+          int idx = c;
+          RowsGrid.Columns.Add(new DataGridTextColumn {
+            Header = columns[c],
+            Binding = new Avalonia.Data.Binding($"[{idx}]"),
+          });
+        }
+        RowsGrid.ItemsSource = rows;
+      } catch (Exception ex) { vm.Status = "Record read failed: " + ex.Message; }
+      finally { vm.Busy = false; }
     }
   }
 
@@ -327,12 +332,13 @@ public partial class LogBrowseView : UserControl {
     if (outp is null) {
       return;
     }
-    var (columns, rows) = vm.ReadRows(type);
     await RunExportAsync(vm, "CSV", () => {
+      var (columns, rows) = vm.ReadRows(type);
       using var w = new StreamWriter(outp);
-      w.WriteLine(string.Join(",", columns));
+      static string Csv(string value) => "\"" + value.Replace("\"", "\"\"") + "\"";
+      w.WriteLine(string.Join(",", columns.Select(Csv)));
       foreach (var r in rows) {
-        w.WriteLine(string.Join(",", r));
+        w.WriteLine(string.Join(",", r.Select(Csv)));
       }
     }, outp);
   }
@@ -378,20 +384,16 @@ public partial class LogBrowseView : UserControl {
     vm.Busy = true;
     vm.Status = $"Graphing {type}.{field}…";
     try {
-      var data = await Task.Run(() => DataFlashLog.ReadField(path, type, field));
-      if (data.Count == 0) {
+      var data = await Task.Run(() => vm.ReadCurve(type, field));
+      if (data == null || data.Value.xs.Count == 0) {
         vm.Status = $"No data for {type}.{field}.";
         return;
       }
-      var xs = new double[data.Count];
-      var ys = new double[data.Count];
-      for (var i = 0; i < data.Count; i++) {
-        xs[i] = data[i].time;
-        ys[i] = data[i].value;
-      }
+      var xs = data.Value.xs.ToArray();
+      var ys = data.Value.ys.ToArray();
       Plot.SetSeries($"{type}.{field}", xs, ys);
-      Plot.SetAxisLabels("Time (s)", "Value", "DataFlash");
-      vm.Status = $"Plotted {data.Count} points of {type}.{field}.";
+      Plot.SetAxisLabels("Time (s)", "Value", System.IO.Path.GetExtension(path).Equals(".tlog", StringComparison.OrdinalIgnoreCase) ? "Telemetry" : "DataFlash");
+      vm.Status = $"Plotted {xs.Length} points of {type}.{field}.";
     } catch (Exception ex) {
       vm.Status = $"Graph failed: {ex.Message}";
     } finally {

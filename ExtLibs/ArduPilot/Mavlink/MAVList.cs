@@ -127,7 +127,9 @@ namespace MissionPlanner.Mavlink
 
         public IEnumerator<MAVState> GetEnumerator()
         {
-            foreach (var key in masterlist.Values.ToArray())
+            MAVState[] snapshot;
+            lock (locker) snapshot = masterlist.Values.ToArray();
+            foreach (var key in snapshot)
             {
                 yield return key;
             }

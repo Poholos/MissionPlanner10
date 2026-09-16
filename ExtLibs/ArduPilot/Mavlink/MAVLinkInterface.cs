@@ -1681,8 +1681,44 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
         /// </summary>
         /// <param name="paramname">name as a string</param>
         /// <param name="value"></param>
+        private readonly SemaphoreSlim _parameterWriteGate = new SemaphoreSlim(1, 1);
+
         public async Task<bool> setParamAsync(byte sysid, byte compid, string paramname, double value,
             bool force = false)
+        {
+            await _parameterWriteGate.WaitAsync().ConfigureAwait(false);
+            try { return await SetParamCoreAsync(sysid, compid, paramname, value, force).ConfigureAwait(false); }
+            finally { _parameterWriteGate.Release(); }
+        }
+
+        /// <summary>Fresh compare-before-write for reviewed external proposals, serialized with all parameter writes.</summary>
+        public async Task<bool> SetParamIfUnchangedAsync(byte sysid, byte compid, string name,
+            double expected, double proposed, Action validateTarget, CancellationToken cancel)
+        {
+            await _parameterWriteGate.WaitAsync(cancel).ConfigureAwait(false);
+            try
+            {
+                cancel.ThrowIfCancellationRequested();
+                validateTarget();
+                if (giveComport) throw new InvalidOperationException("Vehicle transport is busy.");
+                // GetParam updates the typed cache; its float return must not be used for integer comparison.
+                GetParam(sysid, compid, name);
+                cancel.ThrowIfCancellationRequested();
+                validateTarget();
+                if (MAVlist[sysid, compid].param[name]?.Value != expected)
+                    throw new InvalidOperationException("Parameter changed since analysis: " + name);
+                var state = MAVlist[sysid, compid];
+                if (state.param[name].TypeAP != MAV_PARAM_TYPE.REAL32
+                    && !UsesBytewiseParameterEncoding(state.cs.capabilities, state.apname)
+                    && (double)(float)proposed != proposed)
+                    throw new ArgumentException("Integer value cannot be represented exactly by C-cast parameter encoding: " + name);
+                return await SetParamCoreAsync(sysid, compid, name, proposed, true, validateTarget, cancel).ConfigureAwait(false);
+            }
+            finally { _parameterWriteGate.Release(); }
+        }
+
+        private async Task<bool> SetParamCoreAsync(byte sysid, byte compid, string paramname, double value,
+            bool force, Action validateTarget = null, CancellationToken cancel = default)
         {
             if (!MAVlist[sysid, compid].param.ContainsKey(paramname))
             {
@@ -1749,7 +1785,8 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
                         return true;
                     }
 
-                    if (MAVlist[sysid, compid].apname == MAV_AUTOPILOT.ARDUPILOTMEGA)
+                    if (!UsesBytewiseParameterEncoding(MAVlist[sysid, compid].cs.capabilities,
+                            MAVlist[sysid, compid].apname))
                     {
                         var offset = Marshal.OffsetOf(typeof(mavlink_param_value_t), "param_value");
                         MAVlist[sysid, compid].param[st] = new MAVLinkParam(st, BitConverter.GetBytes(par.param_value),
@@ -1786,6 +1823,8 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
 
             try
             {
+                cancel.ThrowIfCancellationRequested();
+                validateTarget?.Invoke();
                 generatePacket((byte) MAVLINK_MSG_ID.PARAM_SET, req, sysid, compid);
 
                 log.InfoFormat("setParam '{0}' = '{1}' sysid {2} compid {3}", paramname, value, sysid,
@@ -1795,6 +1834,8 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
                 int retrys = 3;
                 while (true)
                 {
+                    cancel.ThrowIfCancellationRequested();
+                    validateTarget?.Invoke();
                     if (complete)
                         return true;
 
@@ -2438,8 +2479,9 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
                             continue;
                         }
 
-                        // update table
-                        if (MAVlist[sysid, compid].apname == MAV_AUTOPILOT.ARDUPILOTMEGA)
+                        // Match full-list decoding, including explicit bytewise capability.
+                        if (!UsesBytewiseParameterEncoding(MAVlist[sysid, compid].cs.capabilities,
+                                MAVlist[sysid, compid].apname))
                         {
                             var offset = Marshal.OffsetOf(typeof(mavlink_param_value_t), "param_value");
                             MAVlist[sysid, compid].param[st] = new MAVLinkParam(st,
@@ -6218,7 +6260,21 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
         /// <summary>GetLog: ms of silence between repair requests once the log length is known (test seam).</summary>
         internal int LogRepairDelayMs { get; set; } = 500;
 
+        private readonly SemaphoreSlim _logDownloadGate = new SemaphoreSlim(1, 1);
+
         public async Task<string> GetLog(byte sysid, byte compid, ushort no, CancellationToken cancel = default)
+        {
+            if (!await _logDownloadGate.WaitAsync(0, cancel).ConfigureAwait(false))
+                throw new InvalidOperationException("A log download is already active on this connection.");
+            try
+            {
+                if (giveComport) throw new InvalidOperationException("Vehicle transport is busy.");
+                return await GetLogCoreAsync(sysid, compid, no, cancel).ConfigureAwait(false);
+            }
+            finally { _logDownloadGate.Release(); }
+        }
+
+        private async Task<string> GetLogCoreAsync(byte sysid, byte compid, ushort no, CancellationToken cancel)
         {
             var filename = Path.GetTempFileName();
             try
@@ -6229,7 +6285,6 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
                     int retryDelayMilliseconds = LogRetryDelayMs;
                     const uint maximumRepairRequest = LogDownloadTracker.PacketSize * 50;
 
-                    giveComport = false;
                     Progress?.Invoke(0, "");
 
                     var tracker = new LogDownloadTracker();
@@ -6255,7 +6310,7 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
 
                     try
                     {
-                        generatePacket((byte) MAVLINK_MSG_ID.LOG_REQUEST_DATA, request);
+                        generatePacket((byte) MAVLINK_MSG_ID.LOG_REQUEST_DATA, request, sysid, compid);
                         int silenceMsRemaining = retryLimit * retryDelayMilliseconds;
                         DateTime nextRetryAt = DateTime.UtcNow.AddMilliseconds(retryDelayMilliseconds);
                         DateTime nextProgressAt = DateTime.UtcNow;
@@ -6268,7 +6323,7 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
                             LogDownloadRequest missing = tracker.NextRequest(maximumRepairRequest);
                             request.ofs = missing.Offset;
                             request.count = missing.Count;
-                            generatePacket((byte) MAVLINK_MSG_ID.LOG_REQUEST_DATA, request);
+                            generatePacket((byte) MAVLINK_MSG_ID.LOG_REQUEST_DATA, request, sysid, compid);
                             nextRetryAt = issuedAt.AddMilliseconds(SilenceWindowMs());
                         }
 
@@ -6379,7 +6434,6 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
                     finally
                     {
                         OnPacketReceived -= handler;
-                        giveComport = false;
                         try
                         {
                             generatePacket((byte) MAVLINK_MSG_ID.LOG_REQUEST_END,
@@ -6387,7 +6441,7 @@ Mission Planner waits for 2 valid heartbeat packets before connecting
                                 {
                                     target_system = sysid,
                                     target_component = compid
-                                });
+                                }, sysid, compid);
                         }
                         catch (Exception ex)
                         {
