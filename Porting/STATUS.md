@@ -2,6 +2,19 @@
 
 Updated: **2026-09-17**.
 
+## Release 1.3.83.4 — merge of feat/mcp-flight-context — 2026-09-17
+
+- Merge, build increment and tag were explicitly requested on 2026-09-17. The local build
+  number was bumped 3 → 4 on the feature branch (`ca42ac4d4`, version now **1.3.83.4**) and
+  PR #39 was merged into `master` by merge commit `30b4f054d` (GitHub merge, no squash or
+  rebase); all functional, test and documentation commits (`a3bba5710` … `811f0bcaf`) are
+  ancestors of that merge. This post-merge status update is the only subsequent source change
+  and forms the release checkpoint. Next executable step: push it to `origin/master`, require
+  the complete CI/package and CodeQL runs to pass, then tag the same commit as
+  `v1.3.83.4-<8-character-commit-hash>` (annotated, "Mission Planner 10 1.3.83.4") and verify
+  the resulting GitHub Release assets. Local pre-merge packages for `9ff6492a` remain in
+  `MissionPlanner/out/`; the workflow rebuilds every platform artifact from the tagged commit.
+
 ## Prompt exit, desktop registration at startup and robot eyes — 2026-09-17
 
 - Continued `feat/mcp-flight-context` / PR #39 after the single-panel checkpoint below.
