@@ -94,6 +94,30 @@
     <Setter Property="Background" Value="{DynamicResource MpAccentBrush}" />
   </Style>
 
+  <!-- AI agent button: green while a session holds a grant, brighter for a moment on every MCP exchange. -->
+  <Style Selector="Button.nav.ai /template/ ContentPresenter">
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.15" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.nav.ai.connected">
+    <Setter Property="Background" Value="#2E9E4F" />
+  </Style>
+  <Style Selector="Button.nav.ai.connected /template/ ContentPresenter">
+    <Setter Property="Background" Value="#2E9E4F" />
+  </Style>
+  <Style Selector="Button.nav.ai.connected TextBlock">
+    <Setter Property="Foreground" Value="#FFFFFF" />
+  </Style>
+  <Style Selector="Button.nav.ai.connected.busy /template/ ContentPresenter">
+    <Setter Property="Background" Value="#5EE07A" />
+  </Style>
+  <Style Selector="Button.nav.ai.busy /template/ ContentPresenter">
+    <Setter Property="Background" Value="#5EE07A" />
+  </Style>
+
   <Style Selector="TabControl">
     <Setter Property="Background" Value="{DynamicResource MpControlBg}" />
     <Setter Property="Padding" Value="0" />

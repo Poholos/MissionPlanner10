@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace MissionPlanner.Services.Mcp;
 
 internal static class McpProposalWriter {
-  private static readonly SemaphoreSlim Gate = new(1, 1);
+  internal static readonly SemaphoreSlim Gate = new(1, 1);
   internal static async Task<string> ApplyAsync(McpVehicleAccess vehicles, ParameterProposal proposal, CancellationToken ct) {
     await Gate.WaitAsync(ct).ConfigureAwait(false);
     try {

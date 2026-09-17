@@ -67,7 +67,8 @@ The **AI** navigation button opens an embedded Streamable HTTP MCP server and lo
 Codex/Claude Code CLI launcher with automatic discovery and session-only configuration.
 Detected OpenAI desktop apps can register a fixed loopback MCP connection from the **Desktop**
 tab; access starts only on request. Agents can inspect connected-vehicle telemetry and parameters, read
-DataFlash and TLOG flight logs, download onboard BIN logs and open them in the graphical
+DataFlash and TLOG flight logs, inspect warnings/events, compare flight-time parameters and
+read compact signal trends. They can download onboard BIN logs and open them in the graphical
 analyzer, calculate DataFlash vibration spectra and rate-response metrics, and submit
 parameter proposals for review and application in Mission Planner. See the
 [operating instructions and tool reference](Porting/MCP_DIAGNOSTICS.md).

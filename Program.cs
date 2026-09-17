@@ -10,6 +10,18 @@ sealed class Program {
   [STAThread]
   public static void Main(string[] args) {
 
+    if (args.Length == 3 && args[0] == "--mcp-stdio" && args[1] == "--port" && int.TryParse(args[2], out int mcpPort)) {
+      try { Environment.ExitCode = Services.Mcp.McpStdioBridge.RunAsync(mcpPort, Console.In, Console.Out).GetAwaiter().GetResult(); }
+      catch (Exception e) { Console.Error.WriteLine("Mission Planner MCP connection failed: " + e.GetType().Name); Environment.ExitCode = 1; }
+      return;
+    }
+
+    if (args.Length == 2 && args[0] == "--mcp-terminal-session") {
+      try { Environment.ExitCode = Services.Mcp.McpTerminalLaunch.RunHandoffAsync(args[1]).GetAwaiter().GetResult(); }
+      catch (Exception e) { Console.Error.WriteLine("Mission Planner agent launch failed: " + e.GetType().Name); Environment.ExitCode = 1; }
+      return;
+    }
+
     Services.AppPaths.Initialize();
 
     AppDomain.CurrentDomain.UnhandledException += (_, e) => LogCrash(e.ExceptionObject as Exception);

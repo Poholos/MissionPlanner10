@@ -16,16 +16,66 @@ public partial class MainWindow : Window {
   }
 
   private AgentToolsWindow? _agentTools;
+  private Avalonia.Threading.DispatcherTimer? _agentIndicator, _agentPulse;
+
+  /// <summary>The hub outlives the window: closing the AI window keeps agents connected.</summary>
+  internal Services.Mcp.McpAgentHub AgentHub {
+    get {
+      var vm = Vm ?? throw new System.InvalidOperationException("Main window has no view model.");
+      var hub = Services.Mcp.McpAgentHub.Attach(vm, () => this);
+      if (_agentIndicator == null) {
+        hub.Traffic += OnAgentTraffic;
+        _agentIndicator = new Avalonia.Threading.DispatcherTimer { Interval = System.TimeSpan.FromMilliseconds(500) };
+        _agentIndicator.Tick += (_, _) => RefreshAgentIndicator();
+        _agentIndicator.Start();
+        hub.StateChanged += () => Avalonia.Threading.Dispatcher.UIThread.Post(RefreshAgentIndicator);
+      }
+      return hub;
+    }
+  }
+
+  /// <summary>Registered desktop applications expect the persistent port whenever Mission Planner runs.</summary>
+  internal System.Threading.Tasks.Task OpenAgentPortAtStartupAsync() => AgentHub.OpenDesktopPortAtStartupAsync();
+
+  private void RefreshAgentIndicator() {
+    if (Vm is not { } vm || Services.Mcp.McpAgentHub.Current is not { } hub) { return; }
+    vm.AiConnected = hub.IsConnected();
+    vm.AiSessions = hub.SessionCount();
+  }
+
+  // One brief flash per MCP exchange: the button brightens while a request or response is in flight.
+  private int _eyeShape;
+  private void OnAgentTraffic() => Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+    if (Vm is not { } vm) { return; }
+    vm.AiActive = true;
+    // The robot's eyes change shape on every request or response so activity is visible at a glance.
+    _eyeShape = AiRobotEyes.Next(_eyeShape);
+    if (this.FindControl<Avalonia.Controls.Shapes.Path>("AiEyes") is { } eyes) { eyes.Data = AiRobotEyes.Geometry(_eyeShape); }
+    _agentPulse ??= new Avalonia.Threading.DispatcherTimer { Interval = System.TimeSpan.FromMilliseconds(220) };
+    _agentPulse.Stop();
+    _agentPulse.Tick -= OnAgentPulseEnd; _agentPulse.Tick += OnAgentPulseEnd;
+    _agentPulse.Start();
+  });
+  private void OnAgentPulseEnd(object? sender, System.EventArgs e) {
+    _agentPulse?.Stop();
+    if (Vm is { } vm) { vm.AiActive = false; }
+  }
 
   private void OnAgentTools(object? sender, RoutedEventArgs e) {
     if (Vm == null) { return; }
     if (_agentTools != null) { _agentTools.Activate(); return; }
-    _agentTools = new AgentToolsWindow(Vm);
+    _agentTools = new AgentToolsWindow(AgentHub);
     _agentTools.Closed += (_, _) => _agentTools = null;
     _agentTools.Show(this);
   }
 
-  internal void StopAgentTools() => _agentTools?.BeginShutdown();
+  internal void StopAgentTools() {
+    _agentIndicator?.Stop(); _agentPulse?.Stop();
+    if (Services.Mcp.McpAgentHub.Current is { } hub) {
+      try { hub.DisposeAsync().AsTask().Wait(System.TimeSpan.FromSeconds(5)); }
+      catch (System.AggregateException) { /* Listener teardown never blocks application exit. */ }
+    }
+  }
 
   private MainWindowViewModel? Vm => DataContext as MainWindowViewModel;
 

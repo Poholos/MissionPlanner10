@@ -1,6 +1,285 @@
 # Avalonia in-place migration status
 
-Updated: **2026-09-16**.
+Updated: **2026-09-17**.
+
+## Release 1.3.83.4 — merge of feat/mcp-flight-context — 2026-09-17
+
+- Merge, build increment and tag were explicitly requested on 2026-09-17. The local build
+  number was bumped 3 → 4 on the feature branch (`ca42ac4d4`, version now **1.3.83.4**) and
+  PR #39 was merged into `master` by merge commit `30b4f054d` (GitHub merge, no squash or
+  rebase); all functional, test and documentation commits (`a3bba5710` … `811f0bcaf`) are
+  ancestors of that merge. This post-merge status update is the only subsequent source change
+  and forms the release checkpoint. Next executable step: push it to `origin/master`, require
+  the complete CI/package and CodeQL runs to pass, then tag the same commit as
+  `v1.3.83.4-<8-character-commit-hash>` (annotated, "Mission Planner 10 1.3.83.4") and verify
+  the resulting GitHub Release assets. Local pre-merge packages for `9ff6492a` remain in
+  `MissionPlanner/out/`; the workflow rebuilds every platform artifact from the tagged commit.
+
+## Prompt exit, desktop registration at startup and robot eyes — 2026-09-17
+
+- Continued `feat/mcp-flight-context` / PR #39 after the single-panel checkpoint below.
+  Local/origin HEAD is `9ff6492a9`: three atomic commits on `dbc30df85` — `3f8b5a303`
+  prompt application exit, `014ccaa48` Register/Unregister buttons and "Open at startup",
+  `9ff6492a9` robot-eye animation — plus the documentation commit that follows. No merge,
+  tag, release or history rewrite.
+- Slow close (user report) reproduced on the packaged app under Xvfb :99 with Metacity and
+  `wmctrl -c` close requests: plain close 0.26 s, AI window open 0.26 s, persistent port
+  open + connected MCP client + launched terminal agent **5.3 s** — the 5 s cap in
+  `MainWindow.StopAgentTools`. Root cause: `McpAgentHub.DisposeAsync` started on the UI
+  thread that then blocked in `Wait(5 s)`; `_stop.Cancel()` ran the cancellation callbacks
+  on that thread, the resumed request continuations captured the UI SynchronizationContext
+  and could never run, so Kestrel stop and host disposal waited until the cap. Fix: hub and
+  server teardown start on a worker thread (`Task.Run`). Tests: a hub-level exit test with
+  open ports, a live session and a blocking wait (5.0 s / unfinished before, < 1.5 s after)
+  and a server stop test (< 1 s). Acceptance after the fix, same scenario: **0.21 s**.
+- Desktop application not seeing Mission Planner: Codex/ChatGPT Desktop reads
+  `~/.codex/config.toml` when it starts and connects only while port 47183 is open. On this
+  machine the app had been running since 12:18, before the 17:07 registration, and the port
+  was never open at Mission Planner startup. Now the AI window shows **Register <app>** /
+  **Unregister <app>** beside the launch buttons with the registration state, Register and
+  Launch switch on **Open at startup** (`McpAgentHub.AutoOpenDesktopPort`, setting
+  `mcpDesktopAutoOpen`), and `App` opens the persistent port after the main window appears
+  (`MainWindow.OpenAgentPortAtStartupAsync`). The state text tells the operator to restart
+  the application after registering. Acceptance in an isolated `CODEX_HOME`: Register wrote
+  the managed entry, the button turned into Unregister, the checkbox switched on, and after
+  a Mission Planner restart a client connected to 47183 without opening the dialog. The user
+  still has to restart ChatGPT Desktop once (its entry is already present) and then Allow
+  the self-connected session in the AI window, or press Launch ChatGPT Desktop.
+- Robot eyes: `Views/AiRobotEyes.cs` and a drawn robot in `MainWindow.axaml` replace the
+  Font Awesome glyph; the eyes cycle circles → vertical bars → horizontal bars on every
+  hub `Traffic` event (each MCP request/response) in addition to the green grant colour and
+  brightness pulse. Screenshots `gui/30-main-robot-zoom.png` (circles) and
+  `gui/36-restart-zoom.png` (bars after traffic) in the session scratchpad.
+- Validation: Release **0 warnings/0 errors**; full **1693/1693** tests; six audits and
+  `git diff --check` pass. Xvfb acceptance script `acc2.sh` in the scratchpad (register →
+  open port → client traffic → Allow all → timed close 0.21 s → restart with auto-open →
+  timed close 0.21 s). Testing hazards recorded: `xdotool windowclose` destroys the X window
+  instead of asking the application (run a WM on :99 and use `wmctrl -c`); `pkill -f` /
+  `pgrep -f` patterns that appear in the tool command kill the tool shell (use PIDs or
+  `ps -o comm`); `setsid` from the tool shell forks so `$!` is wrong (use `nohup … & disown`).
+  Metacity is still running on :99 (pid in scratchpad `wm-pid`).
+- Packages: `MissionPlanner/out/packages/missionplanner10_1.3.83.3-9ff6492a_amd64.deb` and
+  `MissionPlanner10-1.3.83.3-9ff6492a-linux-x64.tar.gz` (built from a clean tree with the
+  documentation stashed; a first build with uncommitted docs produced `.dirty` names and was
+  discarded); portable app
+  `MissionPlanner/out/MissionPlanner10-1.3.83.3-9ff6492a-linux-x64/MissionPlanner10`. Lintian
+  clean; the packaged binary ran 15 s under an isolated Xvfb display (expected timeout 124,
+  empty log) and, with the persistent port open, a connected client and a launched fake
+  terminal agent, exited **0.26 s** after a `wmctrl -c` close request. Index and SHA256SUMS
+  in `MissionPlanner/out/mcp-9ff6492a/`.
+- CI for `9ff6492a9`: platform run https://github.com/Rouniy/MissionPlanner10/actions/runs/35253846452
+  (build-test-linux, package-windows, package-macos x64 and arm64 all succeeded on the first
+  attempt) and CodeQL https://github.com/Rouniy/MissionPlanner10/actions/runs/35253846468
+  passed; open code-scanning alerts: **0**.
+- `Porting/MCP_DIAGNOSTICS.md` documents Register/Unregister, Open at startup, the exit fix
+  and the robot indicator. Follow-ups: acceptance with the real ChatGPT Desktop after its
+  restart; SITL/real-aircraft acceptance unchanged.
+
+## Single-panel AI agent window with per-agent launch buttons — 2026-09-17
+
+- Session restored after a crash: the uncommitted window redesign from the previous
+  session was recovered from the worktree, finished and committed. `feat/mcp-flight-context`
+  / PR #39 local/origin HEAD is `dbc30df85` (two atomic commits on `04de5db2d`:
+  `a3bba5710` terminal kind from the executable name, `dbc30df85` window redesign), plus
+  the documentation commit that follows. Origin master `f1180f672` remains included; no
+  merge, tag, release or history rewrite. Note: `gh run list` defaults to upstream
+  ArduPilot here; use `-R Rouniy/MissionPlanner10`.
+- User feedback addressed. The "Claude Code says there is no `--mcp-config`, only
+  `--config`" failure came from the old window: a separate kind selector and an editable
+  executable path let a `codex` binary be launched with the Claude flags, and Codex's
+  parser answered with "a similar argument exists: --config". The kind now follows the
+  executable name (`McpAgentDiscovery.TerminalKind`, `codex*`/`claude*`), a mismatch is
+  rejected before the terminal opens, and custom launches infer the kind. The tabs
+  (Agent, Parameter proposals, Flight logs, Connections), the agent combo box, the kind
+  selector and the path field are gone. `Views/AgentToolsWindow.cs` is one X-Office-style
+  page: one **Launch <agent>** button per installed agent (absent agents have no button)
+  plus **Find agents**, the initial task, sessions with Allow/Revoke/Disconnect/Allow all/
+  Revoke all/Stop all connections, the persistent port, an **Advanced** expander (session
+  port + copy settings, working directory, custom executable, proposals review/export,
+  attach log, unregister desktop apps) and the Activity log. The default initial task only
+  verifies the MCP connection and summarises the tools; it no longer asks for log analysis.
+  Log, parameter and mission selection stays in the application; agents use MCP tools.
+- Validation: Release **0 warnings/0 errors**; local **1688/1688** tests (12 focused MCP
+  layout/terminal tests, `McpLayoutTests` rewritten for the button row); six audits and
+  `git diff --check` pass. Xvfb :99 acceptance with real xdotool clicks and fake `claude`/
+  `codex` scripts first on PATH (no model invocation): the AI button opened the dialog with
+  the "Launch Codex CLI / Launch Claude Code / Launch ChatGPT Desktop / Find agents" row;
+  **Launch Claude Code** opened terminator running the fake with
+  `--mcp-config <private json> --strict-mcp-config -- <task>` and `MP_MCP_TOKEN`; the
+  session port opened; Advanced expanded; **Stop all connections** closed both ports (the
+  external terminal stays open, as documented). Screenshots `gui/10-main.png` …
+  `gui/14-stopped.png` and `gui/fake-claude.log` in the session scratchpad. The previous
+  session's real Claude Code launch on the same layout (`gui/07-claude.png` of the earlier
+  scratchpad) reported the server and its tools without analysing logs.
+- Hazard found and repaired: the previous acceptance ran the real Claude Code with
+  `XDG_DATA_HOME` pointing into a `/tmp` scratchpad; Claude's native installer re-installed
+  itself there and re-pointed `~/.local/bin/claude` at that temporary copy. The symlink was
+  restored to `~/.local/share/claude/versions/2.1.274`. For future acceptance use fake CLIs
+  on PATH, or keep `XDG_DATA_HOME` real / set `DISABLE_AUTOUPDATER=1` when a real Claude must
+  run. Leftover Xvfb processes of the crashed session (old Mission Planner, terminal broker,
+  interactive claude) were terminated.
+- Packages: `MissionPlanner/out/packages/missionplanner10_1.3.83.3-dbc30df8_amd64.deb` and
+  `MissionPlanner10-1.3.83.3-dbc30df8-linux-x64.tar.gz`; portable app
+  `MissionPlanner/out/MissionPlanner10-1.3.83.3-dbc30df8-linux-x64/MissionPlanner10`.
+  Lintian clean; the packaged binary ran 15 s under an isolated Xvfb display (expected
+  timeout 124, empty log). Index and SHA256SUMS in `MissionPlanner/out/mcp-dbc30df8/`.
+- CI for `dbc30df85`: platform run https://github.com/Rouniy/MissionPlanner10/actions/runs/35250447672
+  and CodeQL https://github.com/Rouniy/MissionPlanner10/actions/runs/35250447683 —
+  all five platform jobs (Linux 1688/1688 with 0 warnings, Windows ZIP/MSI, macOS x64 and arm64) and
+  CodeQL passed on the first attempt; open code-scanning alerts: **0**.
+- `Porting/MCP_DIAGNOSTICS.md` "Use" and log-workflow sections were rewritten for the new
+  window. Follow-ups unchanged: SITL/real-aircraft acceptance for `write_parameters`,
+  `vehicle_command` and `mission_upload`.
+
+## X-Office-style full-access AI agent connection — 2026-09-17
+
+- Continued `feat/mcp-flight-context` / PR #39 on top of `70813c26a`. Fixed the Linux
+  "terminal flashes and closes" agent launch: Codex received
+  `-c mcp_servers.missionplanner10_desktop.enabled=false` even when that table was absent
+  from `config.toml`, which Codex rejects as "invalid transport". The override is now added
+  only when the entry exists, and a failed agent start keeps the terminal open with the exit
+  code. Verified with the real Codex CLI 0.154.0 in a pty (stays running) and Claude Code.
+- Moved listener/launch/session ownership out of the AI window into an application-wide
+  `McpAgentHub` (like X-Office's ApplicationController-owned McpController). Closing the
+  window keeps every port, launch and grant alive; **Stop all connections** or application
+  exit ends them. The window is now a view over the hub and reopens with recent activity.
+- Main-window **AI** navigation button (robot icon) turns green while a session holds a
+  grant, brightens for ~220 ms on every MCP exchange (BrushTransition), and its tooltip
+  shows the session count.
+- Launch grants full control: desktop launch registers if needed, opens the fixed port
+  without a token, allows its sessions and activates the app; terminal launch opens a free
+  port with a one-use token and the session is allowed on connection.
+- MCP grew from 46 to **55 tools**. UI: navigation to all six screens, Setup/Config page
+  selection, generic inspection of every visible control and logical menu item in every
+  open window (stable control IDs, labels via content/header/watermark/preceding TextBlock,
+  options, bounds), native click/toggle/select via automation peers and routed Click,
+  typed value entry, window capture and dialog closing. Mission: terrain elevation, 100 m
+  elevation profile with clearance, Mission/Fence/Rally upload and download through the
+  planner's native transfer with explicit absolute/low-altitude acknowledgements. Vehicle:
+  direct verified `write_parameters` with before-snapshot/audit files, `vehicle_modes`,
+  `vehicle_command` (set_mode, arm/disarm, takeoff, guided_goto, rtl/land/loiter,
+  mission_start, change_speed, servo/relay, motor_test, calibrate, save_parameters, reboot,
+  generic MAV_CMD/COMMAND_INT). Motor tests, calibration triggers, reboots and parameter
+  writes (unless `allowArmed`) require a disarmed vehicle; commands are serialized and
+  re-resolve the target before sending.
+- Embedded AI_START/UI_API and this guide describe the full-access model, safety
+  conventions and recovery. The AI consent window and password boxes are never targets.
+- Local validation: Release solution **0 warnings / 0 errors**; **1687 passed / 0 failed /
+  0 skipped** (100 MCP-focused); six migration/source/artifact audits and `git diff --check`.
+  New tests: hub survives window close, Codex override gating, generic inspection
+  (labels, password exclusion, static text, button Command+Click, menu Click, number
+  clamping, text, checkbox, combo/tab by text), navigation to every screen and backstage
+  page selection, vehicle-control argument/target validation and tool gating.
+- Isolated Linux Xvfb acceptance with real button presses: AI window found 3 agents; Open
+  port; a self-connected client was read-only (`permission_required`); Allow all; then over
+  HTTP: `ui_get_state` (6 routes, 19 Setup pages), `ui_navigate SETUP`, `ui_select_page`,
+  `ui_inspect main` (80 controls, 25 menu items), `ui_invoke` of the PLAN nav button,
+  `mission_draft_replace`, `mission_elevation_profile`, `mission_upload`/`write_parameters`/
+  `vehicle_command` rejected without a vehicle, and a real 123 KB `window:main` PNG showing
+  the green/busy AI button and the agent-built mission. No model invocation, aircraft
+  transfer or user client-registration change.
+- Commit, package paths and CI outcomes are recorded in the workspace's newest
+  MONOREPO_MIGRATION_HANDOFF.md checkpoint after completion.
+
+## MCP UI and mission draft API — 2026-09-17
+
+- Continued `feat/mcp-flight-context` / PR #39; fetched origin/master again and confirmed
+  `f1180f67293469a1002f1635bc8fc153e7b00c5d` is included. Rechecked X-Office main
+  snapshots `54b1ea3c` and `176877f7`, including GUI actions, inspection, receipts and
+  embedded documentation. Its unrelated worktree files were preserved.
+- Expanded from 29 to **46 MCP tools**: DATA/PLAN/HELP navigation, registered diagnostic
+  widget inspection/actions, map centering and PNG map/plot captures, live tuning fields,
+  catalogue-backed log windows/graphs, and local Mission draft get/schema/validation/
+  replacement/Undo. Native replacements preserve one Undo group including home; no upload.
+- Added bounded connection-local operation receipts, strict replay/conflict handling,
+  access epochs and UI snapshot invalidation, shared UI mutation serialization, graph
+  and draft revision checks, and cancellation before pending UI dispatch. Unknown tools
+  require Allow by default. UI permissions are explained in Connections before granting.
+  File reloads invalidate log snapshots; captures reject stale/replaced log views.
+- Added embedded [AI_START](../docs/mcp/AI_START.md), [UI_API](../docs/mcp/UI_API.md) and
+  diagnostic resources through resources/list/read; initialize instructions direct agents
+  to the guide. Resource URIs are fixed, no arbitrary file reads. Reconnect limitations
+  and structural-validation limits are documented explicitly.
+- Local validation: **1682 passed / 0 failed / 0 skipped** (95 MCP-focused), Release
+  solution **0 warnings / 0 errors**, six migration/source/artifact audits and diff check.
+  New tests exercise real official HTTP clients, resources/schemas, permission gates,
+  receipt recovery across revoke/allow, replay, stale/hidden/revoked controls, native
+  draft CAS/Undo and serialized cancellation. Existing public log-load ABI retained.
+- Isolated Linux Xvfb GUI acceptance: actual HTTP navigation, map movement/capture,
+  live plot selection/capture, opening and plotting a sample DataFlash file, inspecting
+  and changing numeric controls, clearing/closing graph, draft replace/replay/Undo, and
+  Close all rejecting subsequent requests. Captured PNG map and graph inspected visually.
+  No model invocation, real aircraft transfer or user client-registration changes.
+- Commit, package paths and subsequent multi-platform CI outcomes are recorded in the
+  workspace's newest MONOREPO_MIGRATION_HANDOFF.md checkpoint after completion.
+
+## X-Office-compatible MCP connections — 2026-09-17
+
+- Continued the existing `feat/mcp-flight-context` / [PR #39](https://github.com/Rouniy/MissionPlanner10/pull/39).
+  Fetched the fork and verified current master `f1180f67293469a1002f1635bc8fc153e7b00c5d`
+  is already an ancestor; no rebase, history replacement or master merge was needed.
+  Reference: X-Office `feature/mcp-http` snapshot `5b525b41360aedbc3e205012ff0d13014ca35e3e`.
+- Replaced the UI's headless CLI launch with an external interactive terminal. Login,
+  model and normal client settings persist; process-only MCP overrides, a private
+  one-use handoff and session-bound launch tokens connect it to Mission Planner.
+- Unified installed CLI/desktop discovery and permanent registration status. Desktop
+  Launch registers/updates, opens the fixed port and activates the client. Added Claude
+  Desktop's local stdio bridge and LM Studio JSON registration alongside Codex/ChatGPT.
+  Registration preserves other settings and makes an atomic backup; discovery never
+  launches a model. The Connections tab and Open/Close controls are always available.
+- Stateful HTTP sessions have independent Allow/Revoke/Disconnect. Self-connected
+  persistent clients start read-only; Launch grants access until Revoke/Close.
+  Both listeners revoke synchronously before global shutdown awaits a blocked request.
+  Manual bearer clients require Allow; replay/reinitialization cannot regain a revoked
+  grant. Offline UI actions no longer implicitly open a listener. All 29 tools remain;
+  parameter application still requires explicit operator review.
+- Validation: **1669 passed / 0 failed / 0 skipped** (82 MCP-focused), Release solution
+  **0 warnings / 0 errors**, all six migration/source/artifact audits and diff checks.
+  Tests cover real HTTP session isolation, token replay, revocation, blocked-request
+  global stop, bridge/EOF cleanup, registration preservation and literal terminal argv.
+- Linux Xvfb GUI acceptance found three installed agents and launched a fake CLI through
+  the actual terminal button. It initialized MCP, read the UI mission and appeared as
+  an Allowed session. Opening the second port then Close all connections closed both
+  sockets. Screenshots retained outside the repository in `/tmp/mp-mcp-gui-check/`.
+  No real model, Claude delegation, aircraft operation or user client-config edit occurred.
+- Platform packages and CI are being produced for this branch. Actual provider login,
+  model sessions and installed Windows/macOS client activation remain manual acceptance.
+  See [MCP_DIAGNOSTICS.md](MCP_DIAGNOSTICS.md) for the revised workflow and access semantics.
+- The first CI attempt exposed a headless dispatcher failure in `ShellSmokeTests`.
+  MCP window fixtures now await their asynchronous close/catalogue teardown before
+  Avalonia resets the per-test dispatcher. The full **1669-test** local suite passed
+  again; platform CI is repeated for this test-only follow-up. The application code
+  and manually verified Linux behavior are unchanged.
+
+## MCP flight-context extension — 2026-09-17
+
+- Dedicated branch `feat/mcp-flight-context` starts from clean fetched master
+  `f1180f67293469a1002f1635bc8fc153e7b00c5d`. Existing user changes were absent;
+  the old standalone port directory remains absent and was not removed or archived.
+- The diagnostic gap review selected six read-only additions, taking MCP from
+  **23 to 29 tools**: `read_vehicle_messages`, `telemetry_packet_inventory`,
+  `log_events`, `log_time_series`, `compare_log_parameters` and
+  `compare_vehicle_parameters_to_log`. Both CLI and desktop endpoints expose them.
+  Existing downloads, analysis and operator-reviewed proposals remain available.
+- Native MAVState now offers locked packet snapshots and retains 256 STATUSTEXT
+  packets per exact component independently of the UI queue. MCP preserves receipt
+  times, severity, chunk IDs, cursor pagination and history-loss indicators.
+- DataFlash/TLOG event evidence retains original clock/source/line information;
+  TLOG state deduplication spans page boundaries. Trend envelopes scan every sample
+  into bounded per-source bins, preserve spike times and report invalid samples and
+  gaps without interpolation. Parameter comparisons retain unknown encodings and
+  missing values, require explicit TLOG sources, and distinguish wire-type changes.
+  Current-cache comparisons report completeness and do not stage or write changes.
+- Local verification: **1658 passed / 0 failed / 0 skipped**, including new
+  concurrent cache, cursor, event, trend, source, historical comparison and HTTP
+  client coverage. Release solution build has **0 warnings / 0 errors**. All six
+  migration/source/artifact audits and `git diff --check` pass.
+- [PR #39](https://github.com/Rouniy/MissionPlanner10/pull/39) contains the reviewable
+  extension (functional commit `27806ce8df33e21412ff163dd7ae446ff1e93a00`). The
+  recorded checks above are local; platform packaging and CodeQL results are linked
+  on the PR. Real aircraft messages, flight-log corpus acceptance and model-backed sessions remain
+  manual checks; no aircraft writes, inference or Claude delegation occurred.
+  See [MCP_DIAGNOSTICS.md](MCP_DIAGNOSTICS.md) for the gap analysis and usage.
 
 ## Published AI agent connections — 2026-09-16
 

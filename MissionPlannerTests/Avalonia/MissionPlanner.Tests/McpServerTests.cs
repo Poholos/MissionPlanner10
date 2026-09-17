@@ -21,7 +21,7 @@ public sealed class McpServerTests {
     await server.StartAsync(_ => Task.FromResult<object>(new { }));
     string id = server.Logs.Attach(file.Path).Id;
     using var http = new HttpClient();
-    http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", server.Token);
+    http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", server.IssueLaunchToken());
     await using var transport = new HttpClientTransport(new HttpClientTransportOptions { Endpoint = server.Endpoint!, TransportMode = HttpTransportMode.StreamableHttp }, http);
     using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
     await using var client = await McpClient.CreateAsync(transport, cancellationToken: timeout.Token);
@@ -44,7 +44,7 @@ public sealed class McpServerTests {
     await using var server = new MissionPlannerMcpServer(new McpVehicleAccess(() => []));
     await server.StartAsync(_ => Task.FromResult<object>(new { draft = true }), timeout.Token);
     using var http = new HttpClient();
-    http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", server.Token);
+    http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", server.IssueLaunchToken());
     await using var transport = new HttpClientTransport(new HttpClientTransportOptions {
       Endpoint = server.Endpoint!, TransportMode = HttpTransportMode.StreamableHttp,
     }, http);
@@ -54,6 +54,10 @@ public sealed class McpServerTests {
     Assert.Contains(tools, t => t.Name == "log_batch_spectrum");
     Assert.Contains(tools, t => t.Name == "vehicle_health");
     Assert.Contains(tools, t => t.Name == "log_vibration_report");
+    foreach (string name in new[] { "read_vehicle_messages", "telemetry_packet_inventory", "log_events",
+        "log_time_series", "compare_log_parameters", "compare_vehicle_parameters_to_log" }) {
+      Assert.Contains(tools, t => t.Name == name);
+    }
     Assert.DoesNotContain(tools, t => t.Name.Contains("arm") || t.Name == "apply_parameter_changes");
     var info = await client.CallToolAsync("diagnostics_info", cancellationToken: timeout.Token);
     Assert.NotEqual(true, info.IsError);
@@ -67,6 +71,18 @@ public sealed class McpServerTests {
     string path = TemporaryLog();
     try {
       string id = server.Logs.Attach(path).Id;
+      var trend = await client.CallToolAsync("log_time_series", new Dictionary<string, object?> {
+        ["logId"] = id, ["type"] = "PARM", ["field"] = "Value", ["startSeconds"] = 0, ["endSeconds"] = 3, ["bins"] = 1,
+      }, cancellationToken: timeout.Token);
+      Assert.NotEqual(true, trend.IsError);
+      using var trendJson = JsonDocument.Parse(Assert.IsType<TextContentBlock>(trend.Content[0]).Text);
+      Assert.Equal(0.8, trendJson.RootElement.GetProperty("result").GetProperty("series")[0].GetProperty("buckets")[0].GetProperty("max").GetDouble());
+      var comparison = await client.CallToolAsync("compare_log_parameters", new Dictionary<string, object?> {
+        ["beforeLogId"] = id, ["beforeSeconds"] = 1, ["afterLogId"] = id, ["afterSeconds"] = 2,
+      }, cancellationToken: timeout.Token);
+      Assert.NotEqual(true, comparison.IsError);
+      using var comparisonJson = JsonDocument.Parse(Assert.IsType<TextContentBlock>(comparison.Content[0]).Text);
+      Assert.Equal(0.3, comparisonJson.RootElement.GetProperty("comparison").GetProperty("differences")[0].GetProperty("delta").GetDouble(), 8);
       var overview = await client.CallToolAsync("log_overview", new Dictionary<string, object?> {
         ["logId"] = id,
       }, cancellationToken: timeout.Token);
@@ -113,7 +129,8 @@ public sealed class McpServerTests {
     Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     Assert.Equal("text/event-stream", response.Content.Headers.ContentType?.MediaType);
     Assert.Contains("\"protocolVersion\":\"2025-11-25\"", await response.Content.ReadAsStringAsync());
-    Assert.False(response.Headers.Contains("Mcp-Session-Id"));
+    Assert.True(response.Headers.Contains("Mcp-Session-Id"));
+    http.DefaultRequestHeaders.Add("Mcp-Session-Id", response.Headers.GetValues("Mcp-Session-Id").Single());
     http.DefaultRequestHeaders.Add("MCP-Protocol-Version", "2025-11-25");
     using var notification = new StringContent("""{"jsonrpc":"2.0","method":"notifications/initialized"}""", Encoding.UTF8, "application/json");
     using var accepted = await http.PostAsync(server.Endpoint, notification);
