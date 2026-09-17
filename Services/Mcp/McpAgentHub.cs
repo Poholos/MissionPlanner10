@@ -248,11 +248,18 @@ internal sealed class McpAgentHub : IAsyncDisposable {
     Changed();
   }
 
-  public async ValueTask DisposeAsync() {
-    if (Interlocked.Exchange(ref _disposed, 1) != 0) { return; }
-    _stop.Cancel();
-    try { await StopAllAsync().ConfigureAwait(false); await Task.Run(Logs.Dispose).ConfigureAwait(false); }
-    catch (Exception e) { Log(e.Message + Environment.NewLine); }
-    if (Current == this) { Current = null; }
+  /// <summary>
+  /// Teardown starts on a worker thread. Cancelling on the UI thread runs cancellation callbacks there, and
+  /// the request continuations they resume then capture the UI SynchronizationContext; application exit blocks
+  /// the UI thread while waiting for this task, so those continuations would never run and exit hit its 5 s cap.
+  /// </summary>
+  public ValueTask DisposeAsync() {
+    if (Interlocked.Exchange(ref _disposed, 1) != 0) { return ValueTask.CompletedTask; }
+    return new(Task.Run(async () => {
+      _stop.Cancel();
+      try { await StopAllAsync().ConfigureAwait(false); Logs.Dispose(); }
+      catch (Exception e) { Log(e.Message + Environment.NewLine); }
+      if (Current == this) { Current = null; }
+    }));
   }
 }

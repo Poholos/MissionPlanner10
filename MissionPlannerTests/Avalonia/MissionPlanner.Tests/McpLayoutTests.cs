@@ -27,6 +27,27 @@ public sealed class McpLayoutTests {
       window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == content);
 
   [AvaloniaFact]
+  public async Task Application_exit_disposes_a_hub_with_open_ports_and_a_live_session_within_the_exit_budget() {
+    // App exit blocks the UI thread in hub.DisposeAsync().Wait(5 s); a slow teardown made Mission Planner close slowly.
+    var reservation = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0); reservation.Start();
+    int port = ((System.Net.IPEndPoint)reservation.LocalEndpoint).Port; reservation.Stop();
+    var hub = new McpAgentHub(null!, () => null, _ => Task.FromResult<McpAgent[]>([])) { DesktopPort = port };
+    var desktop = await hub.OpenDesktopPortAsync();
+    await hub.OpenSessionPortAsync();
+    using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+    await using var transport = new ModelContextProtocol.Client.HttpClientTransport(new ModelContextProtocol.Client.HttpClientTransportOptions {
+      Endpoint = desktop.Endpoint!, TransportMode = ModelContextProtocol.Client.HttpTransportMode.StreamableHttp,
+    }, http);
+    await using var client = await ModelContextProtocol.Client.McpClient.CreateAsync(transport);
+    Assert.NotEmpty(await client.ListToolsAsync());
+    Assert.Equal(1, hub.SessionCount());
+    var watch = System.Diagnostics.Stopwatch.StartNew();
+    bool finished = hub.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(5));
+    watch.Stop();
+    Assert.True(finished && watch.Elapsed < TimeSpan.FromSeconds(1.5), $"Hub teardown took {watch.Elapsed.TotalSeconds:F1} s (finished: {finished}).");
+    Dispatcher.UIThread.RunJobs();
+  }
+  [AvaloniaFact]
   public async Task Closing_the_agent_window_keeps_the_hub_and_its_listeners_alive() {
     var window = Window(_ => Task.FromResult<McpAgent[]>([]));
     try {

@@ -113,6 +113,27 @@ public sealed class McpAgentConnectionTests {
   }
 
   [Fact]
+  public async Task Stopping_a_server_with_a_live_session_and_idle_keep_alive_connections_takes_under_a_second() {
+    // Application exit waits for this; a graceful-shutdown wait on idle connections made Mission Planner close slowly.
+    var reservation = new TcpListener(IPAddress.Loopback, 0); reservation.Start();
+    int port = ((IPEndPoint)reservation.LocalEndpoint).Port; reservation.Stop();
+    var server = new MissionPlannerMcpServer(new McpVehicleAccess(() => []), port: port, requiresToken: false);
+    await server.StartAsync(_ => Task.FromResult<object>(new { }));
+    using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+    await using var transport = new HttpClientTransport(new HttpClientTransportOptions {
+      Endpoint = server.Endpoint!, TransportMode = HttpTransportMode.StreamableHttp,
+    }, http);
+    await using var client = await McpClient.CreateAsync(transport);
+    Assert.NotEmpty(await client.ListToolsAsync());
+    using var idle = new HttpClient();
+    Assert.Equal(HttpStatusCode.MethodNotAllowed, (await idle.GetAsync(server.Endpoint)).StatusCode);
+    var watch = System.Diagnostics.Stopwatch.StartNew();
+    await server.DisposeAsync();
+    watch.Stop();
+    Assert.True(watch.Elapsed < TimeSpan.FromSeconds(1), $"Server stop took {watch.Elapsed.TotalSeconds:F1} s.");
+  }
+
+  [Fact]
   public async Task Desktop_http_needs_no_token_and_stopping_it_does_not_revoke_cli_or_dispose_shared_logs() {
     var reservation = new TcpListener(IPAddress.Loopback, 0); reservation.Start();
     int port = ((IPEndPoint)reservation.LocalEndpoint).Port; reservation.Stop();

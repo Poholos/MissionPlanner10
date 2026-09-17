@@ -214,8 +214,9 @@ internal sealed class MissionPlannerMcpServer : IAsyncDisposable {
   }
 
   public ValueTask DisposeAsync() {
-    RevokeAccess();
-    lock (_admission) { return new(_disposeTask ??= DisposeCoreAsync()); }
+    // Revocation and shutdown run on a worker so no cancellation callback or request continuation is bound
+    // to the caller's SynchronizationContext (the UI thread may block on this task during application exit).
+    lock (_admission) { return new(_disposeTask ??= Task.Run(async () => { RevokeAccess(); await DisposeCoreAsync().ConfigureAwait(false); })); }
   }
 
   private async Task DisposeCoreAsync() {
