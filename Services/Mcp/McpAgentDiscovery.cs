@@ -9,13 +9,21 @@ using System.Threading.Tasks;
 
 namespace MissionPlanner.Services.Mcp;
 
-internal enum McpAgentKind { CodexCli, ClaudeCode, OpenAiDesktop }
+internal enum McpAgentKind { CodexCli, ClaudeCode, OpenAiDesktop, ClaudeDesktop, LmStudio }
 internal sealed record McpAgent(McpAgentKind Kind, string Name, string Executable, string[] Arguments) {
+  internal bool IsDesktop => Kind is McpAgentKind.OpenAiDesktop or McpAgentKind.ClaudeDesktop or McpAgentKind.LmStudio;
   public override string ToString() => Name;
 }
 
 /// <summary>Discovery never starts an agent or infers desktop support from a CLI URL handler.</summary>
 internal static class McpAgentDiscovery {
+  /// <summary>The terminal agent kind an executable name implies, so Codex is never started with Claude flags or vice versa.</summary>
+  internal static McpAgentKind? TerminalKind(string executable) {
+    string name = Path.GetFileNameWithoutExtension(executable);
+    if (name.StartsWith("claude", StringComparison.OrdinalIgnoreCase)) { return McpAgentKind.ClaudeCode; }
+    if (name.StartsWith("codex", StringComparison.OrdinalIgnoreCase)) { return McpAgentKind.CodexCli; }
+    return null;
+  }
   internal static string? FindExecutable(string name, IEnumerable<string> directories) {
     foreach (string directory in directories.Where(d => !string.IsNullOrWhiteSpace(d) && Path.IsPathRooted(d)).Distinct()) {
       string path = Path.Combine(directory, name);
@@ -45,7 +53,8 @@ internal static class McpAgentDiscovery {
       if (gio != null) {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (string dir in new[] { dataHome }.Concat(dataDirs).Where(Path.IsPathRooted)) {
-          foreach (string file in new[] { "codex.desktop", "chatgpt.desktop", "com.openai.codex.desktop", "com.openai.chatgpt.desktop" }) {
+          foreach (string file in new[] { "codex.desktop", "chatgpt.desktop", "com.openai.codex.desktop", "com.openai.chatgpt.desktop",
+              "claude.desktop", "com.anthropic.claude.desktop", "lm-studio.desktop", "lmstudio.desktop" }) {
             ct.ThrowIfCancellationRequested();
             string path = Path.Combine(dir, "applications", file);
             try {
@@ -54,18 +63,20 @@ internal static class McpAgentDiscovery {
               string? label = DesktopEntryName(entry);
               string? program = DesktopProgram(entry);
               if (program == null || (Path.IsPathRooted(program) ? !File.Exists(program) : FindExecutable(program, paths) == null)) { continue; }
-              if (label != null && !result.Any(a => a.Kind == McpAgentKind.OpenAiDesktop && a.Name == label)) {
-                result.Add(new(McpAgentKind.OpenAiDesktop, label, gio, ["launch", path]));
+              if (label != null && !result.Any(a => a.IsDesktop && a.Name == label)) {
+                var kind = label == "Claude Desktop" ? McpAgentKind.ClaudeDesktop : label == "LM Studio" ? McpAgentKind.LmStudio : McpAgentKind.OpenAiDesktop;
+                result.Add(new(kind, label, gio, ["launch", path]));
               }
             } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
           }
         }
       }
     } else if (OperatingSystem.IsMacOS()) {
-      foreach (string name in new[] { "Codex", "ChatGPT" }) {
+      foreach (string name in new[] { "Codex", "ChatGPT", "Claude", "LM Studio" }) {
         string? app = new[] { Path.Combine(home, "Applications", name + ".app"), "/Applications/" + name + ".app" }
             .FirstOrDefault(p => File.Exists(Path.Combine(p, "Contents", "Info.plist")) && Directory.Exists(Path.Combine(p, "Contents", "MacOS")));
-        if (app != null) { result.Add(new(McpAgentKind.OpenAiDesktop, name + " Desktop", "/usr/bin/open", ["-a", app])); }
+        if (app != null) { result.Add(new(name == "Claude" ? McpAgentKind.ClaudeDesktop : name == "LM Studio" ? McpAgentKind.LmStudio : McpAgentKind.OpenAiDesktop,
+            name == "LM Studio" ? name : name + " Desktop", "/usr/bin/open", ["-a", app])); }
       }
     } else if (OperatingSystem.IsWindows()) {
       // Get-StartApps covers MSIX/Store installs without touching protected WindowsApps directories.
@@ -73,7 +84,7 @@ internal static class McpAgentDiscovery {
         UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true,
       };
       foreach (string arg in new[] { "-NoProfile", "-NonInteractive", "-Command",
-          "Get-StartApps | Where-Object { $_.Name -in @('Codex','ChatGPT') } | ConvertTo-Json -Compress" }) { start.ArgumentList.Add(arg); }
+          "Get-StartApps | Where-Object { $_.Name -in @('Codex','ChatGPT','Claude','LM Studio') } | ConvertTo-Json -Compress" }) { start.ArgumentList.Add(arg); }
       try {
         using var process = Process.Start(start)!;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct); timeout.CancelAfter(TimeSpan.FromSeconds(5));
@@ -88,7 +99,8 @@ internal static class McpAgentDiscovery {
             foreach (var item in items) {
               string? id = item.GetProperty("AppID").GetString(), name = item.GetProperty("Name").GetString();
               if (id != null && id.Length < 250 && id.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '_' or '-' or '!')) {
-                result.Add(new(McpAgentKind.OpenAiDesktop, name + " Desktop", "shell:AppsFolder\\" + id, []));
+                result.Add(new(name == "Claude" ? McpAgentKind.ClaudeDesktop : name == "LM Studio" ? McpAgentKind.LmStudio : McpAgentKind.OpenAiDesktop,
+                    name == "LM Studio" ? name : name + " Desktop", "shell:AppsFolder\\" + id, []));
               }
             }
           }
@@ -125,11 +137,13 @@ internal static class McpAgentDiscovery {
     var values = DesktopValues(text);
     if (values.GetValueOrDefault("Type") != "Application" || values.GetValueOrDefault("Hidden") == "true"
         || values.GetValueOrDefault("NoDisplay") == "true" || !values.ContainsKey("Exec")) { return null; }
-    return values.GetValueOrDefault("Name") switch { "Codex" => "Codex Desktop", "ChatGPT" => "ChatGPT Desktop", _ => null };
+    return values.GetValueOrDefault("Name") switch { "Codex" => "Codex Desktop", "ChatGPT" => "ChatGPT Desktop",
+      "Claude" when !string.Equals(Path.GetFileName(DesktopProgram(text)), "claude", StringComparison.Ordinal) => "Claude Desktop",
+      "LM Studio" => "LM Studio", _ => null };
   }
 
   internal static async Task LaunchDesktopAsync(McpAgent agent, CancellationToken ct) {
-    if (agent.Kind != McpAgentKind.OpenAiDesktop) { throw new ArgumentException("Select a desktop application."); }
+    if (!agent.IsDesktop) { throw new ArgumentException("Select a desktop application."); }
     var start = new ProcessStartInfo(agent.Executable) { UseShellExecute = OperatingSystem.IsWindows() };
     foreach (string arg in agent.Arguments) { start.ArgumentList.Add(arg); }
     // Shell activation may return no process for an already-running Windows app.

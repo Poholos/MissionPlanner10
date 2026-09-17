@@ -23,7 +23,7 @@ internal sealed record ParameterProposal(string Id, string TargetId, string Rati
   public override string ToString() => $"{Id[..8]} — {Changes.Length} parameter(s) — {Status}";
 }
 
-internal sealed class McpVehicleAccess {
+internal sealed partial class McpVehicleAccess {
   private readonly Func<IReadOnlyList<MavLinkConnection>> _connections;
   private readonly Dictionary<string, McpTarget> _targets = new();
   private readonly Dictionary<string, ParameterProposal> _proposals = new();

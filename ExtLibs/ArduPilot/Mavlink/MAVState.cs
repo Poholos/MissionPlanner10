@@ -170,6 +170,20 @@ namespace MissionPlanner
 
         object packetslock = new object();
 
+        // Independent diagnostic history: never consumes the UI packet queue or mixes components.
+        private readonly Queue<(long Sequence, MAVLinkMessage Packet)> statusTextHistory = new Queue<(long Sequence, MAVLinkMessage Packet)>();
+        private long statusTextSequence;
+
+        public MAVLinkMessage[] GetPacketSnapshot()
+        {
+            lock (packetslock) { return packetsLast.Values.ToArray(); }
+        }
+
+        public (long Sequence, MAVLinkMessage Packet)[] GetStatusTextSnapshot()
+        {
+            lock (packetslock) { return statusTextHistory.ToArray(); }
+        }
+
         public MAVLinkMessage getPacket(uint mavlinkid)
         {
             //log.InfoFormat("getPacket {0}", (MAVLINK_MSG_ID)mavlinkid);
@@ -217,6 +231,11 @@ namespace MissionPlanner
 
                 packets[msg.msgid].Enqueue(msg);
                 packetsLast[msg.msgid] = msg;
+                if (msg.msgid == (uint)MAVLINK_MSG_ID.STATUSTEXT)
+                {
+                    statusTextHistory.Enqueue((++statusTextSequence, msg));
+                    while (statusTextHistory.Count > 256) { statusTextHistory.Dequeue(); }
+                }
             }
         }
 

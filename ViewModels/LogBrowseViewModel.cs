@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using MissionPlanner.Utilities;
@@ -101,13 +102,20 @@ public partial class LogBrowseViewModel : ViewModelBase {
     SelectedField = Fields.FirstOrDefault();
   }
 
-  public async Task LoadFileAsync(string path) {
+  internal long LoadRevision { get; private set; }
+
+  public Task LoadFileAsync(string path) => LoadFileAsync(path, CancellationToken.None);
+
+  public async Task LoadFileAsync(string path, CancellationToken ct) {
     if (Busy) { throw new InvalidOperationException("A log is already loading."); }
+    ct.ThrowIfCancellationRequested();
+    LoadRevision++;
     CurrentPath = path;
     Busy = true;
     Status = "Parsing log…";
     try {
-      var (summary, formats, types, track, timedTrack) = await Task.Run(() => Parse(path));
+      var (summary, formats, types, track, timedTrack) = await Task.Run(() => Parse(path, ct), ct);
+      ct.ThrowIfCancellationRequested();
       _formats.Clear();
       foreach (var kv in formats) {
         _formats[kv.Key] = kv.Value;
@@ -128,6 +136,8 @@ public partial class LogBrowseViewModel : ViewModelBase {
       SelectedType = MessageTypes.FirstOrDefault();
       Status = $"Loaded {types.Count} message types.";
       TrackChanged?.Invoke();
+    } catch (OperationCanceledException) {
+      CurrentPath = null; throw;
     } catch (Exception ex) {
       CurrentPath = null; _formats.Clear(); MessageTypes.Clear(); Tree.Clear(); Fields.Clear();
       Track = []; TimedTrack = []; TrackChanged?.Invoke();
@@ -277,8 +287,9 @@ public partial class LogBrowseViewModel : ViewModelBase {
 
   private static (string summary, Dictionary<string, string[]> formats, List<string> types,
       IReadOnlyList<(double lat, double lng)> track,
-      IReadOnlyList<(double time, double lat, double lng)> timedTrack) Parse(string path) {
-    if (McpTelemetryLog.IsTlog(path)) { return ParseTelemetry(path); }
+      IReadOnlyList<(double time, double lat, double lng)> timedTrack) Parse(string path, CancellationToken ct) {
+    ct.ThrowIfCancellationRequested();
+    if (McpTelemetryLog.IsTlog(path)) { return ParseTelemetry(path, ct); }
     var formats = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
     List<string> types;
 
@@ -296,19 +307,22 @@ public partial class LogBrowseViewModel : ViewModelBase {
       }
     }
 
+    ct.ThrowIfCancellationRequested();
     var fullTrack = DataFlashLog.ReadTrack(path);
+    ct.ThrowIfCancellationRequested();
     var track = fullTrack.Select(p => (p.lat, p.lng)).ToList();
     var timedTrack = ReadTimedTrack(path, types);
+    ct.ThrowIfCancellationRequested();
     var summary = BuildSummary(path, types.Count, fullTrack);
     return (summary, formats, types, track, timedTrack);
   }
 
   private static (string summary, Dictionary<string, string[]> formats, List<string> types,
-      IReadOnlyList<(double lat, double lng)> track, IReadOnlyList<(double time, double lat, double lng)> timedTrack) ParseTelemetry(string path) {
+      IReadOnlyList<(double lat, double lng)> track, IReadOnlyList<(double time, double lat, double lng)> timedTrack) ParseTelemetry(string path, CancellationToken ct) {
     var formats = new Dictionary<string, string[]>();
     var timed = new List<(double time, double lat, double lng)>();
     string? trackSource = null; int count = 0;
-    foreach (var row in McpTelemetryLog.Read(path)) {
+    foreach (var row in McpTelemetryLog.Read(path, ct)) {
       count++;
       if (!formats.ContainsKey(row.Key)) {
         if (formats.Count >= 4096) { throw new InvalidDataException("Too many telemetry message/source combinations."); }

@@ -7,6 +7,7 @@ using Avalonia.Threading;
 namespace MissionPlanner.Controls;
 
 public class LivePlot : ScottPlot.Avalonia.AvaPlot {
+  internal long ContentRevision { get; private set; }
   private readonly Dictionary<string, ScottPlot.Plottables.Scatter> _series = new();
   private readonly Dictionary<string, List<double>> _appendXs = new();
   private readonly Dictionary<string, List<double>> _appendYs = new();
@@ -14,6 +15,7 @@ public class LivePlot : ScottPlot.Avalonia.AvaPlot {
   public event Action<double>? PointClicked;
 
   protected override void OnPointerPressed(PointerPressedEventArgs e) {
+    ContentRevision++;
     base.OnPointerPressed(e);
     if (PointClicked is not { } handler) {
       return;
@@ -22,6 +24,10 @@ public class LivePlot : ScottPlot.Avalonia.AvaPlot {
 
     var pixel = new ScottPlot.Pixel(pos.X * DisplayScale, pos.Y * DisplayScale);
     handler(Plot.GetCoordinates(pixel).X);
+  }
+
+  protected override void OnPointerWheelChanged(PointerWheelEventArgs e) {
+    ContentRevision++; base.OnPointerWheelChanged(e);
   }
 
   public void SetSeries(string label, IReadOnlyList<double> xs, IReadOnlyList<double> ys,
@@ -35,6 +41,7 @@ public class LivePlot : ScottPlot.Avalonia.AvaPlot {
         scatter.Axes.YAxis = Plot.Axes.Right;
       }
       _series[label] = scatter;
+      ContentRevision++;
       Refresh();
     });
   }
@@ -42,6 +49,7 @@ public class LivePlot : ScottPlot.Avalonia.AvaPlot {
   public void RemoveByLabel(string label) {
     RunOnUi(() => {
       RemoveSeries(label);
+      ContentRevision++;
       Refresh();
     });
   }
@@ -49,6 +57,7 @@ public class LivePlot : ScottPlot.Avalonia.AvaPlot {
   public void AddVerticalLine(double x, ScottPlot.Color color, string? label = null) {
     RunOnUi(() => {
       var vl = Plot.Add.VerticalLine(x, 1, color);
+      ContentRevision++;
       if (!string.IsNullOrEmpty(label)) {
         vl.LabelText = label;
       }
@@ -76,6 +85,7 @@ public class LivePlot : ScottPlot.Avalonia.AvaPlot {
       var scatter = Plot.Add.Scatter(xs.ToArray(), ys.ToArray());
       scatter.LegendText = label;
       _series[label] = scatter;
+      ContentRevision++;
       Refresh();
     });
   }
@@ -83,6 +93,7 @@ public class LivePlot : ScottPlot.Avalonia.AvaPlot {
   public void ClearAll() {
     RunOnUi(() => {
       Plot.Clear();
+      ContentRevision++;
       _series.Clear();
       _appendXs.Clear();
       _appendYs.Clear();
