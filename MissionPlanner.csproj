@@ -119,6 +119,9 @@
   <ItemGroup>
     <None Remove="app.config" />
     <AvaloniaResource Include="Assets/**" />
+    <EmbeddedResource Include="docs/mcp/AI_START.md" LogicalName="MissionPlanner.McpDocs.AI_START.md" />
+    <EmbeddedResource Include="docs/mcp/UI_API.md" LogicalName="MissionPlanner.McpDocs.UI_API.md" />
+    <EmbeddedResource Include="Porting/MCP_DIAGNOSTICS.md" LogicalName="MissionPlanner.McpDocs.DIAGNOSTICS.md" />
   </ItemGroup>
 
   <ItemGroup>

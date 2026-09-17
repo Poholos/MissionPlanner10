@@ -2,6 +2,38 @@
 
 Updated: **2026-09-17**.
 
+## MCP UI and mission draft API — 2026-09-17
+
+- Continued `feat/mcp-flight-context` / PR #39; fetched origin/master again and confirmed
+  `f1180f67293469a1002f1635bc8fc153e7b00c5d` is included. Rechecked X-Office main
+  snapshots `54b1ea3c` and `176877f7`, including GUI actions, inspection, receipts and
+  embedded documentation. Its unrelated worktree files were preserved.
+- Expanded from 29 to **46 MCP tools**: DATA/PLAN/HELP navigation, registered diagnostic
+  widget inspection/actions, map centering and PNG map/plot captures, live tuning fields,
+  catalogue-backed log windows/graphs, and local Mission draft get/schema/validation/
+  replacement/Undo. Native replacements preserve one Undo group including home; no upload.
+- Added bounded connection-local operation receipts, strict replay/conflict handling,
+  access epochs and UI snapshot invalidation, shared UI mutation serialization, graph
+  and draft revision checks, and cancellation before pending UI dispatch. Unknown tools
+  require Allow by default. UI permissions are explained in Connections before granting.
+  File reloads invalidate log snapshots; captures reject stale/replaced log views.
+- Added embedded [AI_START](../docs/mcp/AI_START.md), [UI_API](../docs/mcp/UI_API.md) and
+  diagnostic resources through resources/list/read; initialize instructions direct agents
+  to the guide. Resource URIs are fixed, no arbitrary file reads. Reconnect limitations
+  and structural-validation limits are documented explicitly.
+- Local validation: **1682 passed / 0 failed / 0 skipped** (95 MCP-focused), Release
+  solution **0 warnings / 0 errors**, six migration/source/artifact audits and diff check.
+  New tests exercise real official HTTP clients, resources/schemas, permission gates,
+  receipt recovery across revoke/allow, replay, stale/hidden/revoked controls, native
+  draft CAS/Undo and serialized cancellation. Existing public log-load ABI retained.
+- Isolated Linux Xvfb GUI acceptance: actual HTTP navigation, map movement/capture,
+  live plot selection/capture, opening and plotting a sample DataFlash file, inspecting
+  and changing numeric controls, clearing/closing graph, draft replace/replay/Undo, and
+  Close all rejecting subsequent requests. Captured PNG map and graph inspected visually.
+  No model invocation, real aircraft transfer or user client-registration changes.
+- Commit, package paths and subsequent multi-platform CI outcomes are recorded in the
+  workspace's newest MONOREPO_MIGRATION_HANDOFF.md checkpoint after completion.
+
 ## X-Office-compatible MCP connections — 2026-09-17
 
 - Continued the existing `feat/mcp-flight-context` / [PR #39](https://github.com/Rouniy/MissionPlanner10/pull/39).

@@ -181,6 +181,17 @@ public partial class FlightPlannerViewModel : ViewModelBase, IActivationAware, I
 
   public bool CanUndo => _undoHistory.Count > 0;
 
+  // Shared native draft/Undo path. No vehicle transfer, settings write or terrain substitution.
+  internal void ReplaceAgentDraft(IReadOnlyList<WpRow> rows, double homeLat, double homeLng, double homeAlt) {
+    Dispatcher.UIThread.VerifyAccess();
+    if (MissionType != "Mission") { throw new InvalidOperationException("Select the Mission draft before replacing it."); }
+    using var undo = BeginUndoMutation();
+    HomeLat = homeLat; HomeLng = homeLng; HomeAlt = homeAlt;
+    Replace(rows.Select(CloneRow));
+    WaypointsChanged?.Invoke();
+    Status = $"AI updated {rows.Count} draft items. Review before any vehicle upload.";
+  }
+
   private IDisposable BeginUndoMutation() {
     if (_undoMutationDepth == 0) {
       CaptureUndo();

@@ -21,6 +21,7 @@ namespace MissionPlanner.Views;
 
 internal sealed class AgentToolsWindow : Window {
   private readonly MainWindowViewModel _main;
+  private readonly McpUiHost _ui;
   private readonly Func<CancellationToken, Task<McpAgent[]>> _discover;
   private MissionPlannerMcpServer? _server;
   private MissionPlannerMcpServer? _desktopServer;
@@ -66,7 +67,7 @@ internal sealed class AgentToolsWindow : Window {
   private int _activeOperations;
 
   internal AgentToolsWindow(MainWindowViewModel main, Func<CancellationToken, Task<McpAgent[]>>? discover = null) {
-    _main = main; _discover = discover ?? McpAgentDiscovery.DiscoverAsync;
+    _main = main; _ui = new(main, _logs, () => Owner as Window); _discover = discover ?? McpAgentDiscovery.DiscoverAsync;
     Title = "AI diagnostics / MCP"; Width = 960; Height = 780; MinWidth = 680; MinHeight = 560;
     WindowStartupLocation = WindowStartupLocation.CenterOwner;
     var start = Button("Open session port", StartAsync);
@@ -79,7 +80,7 @@ internal sealed class AgentToolsWindow : Window {
     var export = Button("Export proposal…", ExportAsync);
     var top = new StackPanel { Spacing = 8, Children = {
       new TextBlock { Text = "Flight diagnostics and tuning", FontSize = 20 },
-      new TextBlock { Text = "Agent data: vehicle telemetry, parameters and flight logs. Parameter changes require review here. "
+      new TextBlock { Text = "Agent tools: diagnostics, maps, graphs and local mission drafts. Aircraft parameter changes require review here. "
           + "Model-provider authentication is handled by the installed agent.", TextWrapping = TextWrapping.Wrap },
       new WrapPanel { Orientation = Orientation.Horizontal, Children = { stop, attach } },
       _detectedAgents, _registration,
@@ -147,7 +148,7 @@ internal sealed class AgentToolsWindow : Window {
       _desktopPort,
       new WrapPanel { Children = { Button("Open port", OpenDesktopAsync), Button("Close port", StopDesktopAsync, true) } },
       _desktopEndpoint, _desktopState,
-      new TextBlock { Text = "Opening this port permits local clients to read diagnostics. Launch or Allow also permits proposals, vehicle read requests and opening log views. Aircraft parameter writes still require operator review.", TextWrapping = TextWrapping.Wrap },
+      new TextBlock { Text = "Opening this port permits local clients to read diagnostics. Launch or Allow also permits UI inspection/capture, navigation, graphs, local mission draft edits, proposals and vehicle read requests. Mission upload and aircraft parameter writes require operator action.", TextWrapping = TextWrapping.Wrap },
       new TextBlock { Text = "Temporary session port (bearer token)", FontWeight = FontWeight.Bold },
       new WrapPanel { Children = { start, copy } }, _endpoint,
       new TextBlock { Text = "Connected sessions — names are reported by clients", FontWeight = FontWeight.Bold },
@@ -338,13 +339,7 @@ internal sealed class AgentToolsWindow : Window {
 
   private MissionPlannerMcpServer CreateServer(int port = 0, bool requiresToken = true) {
     var server = new MissionPlannerMcpServer(_vehicles, _logs, port, requiresToken) {
-      OpenLogAnalyzer = async (path, ct) => {
-        ct.ThrowIfCancellationRequested();
-        await Dispatcher.UIThread.InvokeAsync(() => {
-          ct.ThrowIfCancellationRequested();
-          return LogBrowseWindow.OpenWith(path);
-        });
-      },
+      UiHost = _ui, OpenLogAnalyzer = _ui.OpenPath,
     };
     server.Activity += text => {
       Output((requiresToken ? "CLI: " : "Desktop: ") + text + Environment.NewLine);

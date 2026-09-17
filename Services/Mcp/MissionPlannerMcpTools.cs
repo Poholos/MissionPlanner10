@@ -52,7 +52,9 @@ internal sealed partial class MissionPlannerMcpTools {
   [McpServerTool(Name = "diagnostics_info", ReadOnly = true), Description("Capabilities, tuning workflow and interpretation limits. Start here.")]
   public string Info() => Json(new { application = "MissionPlanner", workflow = Instructions,
     logFormats = new[] { "DataFlash binary (.bin)", "DataFlash text (.log)", "MAVLink telemetry (.tlog)" },
-    writePolicy = "Parameter proposals only; an operator reviews and applies them in Mission Planner.",
+    writePolicy = "Aircraft parameter writes require operator review. Allowed sessions can edit local mission drafts with revision checks and Undo; mission upload remains operator-only.",
+    documentation = McpDocumentation.StartUri,
+    ui = new[] { "navigation and state", "map/plot PNG capture", "native log windows and graphs", "live tuning fields", "diagnostic widget actions", "local mission draft validation/replacement/Undo", "operation receipts" },
     analysis = new[] { "packet-aged vehicle health", "vehicle messages and packet inventory", "flight events", "bounded trend envelopes", "parameter comparisons", "log overview", "flight-time parameter snapshots", "vibration and clipping report",
       "arbitrary log fields and instances", "field statistics", "Welch PSD", "target/actual correlation lag" } });
 

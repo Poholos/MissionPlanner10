@@ -102,6 +102,34 @@ real local HTTP requests and fake CLI processes; it does not invoke paid models 
 change the developer's client registrations. Codex CLI arguments were checked against
 0.154.0; Claude support is implemented without invoking Claude during development.
 
+## UI and mission draft API
+
+The server now exposes **46 tools**: the original 29 diagnostics plus 17 UI/draft tools.
+The current X-Office `main` implementation was rechecked at `54b1ea3c` and its subsequent `176877f7` (GUI actions,
+inspection, operation journal and documentation resources). MP adopts connection-local
+receipts and snapshots while routing actions through explicit native adapters. X-Office
+also persists document/file journals at listener scope; MP UI receipts remain scoped
+to a connection and document this reconnect limitation explicitly.
+
+Agents should read [AI_START](../docs/mcp/AI_START.md) and [UI_API](../docs/mcp/UI_API.md).
+The same versioned text is embedded in each binary and exposed through `resources/list`
+and `resources/read` at `missionplanner://documentation/AI_START.md`, `UI_API.md` and
+`DIAGNOSTICS.md`. Initialize instructions point to the starting resource. Unknown URIs
+cannot read files. `tools/list` remains the authoritative machine-readable schema.
+
+New capabilities include DATA/PLAN/HELP navigation; state and diagnostic widget inspection;
+map centering/zoom; PNG map/plot captures; live tuning field selection; opening, plotting
+and closing catalogue-backed native log views; and structural validation, replacement and
+Undo of the local Mission draft. Mission editing uses a current content revision and one
+native Undo group. No upload occurs. Fence/Rally drafts remain read-only through this API.
+
+UI tools require the connection's Allow, including inspection/capture. Every mutation
+uses operationId for replay recovery; graph/draft edits also check revisions. Close/revoke
+cancels pending work before subsequent UI dispatch. Completed changes are not rolled back.
+The API does not expose flight-command widgets, consent/password controls, scripts,
+arbitrary property writes or desktop-global keyboard/mouse input. Native operator review
+for aircraft parameter writes remains mandatory. See UI_API for limits and recovery.
+
 ## Available tools
 
 | Tools | Data / behavior |

@@ -401,7 +401,9 @@ public partial class LogBrowseView : UserControl {
     }
   }
 
-  private void OnClear(object? sender, RoutedEventArgs e) {
+  private void OnClear(object? sender, RoutedEventArgs e) => ClearGraph();
+
+  internal void ClearGraph() {
     Plot.ClearAll();
     if (DataContext is LogBrowseViewModel vm) {
       vm.Status = "Graph cleared.";

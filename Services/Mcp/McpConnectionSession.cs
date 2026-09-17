@@ -13,6 +13,10 @@ internal sealed class McpConnectionSession {
   private readonly object _sync = new();
   private CancellationTokenSource _grant = new();
   private bool _read, _allowed, _revoked;
+  private long _accessEpoch;
+  internal long AccessEpoch => Interlocked.Read(ref _accessEpoch);
+  internal McpOperationJournal Operations { get; } = new();
+  internal McpUiSnapshot? UiSnapshot { get; set; }
   internal McpServer Server { get; }
   internal string Credential { get; }
   internal string Transport { get; }
@@ -36,7 +40,7 @@ internal sealed class McpConnectionSession {
   }
   internal void Revoke() {
     CancellationTokenSource grant;
-    lock (_sync) { _read = _allowed = false; _revoked = true; grant = _grant; }
+    lock (_sync) { _read = _allowed = false; _revoked = true; Interlocked.Increment(ref _accessEpoch); grant = _grant; }
     grant.Cancel();
   }
   internal void Disconnect() { Revoke(); Lifetime.Cancel(); }

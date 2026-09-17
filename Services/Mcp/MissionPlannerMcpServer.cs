@@ -40,6 +40,7 @@ internal sealed class MissionPlannerMcpServer : IAsyncDisposable {
   internal McpLogCatalog Logs { get; }
   internal CancellationToken Stopping => _stop.Token;
   internal event Action<string>? Activity;
+  internal McpUiHost? UiHost { get; init; }
   internal Func<string, CancellationToken, Task>? OpenLogAnalyzer { get; init; }
   internal McpConnectionInfo[] Sessions => _sessions.Values.Select(s => s.Info).OrderBy(s => s.Id).ToArray();
   internal string IssueLaunchToken() {
@@ -75,8 +76,15 @@ internal sealed class MissionPlannerMcpServer : IAsyncDisposable {
       foreach (var session in _sessions.Values) { session.Disconnect(); }
     }
   }
-  internal static bool IsPassiveTool(string? name) => name is not ("refresh_parameters" or "list_onboard_logs"
-      or "download_onboard_log" or "open_log_analyzer" or "propose_parameter_changes");
+  internal static bool IsPassiveTool(string? name) => name is
+      "diagnostics_info" or "vehicle_health" or "log_overview" or "log_parameters_at" or "log_vibration_report"
+      or "list_vehicles" or "telemetry_schema" or "read_telemetry" or "read_parameters" or "read_mission_draft"
+      or "list_local_logs" or "log_schema" or "read_log_records" or "log_field_statistics" or "log_spectrum"
+      or "log_batch_spectrum" or "log_response" or "parameter_proposals" or "read_vehicle_messages"
+      or "telemetry_packet_inventory" or "log_events" or "log_time_series" or "compare_log_parameters"
+      or "compare_vehicle_parameters_to_log" or "mission_draft_get" or "mission_command_schema" or "mission_draft_validate";
+  private McpConnectionSession SessionFor(McpServer server) => server.SessionId is string id && _sessions.TryGetValue(id, out var session)
+      ? session : throw new McpException("Unknown or disconnected session.");
 
   private async Task RunSessionAsync(HttpContext context, McpServer server, CancellationToken ct) {
     // Capture request data before RunAsync; HttpContext belongs to initialize only.
@@ -130,6 +138,7 @@ internal sealed class MissionPlannerMcpServer : IAsyncDisposable {
       var toolInstance = new MissionPlannerMcpTools(Vehicles, Logs, mission, OpenLogAnalyzer);
       builder.Services.AddMcpServer(options => { options.ServerInstructions =
           "A session launched by Mission Planner is already allowed. If a tool returns permission_required, ask the operator once to Allow this session in AI → Connections. "
+          + "Read resources/read at " + McpDocumentation.StartUri + " first, then tools/list for exact schemas. UI changes require operationId; draft/graph changes also require current revisions. "
           + MissionPlannerMcpTools.Instructions; })
           .WithHttpTransport(options => {
             // Explicit session ownership is required for per-client revocation. New clients negotiate the session protocol.
@@ -153,7 +162,9 @@ internal sealed class MissionPlannerMcpServer : IAsyncDisposable {
             access.Token.ThrowIfCancellationRequested();
             return result;
           }))
-          .WithTools(toolInstance);
+          .WithTools(toolInstance)
+          .WithTools(new McpUiTools(UiHost, SessionFor))
+          .WithResources<McpDocumentation>();
       var app = builder.Build();
       byte[] expected = SHA256.HashData(Encoding.UTF8.GetBytes("Bearer " + Token));
       var requests = new SemaphoreSlim(4, 4);
