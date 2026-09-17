@@ -135,6 +135,14 @@ internal static class McpDesktopRegistration {
     return changed;
   }
 
+  /// <summary>True when the client's TOML contains any missionplanner10_desktop table, managed or not.</summary>
+  internal static bool HasDesktopEntry(string? path = null) {
+    try {
+      path ??= ConfigPath;
+      return File.Exists(path) && Entry(Parse(File.ReadAllText(path))) != null;
+    } catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException) { return false; }
+  }
+
   internal static bool IsRegistered(string path, int port) {
     if (!File.Exists(path)) { return false; }
     string text = File.ReadAllText(path);

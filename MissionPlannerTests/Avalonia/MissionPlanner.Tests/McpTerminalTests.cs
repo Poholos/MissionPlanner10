@@ -20,6 +20,28 @@ public sealed class McpTerminalTests {
     Assert.Equal("test-token", start.Environment["MP_MCP_TOKEN"]);
   }
   [Fact]
+  internal void Codex_launch_disables_the_persistent_desktop_entry_only_when_it_exists() {
+    // Codex rejects "enabled=false" for a table that has no transport; the terminal then closes immediately.
+    var request = new McpTerminalLaunch.Request("/fake/codex", McpAgentKind.CodexCli, "http://127.0.0.1:47183/mcp", "t", Path.GetTempPath(), "");
+    Assert.DoesNotContain("mcp_servers.missionplanner10_desktop.enabled=false", McpTerminalLaunch.AgentStart(request, "/fake/config.json").ArgumentList);
+    Assert.Contains("mcp_servers.missionplanner10_desktop.enabled=false", McpTerminalLaunch.AgentStart(request, "/fake/config.json", true).ArgumentList);
+    Assert.DoesNotContain("mcp_servers.missionplanner10_desktop.enabled=false", McpTerminalLaunch.AgentStart(request with { Kind = McpAgentKind.ClaudeCode }, "/fake/config.json", true).ArgumentList);
+    string root = Path.Combine(Path.GetTempPath(), "mp-desktop-entry-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(root);
+    try {
+      string config = Path.Combine(root, "config.toml");
+      Assert.False(McpDesktopRegistration.HasDesktopEntry(config));
+      File.WriteAllText(config, "[mcp_servers.other]\nurl = 'http://127.0.0.1:1/mcp'\n");
+      Assert.False(McpDesktopRegistration.HasDesktopEntry(config));
+      McpDesktopRegistration.Update(config, 47183);
+      Assert.True(McpDesktopRegistration.HasDesktopEntry(config));
+      File.WriteAllText(config, "[mcp_servers.missionplanner10_desktop]\nurl = 'http://127.0.0.1:1/mcp'\n");
+      Assert.True(McpDesktopRegistration.HasDesktopEntry(config));
+      File.WriteAllText(config, "this = [broken");
+      Assert.False(McpDesktopRegistration.HasDesktopEntry(config));
+    } finally { Directory.Delete(root, true); }
+  }
+  [Fact]
   public async Task Terminal_handoff_runs_a_fake_agent_once_and_preserves_literal_arguments() {
     if (OperatingSystem.IsWindows()) { return; }
     string root = Path.Combine(Path.GetTempPath(), "mp-terminal-test-" + Guid.NewGuid().ToString("N"));

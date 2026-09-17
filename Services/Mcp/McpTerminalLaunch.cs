@@ -77,7 +77,7 @@ internal sealed class McpTerminalLaunch : IDisposable {
     if (process.HasExited && process.ExitCode != 0) { throw new InvalidOperationException($"Terminal launcher exited with code {process.ExitCode}."); }
   }
 
-  internal static ProcessStartInfo AgentStart(Request request, string claudeConfig) {
+  internal static ProcessStartInfo AgentStart(Request request, string claudeConfig, bool disableDesktopEntry = false) {
     if (request.Kind is not (McpAgentKind.CodexCli or McpAgentKind.ClaudeCode)) { throw new ArgumentException("Unsupported terminal client."); }
     var start = new ProcessStartInfo(request.Executable) { UseShellExecute = false, WorkingDirectory = request.Directory };
     // A unique table cannot inherit a command/url collision from the user's existing MCP entries.
@@ -85,9 +85,13 @@ internal sealed class McpTerminalLaunch : IDisposable {
     string[] args = request.Kind == McpAgentKind.CodexCli
         ? ["-c", $"mcp_servers.{name}.url=" + JsonSerializer.Serialize(request.Endpoint),
           "-c", $"mcp_servers.{name}.bearer_token_env_var=\"MP_MCP_TOKEN\"",
-          "-c", $"mcp_servers.{name}.enabled=true", "-c", $"mcp_servers.{name}.tool_timeout_sec=720",
-          "-c", "mcp_servers.missionplanner10_desktop.enabled=false"]
+          "-c", $"mcp_servers.{name}.enabled=true", "-c", $"mcp_servers.{name}.tool_timeout_sec=720"]
         : ["--mcp-config", claudeConfig, "--strict-mcp-config"];
+    // Disabling the persistent desktop entry only when it exists: an override on an absent table makes Codex
+    // reject its configuration ("invalid transport") and the terminal closes immediately.
+    if (request.Kind == McpAgentKind.CodexCli && disableDesktopEntry) {
+      args = [.. args, "-c", $"mcp_servers.{McpDesktopRegistration.ServerName}.enabled=false"];
+    }
     foreach (string arg in args) { start.ArgumentList.Add(arg); }
     if (!string.IsNullOrWhiteSpace(request.Prompt)) { start.ArgumentList.Add("--"); start.ArgumentList.Add(request.Prompt); }
     start.Environment["MP_MCP_TOKEN"] = request.Token;
@@ -102,9 +106,14 @@ internal sealed class McpTerminalLaunch : IDisposable {
         ?? throw new ArgumentException("Invalid terminal handoff.");
     File.Delete(path); // A broker cannot launch the same request twice.
     using var files = new McpAgentSessionFiles(request.Kind, new Uri(request.Endpoint), request.Token);
-    using var process = Process.Start(AgentStart(request, files.ClaudeConfigPath))
+    using var process = Process.Start(AgentStart(request, files.ClaudeConfigPath, McpDesktopRegistration.HasDesktopEntry()))
         ?? throw new InvalidOperationException("Agent did not start.");
     await process.WaitForExitAsync().ConfigureAwait(false);
+    if (process.ExitCode != 0 && !Console.IsInputRedirected) {
+      // Keep the terminal window open so a failed agent start can be read instead of flashing and closing.
+      Console.Error.WriteLine($"{Path.GetFileName(request.Executable)} exited with code {process.ExitCode}. Press Enter to close this window.");
+      Console.ReadLine();
+    }
     return process.ExitCode;
   }
   public void Dispose() => _files.Dispose();
