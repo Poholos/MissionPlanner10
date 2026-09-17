@@ -95,8 +95,7 @@ public sealed class McpLayoutTests {
       foreach (string name in new[] { "Launch Codex CLI", "Launch Claude Code", "Launch Codex Desktop", "Find agents" }) {
         Assert.True(ButtonNamed(window, name).IsEffectivelyVisible, name);
       }
-      window.GetVisualDescendants().OfType<Expander>().Single().IsExpanded = true; Dispatcher.UIThread.RunJobs();
-      Assert.True(ButtonNamed(window, "Unregister Codex Desktop").IsVisible);
+      Assert.Single(window.GetVisualDescendants().OfType<Button>(), b => (b.Content as string) is "Register Codex Desktop" or "Unregister Codex Desktop");
       // No agent list, editable executable path or agent-kind selector: the buttons are the agents.
       Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBox>(), t => t.Text == "/fake/codex" || t.Text == "/fake/claude");
       Assert.DoesNotContain(window.GetVisualDescendants().OfType<ComboBox>(), c => c.Items.OfType<string>().Contains("Claude Code"));
@@ -107,6 +106,51 @@ public sealed class McpLayoutTests {
           .Where(c => c?.StartsWith("Launch ", StringComparison.Ordinal) == true && c != "Launch custom").ToArray();
       Assert.Equal(new[] { "Launch Claude Code" }, launches);
     } finally { await CloseWindowAsync(window); }
+  }
+  [AvaloniaFact]
+  public async Task Register_and_unregister_buttons_follow_the_desktop_registration_and_ask_for_the_port_at_startup() {
+    string codexHome = Path.Combine(Path.GetTempPath(), "mp-codex-home-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(codexHome);
+    string? previousHome = Environment.GetEnvironmentVariable("CODEX_HOME");
+    Environment.SetEnvironmentVariable("CODEX_HOME", codexHome);
+    var window = Window(_ => Task.FromResult<McpAgent[]>([new(McpAgentKind.OpenAiDesktop, "Codex Desktop", "/fake/desktop", [])]));
+    try {
+      window.Hub.AutoOpenDesktopPort = false;
+      window.Show(); await window.FindAgentsAsync(); Dispatcher.UIThread.RunJobs();
+      Assert.True(ButtonNamed(window, "Register Codex Desktop").IsEffectivelyVisible);
+      Assert.Contains("Codex Desktop: Not registered.", window.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text).Single(t => t?.Contains("Codex Desktop:", StringComparison.Ordinal) == true));
+      Assert.False(window.GetVisualDescendants().OfType<CheckBox>().Single(c => c.Content as string == "Open at startup").IsChecked);
+      await window.Hub.RegisterDesktopAsync(window.Hub.Agents[0]);
+      await window.FindAgentsAsync(); Dispatcher.UIThread.RunJobs();
+      Assert.True(McpDesktopRegistration.HasDesktopEntry(Path.Combine(codexHome, "config.toml")));
+      Assert.True(ButtonNamed(window, "Unregister Codex Desktop").IsEffectivelyVisible);
+      Assert.DoesNotContain(window.GetVisualDescendants().OfType<Button>(), b => b.Content as string == "Register Codex Desktop");
+      Assert.True(window.Hub.AutoOpenDesktopPort);
+      window.GetVisualDescendants().OfType<Expander>().Single().IsExpanded = true; Dispatcher.UIThread.RunJobs();
+      Assert.True(window.GetVisualDescendants().OfType<CheckBox>().Single(c => c.Content as string == "Open at startup").IsChecked);
+      await window.Hub.UnregisterDesktopAsync(window.Hub.Agents[0]);
+      await window.FindAgentsAsync(); Dispatcher.UIThread.RunJobs();
+      Assert.True(ButtonNamed(window, "Register Codex Desktop").IsEffectivelyVisible);
+    } finally {
+      window.Hub.AutoOpenDesktopPort = false;
+      await CloseWindowAsync(window);
+      Environment.SetEnvironmentVariable("CODEX_HOME", previousHome);
+      Directory.Delete(codexHome, true);
+    }
+  }
+  [AvaloniaFact]
+  public async Task Startup_opens_the_persistent_port_only_when_a_registration_asked_for_it() {
+    var reservation = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0); reservation.Start();
+    int port = ((System.Net.IPEndPoint)reservation.LocalEndpoint).Port; reservation.Stop();
+    var hub = new McpAgentHub(null!, () => null, _ => Task.FromResult<McpAgent[]>([])) { DesktopPort = port };
+    try {
+      hub.AutoOpenDesktopPort = false;
+      await hub.OpenDesktopPortAtStartupAsync();
+      Assert.Null(hub.DesktopServer);
+      hub.AutoOpenDesktopPort = true;
+      await hub.OpenDesktopPortAtStartupAsync();
+      Assert.Equal(port, hub.DesktopServer!.Endpoint!.Port);
+    } finally { hub.AutoOpenDesktopPort = false; await hub.DisposeAsync(); Dispatcher.UIThread.RunJobs(); }
   }
   [AvaloniaFact]
   public async Task Port_and_session_controls_remain_available_if_all_agents_disappear() {

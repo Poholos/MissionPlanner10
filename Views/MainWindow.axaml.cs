@@ -34,6 +34,9 @@ public partial class MainWindow : Window {
     }
   }
 
+  /// <summary>Registered desktop applications expect the persistent port whenever Mission Planner runs.</summary>
+  internal System.Threading.Tasks.Task OpenAgentPortAtStartupAsync() => AgentHub.OpenDesktopPortAtStartupAsync();
+
   private void RefreshAgentIndicator() {
     if (Vm is not { } vm || Services.Mcp.McpAgentHub.Current is not { } hub) { return; }
     vm.AiConnected = hub.IsConnected();

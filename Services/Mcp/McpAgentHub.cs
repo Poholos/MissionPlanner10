@@ -64,6 +64,20 @@ internal sealed class McpAgentHub : IAsyncDisposable {
     }
   }
 
+  /// <summary>Registered desktop applications connect only while the persistent port is open, so a registration asks for it at startup.</summary>
+  internal bool AutoOpenDesktopPort {
+    get => Settings.Instance.GetBoolean("mcpDesktopAutoOpen", false);
+    set => Settings.Instance["mcpDesktopAutoOpen"] = value ? "True" : "False";
+  }
+  internal async Task OpenDesktopPortAtStartupAsync() {
+    if (!AutoOpenDesktopPort || _stop.IsCancellationRequested) { return; }
+    try { await OpenDesktopPortAsync().ConfigureAwait(false); }
+    catch (Exception e) when (e is not OperationCanceledException) {
+      DesktopState = "Persistent port could not be opened at startup: " + e.Message;
+      Log(DesktopState + Environment.NewLine); Changed();
+    }
+  }
+
   /// <summary>True while at least one initialized session holds a grant.</summary>
   internal bool IsConnected() => !_stop.IsCancellationRequested && Servers.Any(s => s.Sessions.Any(i => i.Ready && i.Access == "Allowed"));
   internal int SessionCount() => Servers.Sum(s => s.Sessions.Count(i => !i.Access.StartsWith("Disconnected", StringComparison.Ordinal)));
@@ -159,6 +173,7 @@ internal sealed class McpAgentHub : IAsyncDisposable {
     int port = DesktopPort;
     string? backup = await Task.Run(() => McpDesktopRegistration.Update(agent.Kind, port)).ConfigureAwait(false);
     Settings.Instance["mcpDesktopPort"] = port.ToString(CultureInfo.InvariantCulture);
+    AutoOpenDesktopPort = true;
     if (backup != null) { Log("Client configuration backup: " + backup + Environment.NewLine); }
     Changed(); return backup;
   }

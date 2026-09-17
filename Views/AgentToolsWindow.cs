@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -29,7 +30,8 @@ internal sealed class AgentToolsWindow : Window {
     public override string ToString() => Info.ToString();
   }
   private readonly WrapPanel _agentButtons = new();
-  private readonly WrapPanel _unregisterButtons = new();
+  private readonly WrapPanel _desktopButtons = new();
+  private readonly CheckBox _autoOpen = new() { Content = "Open at startup", Margin = new Thickness(6, 0, 0, 4), VerticalAlignment = VerticalAlignment.Center };
   private readonly TextBlock _agentState = new() { TextWrapping = TextWrapping.Wrap };
   private readonly ListBox _sessions = new() { MinHeight = 72 };
   private readonly TextBox _task = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 56, Text = DefaultTask };
@@ -60,7 +62,8 @@ internal sealed class AgentToolsWindow : Window {
       catch (Exception e) when (e is ArgumentOutOfRangeException or InvalidOperationException) { _status.Text = e.Message; _desktopPort.Value = Hub.DesktopPort; }
       RefreshAgents();
     };
-    _proposals.SelectionChanged += (_, _) => { };
+    _autoOpen.IsChecked = Hub.AutoOpenDesktopPort;
+    _autoOpen.IsCheckedChanged += (_, _) => { if (_autoOpen.IsChecked is bool wanted && wanted != Hub.AutoOpenDesktopPort) { Hub.AutoOpenDesktopPort = wanted; } };
     var advanced = new Expander { Header = "Advanced", IsExpanded = false, HorizontalAlignment = HorizontalAlignment.Stretch, Content = new StackPanel { Spacing = 6, Children = {
       new TextBlock { Text = "Temporary session port with bearer token (for manually configured clients)", FontWeight = FontWeight.Bold },
       new WrapPanel { Children = { Button("Open session port", StartAsync), Button("Copy connection settings", CopyAsync) } }, _sessionEndpoint,
@@ -70,14 +73,13 @@ internal sealed class AgentToolsWindow : Window {
       new TextBlock { Text = "Parameter proposals submitted by agents for operator review", FontWeight = FontWeight.Bold },
       _proposals, new WrapPanel { Children = { Button("Review / apply selected", ApplyAsync), Button("Export selected…", ExportAsync) } },
       Button("Attach flight log…", AttachAsync),
-      new TextBlock { Text = "Remove a desktop application's MCP registration" }, _unregisterButtons,
     } } };
     var body = new StackPanel { Spacing = 8, Children = {
       new TextBlock { Text = "AI agent connection", FontSize = 20 },
       new TextBlock { Text = "Launch gives the agent full control of Mission Planner: screens, controls, missions, parameters, logs and vehicle commands, "
           + "using whatever is loaded or connected in the application. Provider login belongs to the agent.", TextWrapping = TextWrapping.Wrap },
       new TextBlock { Text = "Launch an installed agent", FontWeight = FontWeight.Bold },
-      _agentButtons, _agentState,
+      _agentButtons, _desktopButtons, _agentState,
       new TextBlock { Text = "Initial task for terminal agents" }, _task,
       new TextBlock { Text = "Sessions — names are reported by the clients", FontWeight = FontWeight.Bold },
       _sessions,
@@ -85,7 +87,7 @@ internal sealed class AgentToolsWindow : Window {
         Button("Disconnect", () => SessionAction(2), true), Button("Allow all", AllowAllAsync), Button("Revoke all", RevokeAllAsync, true),
         Button("Stop all connections", StopAsync, true) } },
       new TextBlock { Text = "Persistent local port for desktop applications", FontWeight = FontWeight.Bold },
-      new WrapPanel { Children = { _desktopPort, Button("Open port", OpenDesktopAsync), Button("Close port", StopDesktopAsync, true) } },
+      new WrapPanel { Children = { _desktopPort, Button("Open port", OpenDesktopAsync), Button("Close port", StopDesktopAsync, true), _autoOpen } },
       _desktopEndpoint, _desktopState,
       advanced,
       new TextBlock { Text = "Activity", FontWeight = FontWeight.Bold },
@@ -115,18 +117,29 @@ internal sealed class AgentToolsWindow : Window {
   /// <summary>One Launch button per installed agent, as in X-Office; agents that are not installed have no button.</summary>
   private void RefreshAgents(McpAgent[]? agents = null) {
     agents ??= Hub.Agents;
-    _agentButtons.Children.Clear(); _unregisterButtons.Children.Clear();
+    _agentButtons.Children.Clear(); _desktopButtons.Children.Clear();
+    var notes = new List<string>();
     foreach (var agent in agents) {
       _agentButtons.Children.Add(Button($"Launch {agent.Name}", () => LaunchAgentAsync(agent)));
-      if (agent.IsDesktop) { _unregisterButtons.Children.Add(Button($"Unregister {agent.Name}", () => UnregisterDesktopAsync(agent))); }
+      if (!agent.IsDesktop) { continue; }
+      string state = McpDesktopRegistration.RegistrationState(agent.Kind, Hub.DesktopPort);
+      bool registered = state == "Registered";
+      _desktopButtons.Children.Add(Button(registered ? $"Unregister {agent.Name}" : $"Register {agent.Name}",
+          () => registered ? UnregisterDesktopAsync(agent) : RegisterDesktopAsync(agent)));
+      notes.Add($"{agent.Name}: {state}.");
     }
     _agentButtons.Children.Add(Button("Find agents", FindAgentsAsync));
-    var desktops = agents.Where(a => a.IsDesktop).Select(a => $"{a.Name}: {McpDesktopRegistration.RegistrationState(a.Kind, Hub.DesktopPort)}").ToArray();
+    if (notes.Count != 0) {
+      notes.Add("Desktop applications read MCP settings when they start: restart them after registering. "
+          + "They see Mission Planner only while the persistent port is open; Register switches on \"Open at startup\".");
+    }
     _agentState.Text = agents.Length == 0
         ? "No installed agents found: install Codex CLI, Claude Code, Codex/ChatGPT Desktop, Claude Desktop or LM Studio, or use a custom executable under Advanced."
-        : string.Join(Environment.NewLine, new[] { "Terminal agents open in a new terminal with the initial task below." }.Concat(desktops));
-    _unregisterButtons.IsVisible = desktops.Length != 0;
+        : string.Join(Environment.NewLine, new[] { "Terminal agents open in a new terminal with the initial task below." }.Concat(notes));
+    _desktopButtons.IsVisible = _desktopButtons.Children.Count != 0;
+    if (_autoOpen.IsChecked != Hub.AutoOpenDesktopPort) { _autoOpen.IsChecked = Hub.AutoOpenDesktopPort; }
   }
+
   private Task SessionAction(int action) {
     var row = _sessions.SelectedItem as SessionRow ?? throw new InvalidOperationException("Select a session first.");
     if (action == 0) { Hub.AllowSession(row.Info.Id); }
@@ -136,6 +149,11 @@ internal sealed class AgentToolsWindow : Window {
   }
   private Task AllowAllAsync() { Hub.AllowAll(); Refresh(); return Task.CompletedTask; }
   private Task RevokeAllAsync() { Hub.RevokeAll(); Refresh(); return Task.CompletedTask; }
+  private async Task RegisterDesktopAsync(McpAgent agent) {
+    await Hub.RegisterDesktopAsync(agent);
+    RefreshAgents(); Refresh();
+    _status.Text = $"{agent.Name} registered on port {Hub.DesktopPort}. Restart it to load MCP settings; the port opens at startup.";
+  }
   private async Task UnregisterDesktopAsync(McpAgent agent) {
     await Hub.UnregisterDesktopAsync(agent);
     RefreshAgents();
@@ -177,6 +195,7 @@ internal sealed class AgentToolsWindow : Window {
     _desktopEndpoint.Text = Hub.DesktopServer?.Endpoint?.AbsoluteUri ?? "";
     _desktopState.Text = Hub.DesktopState;
     _desktopPort.IsEnabled = Hub.DesktopServer == null;
+    if (_autoOpen.IsChecked != Hub.AutoOpenDesktopPort) { _autoOpen.IsChecked = Hub.AutoOpenDesktopPort; }
     var proposals = Hub.Vehicles.Proposals();
     if (_proposals.ItemsSource is not ParameterProposal[] current || !current.SequenceEqual(proposals)) {
       object? selected = _proposals.SelectedItem;

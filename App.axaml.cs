@@ -43,6 +43,7 @@ public partial class App : Application {
           () => {
             _ = mainViewModel.Connection.TryAutoConnectAsync();
             _ = Services.PluginService.RefreshAsync();
+            _ = (desktop.MainWindow as MainWindow)?.OpenAgentPortAtStartupAsync();
           });
 
       desktop.Exit += (_, _) => {
