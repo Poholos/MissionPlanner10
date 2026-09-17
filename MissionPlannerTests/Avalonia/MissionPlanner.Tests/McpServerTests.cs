@@ -21,7 +21,7 @@ public sealed class McpServerTests {
     await server.StartAsync(_ => Task.FromResult<object>(new { }));
     string id = server.Logs.Attach(file.Path).Id;
     using var http = new HttpClient();
-    http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", server.Token);
+    http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", server.IssueLaunchToken());
     await using var transport = new HttpClientTransport(new HttpClientTransportOptions { Endpoint = server.Endpoint!, TransportMode = HttpTransportMode.StreamableHttp }, http);
     using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
     await using var client = await McpClient.CreateAsync(transport, cancellationToken: timeout.Token);
@@ -44,7 +44,7 @@ public sealed class McpServerTests {
     await using var server = new MissionPlannerMcpServer(new McpVehicleAccess(() => []));
     await server.StartAsync(_ => Task.FromResult<object>(new { draft = true }), timeout.Token);
     using var http = new HttpClient();
-    http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", server.Token);
+    http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", server.IssueLaunchToken());
     await using var transport = new HttpClientTransport(new HttpClientTransportOptions {
       Endpoint = server.Endpoint!, TransportMode = HttpTransportMode.StreamableHttp,
     }, http);
@@ -129,7 +129,8 @@ public sealed class McpServerTests {
     Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     Assert.Equal("text/event-stream", response.Content.Headers.ContentType?.MediaType);
     Assert.Contains("\"protocolVersion\":\"2025-11-25\"", await response.Content.ReadAsStringAsync());
-    Assert.False(response.Headers.Contains("Mcp-Session-Id"));
+    Assert.True(response.Headers.Contains("Mcp-Session-Id"));
+    http.DefaultRequestHeaders.Add("Mcp-Session-Id", response.Headers.GetValues("Mcp-Session-Id").Single());
     http.DefaultRequestHeaders.Add("MCP-Protocol-Version", "2025-11-25");
     using var notification = new StringContent("""{"jsonrpc":"2.0","method":"notifications/initialized"}""", Encoding.UTF8, "application/json");
     using var accepted = await http.PostAsync(server.Endpoint, notification);

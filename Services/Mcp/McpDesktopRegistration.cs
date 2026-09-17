@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Tomlyn;
 using Tomlyn.Model;
 
@@ -23,6 +25,58 @@ internal static class McpDesktopRegistration {
   internal static Uri Endpoint(int port) {
     if (port is < 1024 or > 65535) { throw new ArgumentOutOfRangeException(nameof(port), "Choose a port between 1024 and 65535."); }
     return new Uri($"http://127.0.0.1:{port}/mcp");
+  }
+  internal static string ConfigPathFor(McpAgentKind kind) {
+    string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+    return kind switch {
+      McpAgentKind.OpenAiDesktop => ConfigPath,
+      McpAgentKind.ClaudeDesktop => Path.Combine(OperatingSystem.IsMacOS() ? Path.Combine(home, "Library", "Application Support")
+          : OperatingSystem.IsWindows() ? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)
+          : Environment.GetEnvironmentVariable("XDG_CONFIG_HOME") ?? Path.Combine(home, ".config"), "Claude", "claude_desktop_config.json"),
+      McpAgentKind.LmStudio => Path.Combine(home, ".lmstudio", "mcp.json"),
+      _ => throw new ArgumentException("Select a desktop application."),
+    };
+  }
+  internal static string RegistrationState(McpAgentKind kind, int port, string? path = null) {
+    try {
+      path ??= ConfigPathFor(kind);
+      string original = File.Exists(path) ? File.ReadAllText(path) : "";
+      string changed = kind == McpAgentKind.OpenAiDesktop ? Edit(original, port) : EditJson(original, kind, port);
+      if (original == changed) { return "Registered"; }
+      return original.Contains(ServerName, StringComparison.Ordinal) ? "Outdated — Register updates the port" : "Not registered";
+    } catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or JsonException) {
+      return "Unavailable: " + e.Message;
+    }
+  }
+  internal static string? Update(McpAgentKind kind, int? port, string? path = null) =>
+      UpdateFile(path ?? ConfigPathFor(kind), text => kind == McpAgentKind.OpenAiDesktop ? Edit(text, port) : EditJson(text, kind, port));
+
+  internal static string EditJson(string original, McpAgentKind kind, int? port) {
+    if (kind is not (McpAgentKind.ClaudeDesktop or McpAgentKind.LmStudio)) { throw new ArgumentException("Unsupported JSON client."); }
+    var root = string.IsNullOrWhiteSpace(original) ? new JsonObject() : JsonNode.Parse(original) as JsonObject
+        ?? throw new InvalidOperationException("Client configuration must be a JSON object.");
+    if (root["mcpServers"] is not null and not JsonObject) { throw new InvalidOperationException("Invalid mcpServers object."); }
+    var servers = root["mcpServers"] as JsonObject ?? new JsonObject();
+    var old = servers[ServerName];
+    if (old != null && old["missionplanner_registration"]?.GetValue<string>() != "v1") {
+      throw new InvalidOperationException("An unmanaged Mission Planner entry already exists; configuration was not changed.");
+    }
+    if (port == null) {
+      if (old == null) { return original; }
+      servers.Remove(ServerName);
+    } else {
+      JsonObject entry;
+      if (kind == McpAgentKind.ClaudeDesktop) {
+        _ = Endpoint(port.Value);
+        var host = McpTerminalLaunch.HostCommand("--mcp-stdio", "--port", port.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        entry = new() { ["command"] = host.Executable, ["args"] = JsonSerializer.SerializeToNode(host.Arguments) };
+      } else { entry = new() { ["url"] = Endpoint(port.Value).AbsoluteUri }; }
+      entry["missionplanner_registration"] = "v1";
+      if (JsonNode.DeepEquals(old, entry)) { return original; }
+      servers[ServerName] = entry;
+    }
+    if (root["mcpServers"] == null) { root["mcpServers"] = servers; }
+    return root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n";
   }
   private static string Block(int port, string newline) => string.Join(newline, new[] {
     Begin, $"[mcp_servers.{ServerName}]", $"url = \"{Endpoint(port).AbsoluteUri}\"",
@@ -88,7 +142,9 @@ internal static class McpDesktopRegistration {
     return Edit(text, port) == text;
   }
 
-  internal static string? Update(string path, int? port) {
+  internal static string? Update(string path, int? port) => UpdateFile(path, text => Edit(text, port));
+
+  private static string? UpdateFile(string path, Func<string, string> edit) {
     path = Path.GetFullPath(path);
     Directory.CreateDirectory(Path.GetDirectoryName(path)!);
     string lockPath = path + ".missionplanner.lock";
@@ -99,7 +155,7 @@ internal static class McpDesktopRegistration {
     byte[] original = File.Exists(path) ? File.ReadAllBytes(path) : [];
     bool bom = original.AsSpan().StartsWith(new byte[] { 0xef, 0xbb, 0xbf });
     string text = new UTF8Encoding(false, true).GetString(original.AsSpan(bom ? 3 : 0));
-    string changed = Edit(text, port);
+    string changed = edit(text);
     if (changed == text) { return null; }
     string temporary = path + ".mp-" + Guid.NewGuid().ToString("N") + ".tmp";
     string? backup = null;

@@ -21,7 +21,7 @@ public sealed class McpLayoutTests {
       await window.FindAgentsAsync();
       Dispatcher.UIThread.RunJobs();
       var tabs = window.GetVisualDescendants().OfType<TabControl>().Single();
-      Assert.True(tabs.Items.OfType<TabItem>().Single(t => (string?)t.Header == "Desktop").IsVisible);
+      Assert.True(tabs.Items.OfType<TabItem>().Single(t => (string?)t.Header == "Connections").IsVisible);
       for (int tab = 0; tab < tabs.ItemCount; tab++) {
         tabs.SelectedIndex = tab;
         Dispatcher.UIThread.RunJobs();
@@ -36,19 +36,19 @@ public sealed class McpLayoutTests {
     } finally { window.Close(); Dispatcher.UIThread.RunJobs(); }
   }
   [AvaloniaFact]
-  public async Task Desktop_controls_are_hidden_when_only_cli_agents_are_found() {
+  public async Task Connections_are_available_when_only_cli_agents_are_found() {
     var window = new AgentToolsWindow(null!, _ => Task.FromResult<McpAgent[]>([
       new(McpAgentKind.ClaudeCode, "Claude Code", "/fake/claude", []),
     ]));
     try {
       window.Show(); await window.FindAgentsAsync(); Dispatcher.UIThread.RunJobs();
       var tabs = window.GetVisualDescendants().OfType<TabControl>().Single();
-      Assert.False(tabs.Items.OfType<TabItem>().Single(t => (string?)t.Header == "Desktop").IsVisible);
+      Assert.True(tabs.Items.OfType<TabItem>().Single(t => (string?)t.Header == "Connections").IsVisible);
     } finally { window.Close(); Dispatcher.UIThread.RunJobs(); }
   }
 
   [AvaloniaFact]
-  public async Task Refresh_switches_away_from_desktop_tab_if_application_disappears() {
+  public async Task Connections_remain_available_if_all_agents_disappear() {
     McpAgent[] found = [new(McpAgentKind.OpenAiDesktop, "Codex Desktop", "/fake/app", [])];
     var window = new AgentToolsWindow(null!, _ => Task.FromResult(found));
     try {
@@ -56,8 +56,8 @@ public sealed class McpLayoutTests {
       var tabs = window.GetVisualDescendants().OfType<TabControl>().Single();
       tabs.SelectedIndex = 3;
       found = []; await window.FindAgentsAsync(); Dispatcher.UIThread.RunJobs();
-      Assert.Equal(0, tabs.SelectedIndex);
-      Assert.False(tabs.Items.OfType<TabItem>().Single(t => (string?)t.Header == "Desktop").IsVisible);
+      Assert.Equal(3, tabs.SelectedIndex);
+      Assert.True(tabs.Items.OfType<TabItem>().Single(t => (string?)t.Header == "Connections").IsVisible);
     } finally { window.Close(); Dispatcher.UIThread.RunJobs(); }
   }
 

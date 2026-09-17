@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Security.Cryptography;
@@ -14,6 +16,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.AspNetCore;
+using ModelContextProtocol;
+using ModelContextProtocol.Server;
 
 namespace MissionPlanner.Services.Mcp;
 
@@ -22,6 +26,11 @@ internal sealed class MissionPlannerMcpServer : IAsyncDisposable {
   private readonly SemaphoreSlim _lifecycle = new(1, 1);
   private readonly CancellationTokenSource _stop = new();
   private int _stopped;
+  private readonly ConcurrentDictionary<string, McpConnectionSession> _sessions = new();
+  private readonly ConcurrentDictionary<string, DateTime> _launchTokens = new();
+  private readonly object _admission = new();
+  private bool _desktopLaunched;
+  private Task? _disposeTask;
   private readonly int _port;
   private readonly bool _ownsLogs;
   internal bool RequiresToken { get; }
@@ -32,6 +41,63 @@ internal sealed class MissionPlannerMcpServer : IAsyncDisposable {
   internal CancellationToken Stopping => _stop.Token;
   internal event Action<string>? Activity;
   internal Func<string, CancellationToken, Task>? OpenLogAnalyzer { get; init; }
+  internal McpConnectionInfo[] Sessions => _sessions.Values.Select(s => s.Info).OrderBy(s => s.Id).ToArray();
+  internal string IssueLaunchToken() {
+    lock (_admission) {
+      ObjectDisposedException.ThrowIf(_stop.IsCancellationRequested, this);
+      foreach (var pair in _launchTokens.Where(p => p.Value < DateTime.UtcNow)) { _launchTokens.TryRemove(pair.Key, out _); }
+      if (_launchTokens.Count >= 64) { throw new InvalidOperationException("Too many pending agent launches."); }
+      string token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+      _launchTokens[token] = DateTime.UtcNow.AddMinutes(5); return token;
+    }
+  }
+  internal void CancelLaunch(string token) => _launchTokens.TryRemove(token, out _);
+  internal void GrantDesktopLaunch() {
+    lock (_admission) {
+      ObjectDisposedException.ThrowIf(_stop.IsCancellationRequested, this);
+      _desktopLaunched = true;
+      foreach (var session in _sessions.Values) { session.Allow(); }
+    }
+  }
+  internal void AllowSession(string id) { if (_sessions.TryGetValue(id, out var session)) { session.Allow(); } }
+  internal void RevokeSession(string id) { if (_sessions.TryGetValue(id, out var session)) { session.Revoke(); } }
+  internal void DisconnectSession(string id) { if (_sessions.TryGetValue(id, out var session)) { session.Disconnect(); } }
+  internal void RevokeSessions() {
+    lock (_admission) {
+      _desktopLaunched = false; _launchTokens.Clear();
+      foreach (var session in _sessions.Values) { session.Revoke(); }
+    }
+  }
+  // Close admission on EVERY listener before awaiting any disposal. Safe during a concurrent start.
+  internal void RevokeAccess() {
+    lock (_admission) {
+      _stop.Cancel(); _launchTokens.Clear(); _desktopLaunched = false;
+      foreach (var session in _sessions.Values) { session.Disconnect(); }
+    }
+  }
+  internal static bool IsPassiveTool(string? name) => name is not ("refresh_parameters" or "list_onboard_logs"
+      or "download_onboard_log" or "open_log_analyzer" or "propose_parameter_changes");
+
+  private async Task RunSessionAsync(HttpContext context, McpServer server, CancellationToken ct) {
+    // Capture request data before RunAsync; HttpContext belongs to initialize only.
+    string credential = context.Request.Headers.Authorization.ToString();
+    McpConnectionSession session;
+    lock (_admission) {
+      _stop.Token.ThrowIfCancellationRequested();
+      if (_sessions.Count >= 64 || server.SessionId == null) { throw new McpException("Session limit reached."); }
+      bool launched = credential.StartsWith("Bearer ", StringComparison.Ordinal)
+          && _launchTokens.TryRemove(credential[7..], out DateTime expires) && expires >= DateTime.UtcNow;
+      // Middleware admission can race another initialize consuming the same one-use token.
+      if (RequiresToken && !launched && credential != "Bearer " + Token) { throw new McpException("Launch credential expired or already used."); }
+      session = new(server, credential, RequiresToken ? "CLI HTTP" : "Persistent HTTP", !RequiresToken,
+          launched || (!RequiresToken && _desktopLaunched));
+      if (!_sessions.TryAdd(server.SessionId, session)) { throw new McpException("Duplicate session."); }
+    }
+    using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(ct, _stop.Token, session.Lifetime.Token);
+    try { await server.RunAsync(lifetime.Token).ConfigureAwait(false); }
+    catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
+    finally { session.Disconnect(); _sessions.TryRemove(server.SessionId!, out _); }
+  }
 
   internal MissionPlannerMcpServer(McpVehicleAccess vehicles, McpLogCatalog? logs = null,
       int port = 0, bool requiresToken = true) {
@@ -62,8 +128,31 @@ internal sealed class MissionPlannerMcpServer : IAsyncDisposable {
         options.Limits.RequestHeadersTimeout = TimeSpan.FromSeconds(10);
       });
       var toolInstance = new MissionPlannerMcpTools(Vehicles, Logs, mission, OpenLogAnalyzer);
-      builder.Services.AddMcpServer(options => { options.ServerInstructions = MissionPlannerMcpTools.Instructions; })
-          .WithHttpTransport(options => { options.SessionMode = HttpServerSessionMode.Stateless; })
+      builder.Services.AddMcpServer(options => { options.ServerInstructions =
+          "A session launched by Mission Planner is already allowed. If a tool returns permission_required, ask the operator once to Allow this session in AI → Connections. "
+          + MissionPlannerMcpTools.Instructions; })
+          .WithHttpTransport(options => {
+            // Explicit session ownership is required for per-client revocation. New clients negotiate the session protocol.
+            options.SessionMode = HttpServerSessionMode.Stateful;
+#pragma warning disable MCP9006 // Deliberate 2025-11-25 session protocol for visible, individually revocable clients.
+            options.MaxIdleSessionCount = 64;
+            options.IdleTimeout = TimeSpan.FromHours(2);
+#pragma warning restore MCP9006
+#pragma warning disable MCPEXP002 // SDK 2.2 lifecycle hook: needed to cancel and remove exactly one session.
+            options.RunSessionHandler = RunSessionAsync;
+#pragma warning restore MCPEXP002
+          })
+          .WithRequestFilters(filters => filters.AddCallToolFilter(next => async (context, ct) => {
+            if (context.Server.SessionId is not string id || !_sessions.TryGetValue(id, out var session)
+                || !session.TryAccess(IsPassiveTool(context.Params?.Name), out var grant)) {
+              throw new McpException("permission_required: Allow this session in Mission Planner's AI Connections tab.");
+            }
+            using var access = CancellationTokenSource.CreateLinkedTokenSource(ct, grant, _stop.Token, session.Lifetime.Token);
+            access.Token.ThrowIfCancellationRequested();
+            var result = await next(context, access.Token).ConfigureAwait(false);
+            access.Token.ThrowIfCancellationRequested();
+            return result;
+          }))
           .WithTools(toolInstance);
       var app = builder.Build();
       byte[] expected = SHA256.HashData(Encoding.UTF8.GetBytes("Bearer " + Token));
@@ -75,10 +164,20 @@ internal sealed class MissionPlannerMcpServer : IAsyncDisposable {
                 && origin.ToString() != Endpoint?.GetLeftPart(UriPartial.Authority))) {
           context.Response.StatusCode = 403; return;
         }
-        byte[] supplied = SHA256.HashData(Encoding.UTF8.GetBytes(context.Request.Headers.Authorization.ToString()));
-        if (RequiresToken && !CryptographicOperations.FixedTimeEquals(expected, supplied)) {
+        string credential = context.Request.Headers.Authorization.ToString();
+        byte[] supplied = SHA256.HashData(Encoding.UTF8.GetBytes(credential));
+        string sessionId = context.Request.Headers["Mcp-Session-Id"].ToString();
+        bool sessionCredential = _sessions.TryGetValue(sessionId, out var bound)
+            && !bound.Lifetime.IsCancellationRequested && CryptographicOperations.FixedTimeEquals(supplied,
+                SHA256.HashData(Encoding.UTF8.GetBytes(bound.Credential)));
+        bool launchCredential = credential.StartsWith("Bearer ", StringComparison.Ordinal)
+            && _launchTokens.TryGetValue(credential[7..], out var expiry) && expiry >= DateTime.UtcNow;
+        if ((sessionId.Length > 0 && !sessionCredential)
+            || (RequiresToken && sessionId.Length == 0 && !launchCredential && !CryptographicOperations.FixedTimeEquals(expected, supplied))) {
           context.Response.StatusCode = 401; return;
         }
+        // No long-lived GET/SSE stream: request/response MCP leaves capacity for cancellation and other clients.
+        if (HttpMethods.IsGet(context.Request.Method)) { context.Response.StatusCode = 405; return; }
         if (!await requests.WaitAsync(0, context.RequestAborted).ConfigureAwait(false)) {
           context.Response.StatusCode = 429; return;
         }
@@ -101,7 +200,12 @@ internal sealed class MissionPlannerMcpServer : IAsyncDisposable {
     } finally { _lifecycle.Release(); }
   }
 
-  public async ValueTask DisposeAsync() {
+  public ValueTask DisposeAsync() {
+    RevokeAccess();
+    lock (_admission) { return new(_disposeTask ??= DisposeCoreAsync()); }
+  }
+
+  private async Task DisposeCoreAsync() {
     if (Interlocked.Exchange(ref _stopped, 1) != 0) { return; }
     _stop.Cancel();
     await _lifecycle.WaitAsync().ConfigureAwait(false);

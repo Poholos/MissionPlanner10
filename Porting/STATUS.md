@@ -2,6 +2,39 @@
 
 Updated: **2026-09-17**.
 
+## X-Office-compatible MCP connections — 2026-09-17
+
+- Continued the existing `feat/mcp-flight-context` / [PR #39](https://github.com/Rouniy/MissionPlanner10/pull/39).
+  Fetched the fork and verified current master `f1180f67293469a1002f1635bc8fc153e7b00c5d`
+  is already an ancestor; no rebase, history replacement or master merge was needed.
+  Reference: X-Office `feature/mcp-http` snapshot `5b525b41360aedbc3e205012ff0d13014ca35e3e`.
+- Replaced the UI's headless CLI launch with an external interactive terminal. Login,
+  model and normal client settings persist; process-only MCP overrides, a private
+  one-use handoff and session-bound launch tokens connect it to Mission Planner.
+- Unified installed CLI/desktop discovery and permanent registration status. Desktop
+  Launch registers/updates, opens the fixed port and activates the client. Added Claude
+  Desktop's local stdio bridge and LM Studio JSON registration alongside Codex/ChatGPT.
+  Registration preserves other settings and makes an atomic backup; discovery never
+  launches a model. The Connections tab and Open/Close controls are always available.
+- Stateful HTTP sessions have independent Allow/Revoke/Disconnect. Self-connected
+  persistent clients start read-only; Launch grants access until Revoke/Close.
+  Both listeners revoke synchronously before global shutdown awaits a blocked request.
+  Manual bearer clients require Allow; replay/reinitialization cannot regain a revoked
+  grant. Offline UI actions no longer implicitly open a listener. All 29 tools remain;
+  parameter application still requires explicit operator review.
+- Validation: **1669 passed / 0 failed / 0 skipped** (82 MCP-focused), Release solution
+  **0 warnings / 0 errors**, all six migration/source/artifact audits and diff checks.
+  Tests cover real HTTP session isolation, token replay, revocation, blocked-request
+  global stop, bridge/EOF cleanup, registration preservation and literal terminal argv.
+- Linux Xvfb GUI acceptance found three installed agents and launched a fake CLI through
+  the actual terminal button. It initialized MCP, read the UI mission and appeared as
+  an Allowed session. Opening the second port then Close all connections closed both
+  sockets. Screenshots retained outside the repository in `/tmp/mp-mcp-gui-check/`.
+  No real model, Claude delegation, aircraft operation or user client-config edit occurred.
+- Platform packages and CI are being produced for this branch. Actual provider login,
+  model sessions and installed Windows/macOS client activation remain manual acceptance.
+  See [MCP_DIAGNOSTICS.md](MCP_DIAGNOSTICS.md) for the revised workflow and access semantics.
+
 ## MCP flight-context extension — 2026-09-17
 
 - Dedicated branch `feat/mcp-flight-context` starts from clean fetched master
