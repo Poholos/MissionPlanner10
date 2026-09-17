@@ -44,9 +44,13 @@ public partial class MainWindow : Window {
   }
 
   // One brief flash per MCP exchange: the button brightens while a request or response is in flight.
+  private int _eyeShape;
   private void OnAgentTraffic() => Avalonia.Threading.Dispatcher.UIThread.Post(() => {
     if (Vm is not { } vm) { return; }
     vm.AiActive = true;
+    // The robot's eyes change shape on every request or response so activity is visible at a glance.
+    _eyeShape = AiRobotEyes.Next(_eyeShape);
+    if (this.FindControl<Avalonia.Controls.Shapes.Path>("AiEyes") is { } eyes) { eyes.Data = AiRobotEyes.Geometry(_eyeShape); }
     _agentPulse ??= new Avalonia.Threading.DispatcherTimer { Interval = System.TimeSpan.FromMilliseconds(220) };
     _agentPulse.Stop();
     _agentPulse.Tick -= OnAgentPulseEnd; _agentPulse.Tick += OnAgentPulseEnd;

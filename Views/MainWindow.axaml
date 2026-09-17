@@ -126,8 +126,16 @@
               ToolTip.Tip="{Binding AiButtonTip}"
             >
               <StackPanel>
-                <i:Icon Value="fa-solid fa-robot" FontSize="20" Foreground="#E0E0E0"
-                        HorizontalAlignment="Center" />
+                <!-- Robot head; the eyes (AiEyes) change shape on every MCP request or response. -->
+                <Canvas Width="22" Height="20" HorizontalAlignment="Center" Margin="0,0,0,2">
+                  <Rectangle Canvas.Left="10" Canvas.Top="0" Width="2" Height="3" Fill="#E0E0E0" />
+                  <Rectangle Canvas.Left="2" Canvas.Top="3" Width="18" Height="14" RadiusX="3" RadiusY="3" Fill="#E0E0E0" />
+                  <Rectangle Canvas.Left="0" Canvas.Top="7" Width="2" Height="6" Fill="#E0E0E0" />
+                  <Rectangle Canvas.Left="20" Canvas.Top="7" Width="2" Height="6" Fill="#E0E0E0" />
+                  <Path Name="AiEyes" Fill="#1B1B1B"
+                        Data="M 5.5,9.5 a 2,2 0 1,0 4,0 a 2,2 0 1,0 -4,0 Z M 12.5,9.5 a 2,2 0 1,0 4,0 a 2,2 0 1,0 -4,0 Z" />
+                  <Rectangle Canvas.Left="7" Canvas.Top="13.5" Width="8" Height="1.5" Fill="#1B1B1B" />
+                </Canvas>
                 <TextBlock Classes="navtxt" Text="AI" />
               </StackPanel>
             </Button>

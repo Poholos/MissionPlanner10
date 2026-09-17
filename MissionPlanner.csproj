@@ -114,6 +114,7 @@
     <PackageReference Include="Tomlyn" />
     <Compile Include="Services/Mcp/*.cs" />
     <Compile Include="Views/AgentToolsWindow.cs" />
+    <Compile Include="Views/AiRobotEyes.cs" />
   </ItemGroup>
 
   <ItemGroup>
