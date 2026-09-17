@@ -2,6 +2,122 @@
 
 Updated: **2026-09-17**.
 
+## Prompt exit, desktop registration at startup and robot eyes — 2026-09-17
+
+- Continued `feat/mcp-flight-context` / PR #39 after the single-panel checkpoint below.
+  Local/origin HEAD is `9ff6492a9`: three atomic commits on `dbc30df85` — `3f8b5a303`
+  prompt application exit, `014ccaa48` Register/Unregister buttons and "Open at startup",
+  `9ff6492a9` robot-eye animation — plus the documentation commit that follows. No merge,
+  tag, release or history rewrite.
+- Slow close (user report) reproduced on the packaged app under Xvfb :99 with Metacity and
+  `wmctrl -c` close requests: plain close 0.26 s, AI window open 0.26 s, persistent port
+  open + connected MCP client + launched terminal agent **5.3 s** — the 5 s cap in
+  `MainWindow.StopAgentTools`. Root cause: `McpAgentHub.DisposeAsync` started on the UI
+  thread that then blocked in `Wait(5 s)`; `_stop.Cancel()` ran the cancellation callbacks
+  on that thread, the resumed request continuations captured the UI SynchronizationContext
+  and could never run, so Kestrel stop and host disposal waited until the cap. Fix: hub and
+  server teardown start on a worker thread (`Task.Run`). Tests: a hub-level exit test with
+  open ports, a live session and a blocking wait (5.0 s / unfinished before, < 1.5 s after)
+  and a server stop test (< 1 s). Acceptance after the fix, same scenario: **0.21 s**.
+- Desktop application not seeing Mission Planner: Codex/ChatGPT Desktop reads
+  `~/.codex/config.toml` when it starts and connects only while port 47183 is open. On this
+  machine the app had been running since 12:18, before the 17:07 registration, and the port
+  was never open at Mission Planner startup. Now the AI window shows **Register <app>** /
+  **Unregister <app>** beside the launch buttons with the registration state, Register and
+  Launch switch on **Open at startup** (`McpAgentHub.AutoOpenDesktopPort`, setting
+  `mcpDesktopAutoOpen`), and `App` opens the persistent port after the main window appears
+  (`MainWindow.OpenAgentPortAtStartupAsync`). The state text tells the operator to restart
+  the application after registering. Acceptance in an isolated `CODEX_HOME`: Register wrote
+  the managed entry, the button turned into Unregister, the checkbox switched on, and after
+  a Mission Planner restart a client connected to 47183 without opening the dialog. The user
+  still has to restart ChatGPT Desktop once (its entry is already present) and then Allow
+  the self-connected session in the AI window, or press Launch ChatGPT Desktop.
+- Robot eyes: `Views/AiRobotEyes.cs` and a drawn robot in `MainWindow.axaml` replace the
+  Font Awesome glyph; the eyes cycle circles → vertical bars → horizontal bars on every
+  hub `Traffic` event (each MCP request/response) in addition to the green grant colour and
+  brightness pulse. Screenshots `gui/30-main-robot-zoom.png` (circles) and
+  `gui/36-restart-zoom.png` (bars after traffic) in the session scratchpad.
+- Validation: Release **0 warnings/0 errors**; full **1693/1693** tests; six audits and
+  `git diff --check` pass. Xvfb acceptance script `acc2.sh` in the scratchpad (register →
+  open port → client traffic → Allow all → timed close 0.21 s → restart with auto-open →
+  timed close 0.21 s). Testing hazards recorded: `xdotool windowclose` destroys the X window
+  instead of asking the application (run a WM on :99 and use `wmctrl -c`); `pkill -f` /
+  `pgrep -f` patterns that appear in the tool command kill the tool shell (use PIDs or
+  `ps -o comm`); `setsid` from the tool shell forks so `$!` is wrong (use `nohup … & disown`).
+  Metacity is still running on :99 (pid in scratchpad `wm-pid`).
+- Packages: `MissionPlanner/out/packages/missionplanner10_1.3.83.3-9ff6492a_amd64.deb` and
+  `MissionPlanner10-1.3.83.3-9ff6492a-linux-x64.tar.gz` (built from a clean tree with the
+  documentation stashed; a first build with uncommitted docs produced `.dirty` names and was
+  discarded); portable app
+  `MissionPlanner/out/MissionPlanner10-1.3.83.3-9ff6492a-linux-x64/MissionPlanner10`. Lintian
+  clean; the packaged binary ran 15 s under an isolated Xvfb display (expected timeout 124,
+  empty log) and, with the persistent port open, a connected client and a launched fake
+  terminal agent, exited **0.26 s** after a `wmctrl -c` close request. Index and SHA256SUMS
+  in `MissionPlanner/out/mcp-9ff6492a/`.
+- CI for `9ff6492a9`: platform run https://github.com/Rouniy/MissionPlanner10/actions/runs/35253846452
+  (build-test-linux, package-windows, package-macos x64 and arm64 all succeeded on the first
+  attempt) and CodeQL https://github.com/Rouniy/MissionPlanner10/actions/runs/35253846468
+  passed; open code-scanning alerts: **0**.
+- `Porting/MCP_DIAGNOSTICS.md` documents Register/Unregister, Open at startup, the exit fix
+  and the robot indicator. Follow-ups: acceptance with the real ChatGPT Desktop after its
+  restart; SITL/real-aircraft acceptance unchanged.
+
+## Single-panel AI agent window with per-agent launch buttons — 2026-09-17
+
+- Session restored after a crash: the uncommitted window redesign from the previous
+  session was recovered from the worktree, finished and committed. `feat/mcp-flight-context`
+  / PR #39 local/origin HEAD is `dbc30df85` (two atomic commits on `04de5db2d`:
+  `a3bba5710` terminal kind from the executable name, `dbc30df85` window redesign), plus
+  the documentation commit that follows. Origin master `f1180f672` remains included; no
+  merge, tag, release or history rewrite. Note: `gh run list` defaults to upstream
+  ArduPilot here; use `-R Rouniy/MissionPlanner10`.
+- User feedback addressed. The "Claude Code says there is no `--mcp-config`, only
+  `--config`" failure came from the old window: a separate kind selector and an editable
+  executable path let a `codex` binary be launched with the Claude flags, and Codex's
+  parser answered with "a similar argument exists: --config". The kind now follows the
+  executable name (`McpAgentDiscovery.TerminalKind`, `codex*`/`claude*`), a mismatch is
+  rejected before the terminal opens, and custom launches infer the kind. The tabs
+  (Agent, Parameter proposals, Flight logs, Connections), the agent combo box, the kind
+  selector and the path field are gone. `Views/AgentToolsWindow.cs` is one X-Office-style
+  page: one **Launch <agent>** button per installed agent (absent agents have no button)
+  plus **Find agents**, the initial task, sessions with Allow/Revoke/Disconnect/Allow all/
+  Revoke all/Stop all connections, the persistent port, an **Advanced** expander (session
+  port + copy settings, working directory, custom executable, proposals review/export,
+  attach log, unregister desktop apps) and the Activity log. The default initial task only
+  verifies the MCP connection and summarises the tools; it no longer asks for log analysis.
+  Log, parameter and mission selection stays in the application; agents use MCP tools.
+- Validation: Release **0 warnings/0 errors**; local **1688/1688** tests (12 focused MCP
+  layout/terminal tests, `McpLayoutTests` rewritten for the button row); six audits and
+  `git diff --check` pass. Xvfb :99 acceptance with real xdotool clicks and fake `claude`/
+  `codex` scripts first on PATH (no model invocation): the AI button opened the dialog with
+  the "Launch Codex CLI / Launch Claude Code / Launch ChatGPT Desktop / Find agents" row;
+  **Launch Claude Code** opened terminator running the fake with
+  `--mcp-config <private json> --strict-mcp-config -- <task>` and `MP_MCP_TOKEN`; the
+  session port opened; Advanced expanded; **Stop all connections** closed both ports (the
+  external terminal stays open, as documented). Screenshots `gui/10-main.png` …
+  `gui/14-stopped.png` and `gui/fake-claude.log` in the session scratchpad. The previous
+  session's real Claude Code launch on the same layout (`gui/07-claude.png` of the earlier
+  scratchpad) reported the server and its tools without analysing logs.
+- Hazard found and repaired: the previous acceptance ran the real Claude Code with
+  `XDG_DATA_HOME` pointing into a `/tmp` scratchpad; Claude's native installer re-installed
+  itself there and re-pointed `~/.local/bin/claude` at that temporary copy. The symlink was
+  restored to `~/.local/share/claude/versions/2.1.274`. For future acceptance use fake CLIs
+  on PATH, or keep `XDG_DATA_HOME` real / set `DISABLE_AUTOUPDATER=1` when a real Claude must
+  run. Leftover Xvfb processes of the crashed session (old Mission Planner, terminal broker,
+  interactive claude) were terminated.
+- Packages: `MissionPlanner/out/packages/missionplanner10_1.3.83.3-dbc30df8_amd64.deb` and
+  `MissionPlanner10-1.3.83.3-dbc30df8-linux-x64.tar.gz`; portable app
+  `MissionPlanner/out/MissionPlanner10-1.3.83.3-dbc30df8-linux-x64/MissionPlanner10`.
+  Lintian clean; the packaged binary ran 15 s under an isolated Xvfb display (expected
+  timeout 124, empty log). Index and SHA256SUMS in `MissionPlanner/out/mcp-dbc30df8/`.
+- CI for `dbc30df85`: platform run https://github.com/Rouniy/MissionPlanner10/actions/runs/35250447672
+  and CodeQL https://github.com/Rouniy/MissionPlanner10/actions/runs/35250447683 —
+  all five platform jobs (Linux 1688/1688 with 0 warnings, Windows ZIP/MSI, macOS x64 and arm64) and
+  CodeQL passed on the first attempt; open code-scanning alerts: **0**.
+- `Porting/MCP_DIAGNOSTICS.md` "Use" and log-workflow sections were rewritten for the new
+  window. Follow-ups unchanged: SITL/real-aircraft acceptance for `write_parameters`,
+  `vehicle_command` and `mission_upload`.
+
 ## X-Office-style full-access AI agent connection — 2026-09-17
 
 - Continued `feat/mcp-flight-context` / PR #39 on top of `70813c26a`. Fixed the Linux

@@ -24,47 +24,71 @@ AUTOTUNE with evidence from logs.
 
 ## Use
 
-1. Connect the aircraft normally, or use **Attach flight log…** to select a DataFlash
-   `.bin`/`.log` or telemetry `.tlog`. Offline analysis works without an aircraft and
-   does not open an MCP listener. Agents can discover the configured MP log directory.
-   Close the window whenever you like; agents stay connected until **Stop all connections**.
-2. Choose an installed agent from the common list. Discovery runs when the AI window
-   opens; **Find agents** refreshes it. Supported clients are Codex CLI, Claude Code,
-   Codex/ChatGPT Desktop, Claude Desktop and LM Studio. **Executable…** selects a
-   nonstandard CLI installation; choose its matching type (native `.exe` on Windows).
-3. **Launch selected agent** opens an interactive CLI in an external terminal, using
-   the chosen working directory and optional initial task. Its existing login, model
-   and normal client settings remain in use. Codex receives process-only MCP `-c`
-   overrides under a unique session name; Claude Code receives a private MCP JSON
-   through `--mcp-config`/`--strict-mcp-config`. No permission-bypass flag is added.
-   Neither terminal launcher edits global client configuration. Each launch has a
-   private one-use handoff and a single-use bearer credential bound to its MCP session.
-   The Codex override that disables the persistent desktop entry is added only when that
-   entry exists in `config.toml`; an override on a missing table made Codex exit with
-   "invalid transport" and the terminal closed immediately. A failed agent start now
-   keeps the terminal open with the exit code until Enter is pressed.
-4. For a desktop client, **Launch selected agent** idempotently registers MCP, opens
-   the persistent loopback port and activates the application. Launch grants access
-   to existing and subsequent sessions on that port until **Revoke all** or **Close**.
-   Restart/reconnect an already running desktop client to load changed configuration.
-5. **Connections → Open port** independently opens the persistent endpoint (default
-   **47183**, configurable). Clients connecting themselves initially get read-only
-   diagnostic access. The session list shows client-reported names and access state;
-   **Allow selected**, **Revoke selected** and **Disconnect selected** affect one
-   session. **Allow all** affects currently connected clients. **Revoke all** cancels
-   current grants and pending launch credentials, without closing the listeners.
-6. **Open session port → Copy connection settings** supplies a temporary URL and
+The AI window is one page modelled on X-Office's assistant panel: launch buttons, sessions,
+the persistent port, an **Advanced** section and the activity log. It contains no log,
+parameter or mission selection of its own: an agent reaches logs, parameters, missions and
+every screen through the application itself, using whatever is loaded or connected.
+
+1. Open the window with the **AI** button. Discovery runs on opening; **Find agents**
+   refreshes it. Supported clients are Codex CLI, Claude Code, Codex/ChatGPT Desktop,
+   Claude Desktop and LM Studio. Every installed agent has its own **Launch <agent>**
+   button; agents that are not installed have no button. A nonstandard CLI installation
+   is launched from **Advanced → Executable… / Launch custom**; its kind follows the
+   executable name (`codex*` or `claude*`, native `.exe` on Windows), so a codex binary is
+   never started with Claude flags (Codex rejected `--mcp-config` and the terminal closed).
+2. **Launch Codex CLI** / **Launch Claude Code** open an interactive CLI in an external
+   terminal, using the working directory from **Advanced** and the initial task shown in
+   the window. The default task only asks the agent to verify the MCP connection and to
+   summarise how many tools are available and what they cover; it does not analyse logs or
+   change anything until asked. The agent's existing login, model and normal client
+   settings remain in use. Codex receives process-only MCP `-c` overrides under a unique
+   session name; Claude Code receives a private MCP JSON through
+   `--mcp-config`/`--strict-mcp-config`. No permission-bypass flag is added and neither
+   launcher edits global client configuration. Each launch has a private one-use handoff
+   and a single-use bearer credential bound to its MCP session. The Codex override that
+   disables the persistent desktop entry is added only when that entry exists in
+   `config.toml`; an override on a missing table made Codex exit with "invalid transport"
+   and the terminal closed immediately. A failed agent start keeps the terminal open with
+   the exit code until Enter is pressed.
+3. **Register <desktop application>** writes the MCP entry into the application's own
+   configuration (Codex/ChatGPT Desktop `~/.codex/config.toml`, Claude Desktop
+   `claude_desktop_config.json`, LM Studio `mcp.json`) and switches on **Open at startup**;
+   the same button reads **Unregister <application>** once the entry exists. Desktop
+   applications read MCP settings when they start, so restart them after registering, and
+   they see Mission Planner only while the persistent port is open. **Launch <desktop
+   application>** registers if needed, opens the port, allows existing and subsequent
+   sessions on it until **Revoke all** or **Close port**, and activates the application.
+4. **Open port** independently opens the persistent endpoint (default **47183**,
+   configurable). **Open at startup** (set by Register and Launch, clearable here) opens it
+   every time Mission Planner starts so a registered desktop application always finds the
+   server. Clients connecting themselves initially get read-only diagnostic access.
+   The session list shows client-reported names and access state; **Allow**, **Revoke**
+   and **Disconnect** affect the selected session. **Allow all** affects currently connected
+   clients. **Revoke all** cancels current grants and pending launch credentials without
+   closing the listeners.
+5. **Advanced → Open session port → Copy connection settings** supplies a temporary URL and
    bearer token for a manually configured client. Such a client waits for **Allow**.
    Configure a 720-second tool timeout for onboard downloads.
-7. Read the agent's output in its terminal/application. Allowed sessions apply parameter
-   changes directly through `write_parameters` (audited, verified); agents may still submit
-   **Parameter proposals** for batches the operator prefers to review and apply here.
+6. Read the agent's output in its terminal/application; the **Activity** log records
+   launches, ports and grants. Allowed sessions apply parameter changes directly through
+   `write_parameters` (audited, verified); agents may still submit parameter proposals for
+   batches the operator prefers to review, which are listed under **Advanced** with
+   **Review / apply selected** and **Export selected…**.
+7. **Advanced → Attach flight log…** registers a DataFlash `.bin`/`.log` or telemetry
+   `.tlog` with MCP without an aircraft; agents also discover the configured log directory
+   themselves. Offline actions never open a listener.
 
 **Close port** closes just the persistent listener. **Stop all connections** revokes both
 listeners before waiting for any request shutdown, including a stuck request. Active grants
 are cancelled and late tool results are suppressed. Closing the AI window hides it only.
-External terminals/apps remain open; permanent registration is retained. Ports never reopen
-automatically at application startup or during offline log actions.
+External terminals/apps remain open; permanent registration is retained. Only the persistent
+port reopens at application startup, and only while **Open at startup** is set; offline log
+actions never open a listener. Listener teardown runs on a worker thread so application exit
+stays immediate with open ports and live sessions (it previously waited for a 5 s cap).
+
+The main **AI** button shows a robot whose eyes change shape (circles, vertical bars,
+horizontal bars) on every MCP request or response; the button is green while a session
+holds a grant and brightens briefly around each exchange.
 
 An example task:
 
@@ -225,16 +249,14 @@ and with the official C# MCP client, including unsupported-version rejection.
 
 ## Download, open and analyze a flight log
 
-The **AI → Flight logs** tab provides the complete operator workflow:
-
-1. **Refresh vehicles**, select the exact MAVLink system/component, then **List onboard logs**.
-2. Select the flight and **Download selected BIN**. The aircraft must remain disarmed;
-   **Stop / revoke access** cancels a transfer. Completed downloads are saved in the configured
-   log directory's `agent-downloads` folder and automatically registered with MCP.
-3. Select the downloaded file and **Open selected in analyzer**. In Log Browser, select
-   message fields to graph, show the record table, inspect messages/parameters or export data.
-4. For existing files use **Discover local logs** or **Attach files…**. These accept
-   `.bin`, `.log` and `.tlog`; attached files appear in the same list.
+The operator workflow lives in the application, not in the AI window: the DATA screen's
+**DataFlash Logs** and **Telemetry Logs** tabs download onboard logs and open local files,
+and the Log Browser graphs message fields, shows record tables, inspects messages and
+parameters and exports data. The aircraft must remain disarmed during an onboard download;
+**Stop all connections** cancels an agent-initiated transfer. Agent downloads are saved in
+the configured log directory's `agent-downloads` folder and registered with MCP
+automatically; **Advanced → Attach flight log…** registers existing `.bin`, `.log` and
+`.tlog` files.
 
 An agent can perform the same sequence with `list_onboard_logs`, `download_onboard_log`,
 `log_overview`, `log_schema`, `read_log_records` and `open_log_analyzer`. The last tool
