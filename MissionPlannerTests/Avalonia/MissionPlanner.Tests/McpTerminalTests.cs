@@ -42,6 +42,20 @@ public sealed class McpTerminalTests {
     } finally { Directory.Delete(root, true); }
   }
   [Fact]
+  internal void Terminal_kind_follows_the_executable_name_and_a_mismatch_is_rejected_before_launch() {
+    // Selecting "Claude Code" for a codex binary made Codex reject --mcp-config ("a similar argument exists: --config").
+    Assert.Equal(McpAgentKind.ClaudeCode, McpAgentDiscovery.TerminalKind("/home/u/.local/bin/claude"));
+    Assert.Equal(McpAgentKind.ClaudeCode, McpAgentDiscovery.TerminalKind("claude.exe"));
+    Assert.Equal(McpAgentKind.CodexCli, McpAgentDiscovery.TerminalKind("/opt/bin/Codex"));
+    Assert.Null(McpAgentDiscovery.TerminalKind("/tmp/fake agent"));
+    var endpoint = new Uri("http://127.0.0.1:47183/mcp");
+    var error = Assert.Throws<ArgumentException>(() => new McpTerminalLaunch(new(McpAgentKind.ClaudeCode, "Claude Code", "/fake/codex", []), endpoint, "t", Path.GetTempPath(), ""));
+    Assert.Contains("codex is not a Claude Code executable", error.Message);
+    Assert.Throws<ArgumentException>(() => new McpTerminalLaunch(new(McpAgentKind.CodexCli, "Codex CLI", "/fake/claude.exe", []), endpoint, "t", Path.GetTempPath(), ""));
+    using var matching = new McpTerminalLaunch(new(McpAgentKind.ClaudeCode, "Claude Code", "/fake/claude", []), endpoint, "t", Path.GetTempPath(), "");
+    Assert.True(File.Exists(matching.HandoffPath));
+  }
+  [Fact]
   public async Task Terminal_handoff_runs_a_fake_agent_once_and_preserves_literal_arguments() {
     if (OperatingSystem.IsWindows()) { return; }
     string root = Path.Combine(Path.GetTempPath(), "mp-terminal-test-" + Guid.NewGuid().ToString("N"));

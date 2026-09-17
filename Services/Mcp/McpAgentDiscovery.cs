@@ -17,6 +17,13 @@ internal sealed record McpAgent(McpAgentKind Kind, string Name, string Executabl
 
 /// <summary>Discovery never starts an agent or infers desktop support from a CLI URL handler.</summary>
 internal static class McpAgentDiscovery {
+  /// <summary>The terminal agent kind an executable name implies, so Codex is never started with Claude flags or vice versa.</summary>
+  internal static McpAgentKind? TerminalKind(string executable) {
+    string name = Path.GetFileNameWithoutExtension(executable);
+    if (name.StartsWith("claude", StringComparison.OrdinalIgnoreCase)) { return McpAgentKind.ClaudeCode; }
+    if (name.StartsWith("codex", StringComparison.OrdinalIgnoreCase)) { return McpAgentKind.CodexCli; }
+    return null;
+  }
   internal static string? FindExecutable(string name, IEnumerable<string> directories) {
     foreach (string directory in directories.Where(d => !string.IsNullOrWhiteSpace(d) && Path.IsPathRooted(d)).Distinct()) {
       string path = Path.Combine(directory, name);

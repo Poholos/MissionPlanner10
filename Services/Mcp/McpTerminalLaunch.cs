@@ -21,6 +21,9 @@ internal sealed class McpTerminalLaunch : IDisposable {
   internal string HandoffPath { get; }
   internal McpTerminalLaunch(McpAgent agent, Uri endpoint, string token, string directory, string prompt) {
     if (agent.Kind is not (McpAgentKind.CodexCli or McpAgentKind.ClaudeCode)) { throw new ArgumentException("Select a terminal agent."); }
+    if (McpAgentDiscovery.TerminalKind(agent.Executable) is { } implied && implied != agent.Kind) {
+      throw new ArgumentException($"{Path.GetFileName(agent.Executable)} is not a {(agent.Kind == McpAgentKind.ClaudeCode ? "Claude Code" : "Codex CLI")} executable.");
+    }
     if (!Path.IsPathRooted(directory) || !System.IO.Directory.Exists(directory)) { throw new ArgumentException("Choose an existing absolute working directory."); }
     _files = new(McpAgentKind.CodexCli, endpoint, token);
     HandoffPath = Path.Combine(_files.DirectoryPath, "launch.json");
