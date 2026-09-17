@@ -12,6 +12,7 @@ using Avalonia.VisualTree;
 using Mapsui.Projections;
 using Mapsui.UI.Avalonia;
 using MissionPlanner.Controls;
+using MissionPlanner.Utilities;
 using MissionPlanner.ViewModels;
 using MissionPlanner.Views;
 
@@ -40,12 +41,18 @@ internal sealed partial class McpUiHost(MainWindowViewModel main, McpLogCatalog 
     finally { Interlocked.Increment(ref _uiEpoch); _mutations.Release(); }
   }
   private void RequireMain() {
-    if (owner() is { IsVisible: true, IsEnabled: false }) { throw new InvalidOperationException("modal_window: finish the operator dialog first."); }
+    if (owner() is { IsVisible: true, IsEnabled: false }) { throw new InvalidOperationException("modal_window: a dialog is open; use ui_inspect/ui_invoke on that window first."); }
   }
+  internal static readonly string[] Routes = ["DATA", "PLAN", "SETUP", "CONFIG", "SIMULATION", "HELP"];
+  private object Pages(ViewModels.BackstageViewModel backstage) => new { selected = backstage.SelectedPage?.Header,
+    pages = backstage.Pages.Where(p => !p.IsHeader && p.Visible).Select(p => new { header = p.Header, group = p.Group?.Header, requiresConnection = p.RequiresConnection }).ToArray() };
   internal Task<object> State(CancellationToken ct) => OnUi<object>(() => new {
     activeScreen = main.ActiveTab,
-    routes = new[] { "DATA", "PLAN", "HELP" },
-    scope = "Navigation, maps, live tuning graph, Mission draft and MCP-opened log views. Aircraft commands, configuration writes, consent controls and native dialogs are operator-only.",
+    routes = Routes.Where(r => r switch { "SIMULATION" => main.ShowSimulation, "HELP" => main.ShowHelp, _ => true }).ToArray(),
+    scope = "Full native access: navigation, Setup/Config pages, every visible control, maps, live tuning graph, mission draft/upload, parameters, vehicle commands and MCP-opened log views. Consent controls in the AI window are excluded.",
+    windows = Windows().Select(WindowSummary).ToArray(),
+    setupPages = Pages(main.Setup), configPages = Pages(main.Config),
+    connected = AppState.IsConnected,
     surfaces = Surfaces().Select(s => new { s.Id, visible = s.Root.IsEffectivelyVisible, enabled = s.Root.IsEffectivelyEnabled,
       capture = s.Capture, type = s.Root.GetType().Name }).ToArray(),
     logViews = _logViews.Values.Select(v => new { viewId = v.Id, logId = v.LogId, name = System.IO.Path.GetFileName(v.Path),
@@ -55,13 +62,105 @@ internal sealed partial class McpUiHost(MainWindowViewModel main, McpLogCatalog 
     tuning = new { enabled = main.FlightData.Tuning, fields = main.FlightData.TuningFieldList().Where(f => main.FlightData.IsTuningField(f.name)).Select(f => f.name).ToArray() },
   }, ct);
 
-  internal Task<object> Navigate(string route, CancellationToken ct) => OnUi<object>(() => {
+  internal async Task<object> Navigate(string route, CancellationToken ct) {
+    route = (route ?? "").Trim().ToUpperInvariant();
+    await OnUi(() => {
+      RequireMain();
+      if (!Routes.Contains(route)) { throw new ArgumentException("Supported routes: " + string.Join(", ", Routes) + "."); }
+      if (route == "HELP" && !main.ShowHelp) { throw new InvalidOperationException("Help is hidden by the display profile."); }
+      if (route == "SIMULATION" && !main.ShowSimulation) { throw new InvalidOperationException("Simulation is hidden by the display profile."); }
+      main.NavigateCommand.Execute(route); return true;
+    }, ct).ConfigureAwait(false);
+    // SETUP/CONFIG may first show the operator password dialog; give the async command a moment to settle.
+    for (int i = 0; i < 10; i++) {
+      bool done = await OnUi(() => main.ActiveTab == route, ct).ConfigureAwait(false);
+      if (done) { break; }
+      await Task.Delay(50, ct).ConfigureAwait(false);
+    }
+    return await OnUi<object>(() => new { activeScreen = main.ActiveTab, completed = main.ActiveTab == route,
+      note = main.ActiveTab == route ? null : "Not switched: a password dialog may be open (inspect windows) or the screen is hidden." }, ct).ConfigureAwait(false);
+  }
+
+  internal Task<object> SelectPage(string screen, string header, CancellationToken ct) => OnUi<object>(() => {
     RequireMain();
-    if (route is not ("DATA" or "PLAN" or "HELP")) { throw new ArgumentException("Supported routes: DATA, PLAN, HELP."); }
-    if (route == "HELP" && !main.ShowHelp) { throw new InvalidOperationException("Help is hidden by the display profile."); }
-    main.NavigateCommand.Execute(route);
-    return new { activeScreen = main.ActiveTab, completed = main.ActiveTab == route };
+    var backstage = (screen ?? "").Trim().ToUpperInvariant() switch { "SETUP" => main.Setup, "CONFIG" => main.Config, _ => (ViewModels.BackstageViewModel?)null }
+        ?? throw new ArgumentException("screen must be SETUP or CONFIG.");
+    if (!backstage.SelectPage(header)) { throw new ArgumentException($"Unknown or hidden page '{header}'; read setupPages/configPages from ui_get_state (some need a connected vehicle)."); }
+    if (main.ActiveTab != (ReferenceEquals(backstage, main.Setup) ? "SETUP" : "CONFIG")) { main.NavigateCommand.Execute(ReferenceEquals(backstage, main.Setup) ? "SETUP" : "CONFIG"); }
+    return new { activeScreen = main.ActiveTab, selectedPage = backstage.SelectedPage?.Header, completed = backstage.SelectedPage?.Header == header };
   }, ct);
+
+  internal Task<object> CloseWindow(string windowId, CancellationToken ct) => OnUi<object>(() => {
+    var window = WindowById(windowId);
+    if (ReferenceEquals(window, owner())) { throw new ArgumentException("The main window cannot be closed through MCP."); }
+    string title = window.Title ?? ""; window.Close();
+    return new { windowId, title, closed = !window.IsVisible };
+  }, ct);
+
+  internal async Task<object> UploadMission(string missionType, bool acceptAbsoluteAltitude, bool ignoreLowAltitude, CancellationToken ct) {
+    string type = NormalizeMissionType(missionType);
+    var pending = await OnUi(() => {
+      RequireMain();
+      if (main.FlightPlanner.MissionType != type) { main.FlightPlanner.MissionType = type; }
+      return main.FlightPlanner.UploadAgentDraftAsync(acceptAbsoluteAltitude, ignoreLowAltitude);
+    }, ct).ConfigureAwait(false);
+    string status = await pending.WaitAsync(ct).ConfigureAwait(false);
+    return await OnUi<object>(() => new { missionType = type, uploaded = true, status, count = main.FlightPlanner.Waypoints.Count,
+      revision = McpMissionDraft.Revision(main.FlightPlanner), note = "Uploaded through the planner's native transfer path (MAVFTP or mission protocol). Read it back with mission_download to confirm." }, ct).ConfigureAwait(false);
+  }
+  internal async Task<object> DownloadMission(string missionType, CancellationToken ct) {
+    string type = NormalizeMissionType(missionType);
+    var pending = await OnUi(() => {
+      RequireMain();
+      if (main.FlightPlanner.MissionType != type) { main.FlightPlanner.MissionType = type; }
+      return main.FlightPlanner.DownloadAgentDraftAsync();
+    }, ct).ConfigureAwait(false);
+    int count = await pending.WaitAsync(ct).ConfigureAwait(false);
+    return await OnUi<object>(() => new { missionType = type, count, revision = McpMissionDraft.Revision(main.FlightPlanner),
+      home = McpMissionDraft.Home(main.FlightPlanner), note = "The vehicle's list replaced the local draft; read it with mission_draft_get." }, ct).ConfigureAwait(false);
+  }
+  private static string NormalizeMissionType(string? missionType) => (missionType ?? "Mission").Trim().ToLowerInvariant() switch {
+    "" or "mission" => "Mission", "fence" => "Fence", "rally" => "Rally", _ => throw new ArgumentException("missionType: Mission, Fence or Rally."),
+  };
+
+  /// <summary>Terrain and planned altitude along the Mission draft in metres, sampled every 100 m like the planner's Elevation Graph.</summary>
+  internal async Task<object> ElevationProfile(CancellationToken ct) {
+    var (home, points) = await OnUi(() => (McpMissionDraft.Home(main.FlightPlanner),
+        main.FlightPlanner.Waypoints.Where(w => w.Lat != 0 || w.Lng != 0).Select(w => new { w.Seq, w.Lat, w.Lng, w.Alt, w.Frame, w.Command }).ToArray()), ct).ConfigureAwait(false);
+    if (points.Length < 2) { throw new InvalidOperationException("The Mission draft needs at least two positioned items."); }
+    return await Task.Run(() => {
+      var homeTerrain = srtm.getAltitude(home.Latitude, home.Longitude);
+      double homeGround = homeTerrain.currenttype == srtm.tiletype.valid ? homeTerrain.alt : double.NaN;
+      var samples = new List<object>(); double cumulative = 0; int missing = 0; double minClearance = double.PositiveInfinity;
+      void Sample(double distance, double lat, double lng, double alt, byte frame, int? item) {
+        ct.ThrowIfCancellationRequested();
+        var t = srtm.getAltitude(lat, lng);
+        double? terrain = t.currenttype == srtm.tiletype.valid ? t.alt : null;
+        if (terrain == null) { missing++; }
+        double? planned = (MAVLink.MAV_FRAME)frame switch {
+          MAVLink.MAV_FRAME.GLOBAL => alt,
+          MAVLink.MAV_FRAME.GLOBAL_TERRAIN_ALT or MAVLink.MAV_FRAME.GLOBAL_TERRAIN_ALT_INT => terrain + alt,
+          _ => double.IsNaN(homeGround) ? null : homeGround + alt,
+        };
+        double? clearance = planned - terrain;
+        if (clearance is double c) { minClearance = Math.Min(minClearance, c); }
+        samples.Add(new { distanceMetres = distance, latitude = lat, longitude = lng, terrainMetres = terrain, plannedMetres = planned, clearanceMetres = clearance, item });
+      }
+      Sample(0, points[0].Lat, points[0].Lng, points[0].Alt, points[0].Frame, points[0].Seq + 1);
+      for (int i = 1; i < points.Length; i++) {
+        var a = points[i - 1]; var b = points[i];
+        double leg = new PointLatLngAlt(b.Lat, b.Lng).GetDistance(new PointLatLngAlt(a.Lat, a.Lng));
+        int segments = Math.Max(1, (int)(leg / 100));
+        for (int s = 1; s <= segments; s++) {
+          double f = (double)s / segments; cumulative += leg / segments;
+          Sample(cumulative, a.Lat + (b.Lat - a.Lat) * f, a.Lng + (b.Lng - a.Lng) * f, a.Alt + (b.Alt - a.Alt) * f, b.Frame, s == segments ? b.Seq + 1 : null);
+        }
+      }
+      return (object)new { home = new { home.Latitude, home.Longitude, home.AltitudeMetres, terrainMetres = double.IsNaN(homeGround) ? (double?)null : homeGround },
+        samples, totalDistanceMetres = cumulative, missingTerrainSamples = missing, minimumClearanceMetres = double.IsPositiveInfinity(minClearance) ? (double?)null : minClearance,
+        note = "Straight-line legs between positioned items, sampled every 100 m; altitude interpolated linearly per leg. Relative frames use home terrain height; clearance null where terrain is unavailable. Not a flight-path or obstacle check." };
+    }, ct).ConfigureAwait(false);
+  }
 
   internal Task<object> Draft(int offset, int count, CancellationToken ct) => OnUi(() => McpMissionDraft.Read(main.FlightPlanner, offset, count), ct);
   internal Task<object> ReplaceDraft(string expected, McpDraftHome home, McpDraftItem[] items, CancellationToken ct) => OnUi(() => {

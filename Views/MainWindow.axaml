@@ -117,7 +117,20 @@
                 <TextBlock Classes="navtxt" Text="SIMULATION" />
               </StackPanel>
             </Button>
-            <Button Classes="nav" Content="AI" Click="OnAgentTools" ToolTip.Tip="AI diagnostics / MCP" />
+            <Button
+              Classes="nav ai"
+              Name="AiButton"
+              Classes.connected="{Binding AiConnected}"
+              Classes.busy="{Binding AiActive}"
+              Click="OnAgentTools"
+              ToolTip.Tip="{Binding AiButtonTip}"
+            >
+              <StackPanel>
+                <i:Icon Value="fa-solid fa-robot" FontSize="20" Foreground="#E0E0E0"
+                        HorizontalAlignment="Center" />
+                <TextBlock Classes="navtxt" Text="AI" />
+              </StackPanel>
+            </Button>
             <Button
               Classes="nav"
               IsVisible="{Binding ShowHelp}"

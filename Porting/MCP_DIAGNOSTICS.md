@@ -1,14 +1,33 @@
-# AI flight diagnostics over MCP
+# AI agents over MCP
 
 Mission Planner embeds a Streamable HTTP MCP server in the existing Avalonia application.
 Open **AI** in the navigation bar, or **AI diagnostics / MCP…** in the tools menu.
 The server is off until requested. No separate server installation is needed.
+
+The connection model follows X-Office: the window scans installed agents when it opens and
+offers **Launch** per agent. A terminal agent receives a free loopback port and a one-use
+bearer token and is fully allowed as soon as it connects. A desktop application is
+registered as an MCP client if needed, the fixed port (default 47183) opens without a
+token, sessions on it are allowed, and the application is activated. The listeners belong
+to an application-wide hub, so the window can be closed at any time while the agent keeps
+working; **Stop all connections** or application exit ends every session. While a session
+holds a grant the **AI** navigation button is green and brightens briefly on every MCP
+request/response.
+
+Full access means the agent can do what the operator can: switch screens and Setup/Config
+pages, click any visible control or menu item, type values, build/validate/upload
+missions with terrain profiles, read and write parameters, send flight-mode, arming,
+guided, calibration and generic MAVLink commands, download and analyze logs, and open
+native log graphs. This is intended for autonomous tuning workflows such as choosing
+harmonic-notch and gyro/accel filter settings from raw IMU spectra or preparing/replacing an
+AUTOTUNE with evidence from logs.
 
 ## Use
 
 1. Connect the aircraft normally, or use **Attach flight log…** to select a DataFlash
    `.bin`/`.log` or telemetry `.tlog`. Offline analysis works without an aircraft and
    does not open an MCP listener. Agents can discover the configured MP log directory.
+   Close the window whenever you like; agents stay connected until **Stop all connections**.
 2. Choose an installed agent from the common list. Discovery runs when the AI window
    opens; **Find agents** refreshes it. Supported clients are Codex CLI, Claude Code,
    Codex/ChatGPT Desktop, Claude Desktop and LM Studio. **Executable…** selects a
@@ -20,6 +39,10 @@ The server is off until requested. No separate server installation is needed.
    through `--mcp-config`/`--strict-mcp-config`. No permission-bypass flag is added.
    Neither terminal launcher edits global client configuration. Each launch has a
    private one-use handoff and a single-use bearer credential bound to its MCP session.
+   The Codex override that disables the persistent desktop entry is added only when that
+   entry exists in `config.toml`; an override on a missing table made Codex exit with
+   "invalid transport" and the terminal closed immediately. A failed agent start now
+   keeps the terminal open with the exit code until Enter is pressed.
 4. For a desktop client, **Launch selected agent** idempotently registers MCP, opens
    the persistent loopback port and activates the application. Launch grants access
    to existing and subsequent sessions on that port until **Revoke all** or **Close**.
@@ -33,15 +56,15 @@ The server is off until requested. No separate server installation is needed.
 6. **Open session port → Copy connection settings** supplies a temporary URL and
    bearer token for a manually configured client. Such a client waits for **Allow**.
    Configure a 720-second tool timeout for onboard downloads.
-7. Read the agent's output in its terminal/application and inspect **Parameter
-   proposals** in Mission Planner. Export a `.param` file or explicitly use
-   **Review / apply selected proposal**. MCP permission never bypasses this review.
+7. Read the agent's output in its terminal/application. Allowed sessions apply parameter
+   changes directly through `write_parameters` (audited, verified); agents may still submit
+   **Parameter proposals** for batches the operator prefers to review and apply here.
 
-**Close port** closes just the persistent listener. **Close all connections** and
-closing the AI window revoke both listeners before waiting for any request shutdown,
-including a stuck request. Active grants are cancelled and late tool results are
-suppressed. External terminals/apps remain open; permanent registration is retained.
-Ports never reopen automatically at application startup or during offline log actions.
+**Close port** closes just the persistent listener. **Stop all connections** revokes both
+listeners before waiting for any request shutdown, including a stuck request. Active grants
+are cancelled and late tool results are suppressed. Closing the AI window hides it only.
+External terminals/apps remain open; permanent registration is retained. Ports never reopen
+automatically at application startup or during offline log actions.
 
 An example task:
 
@@ -53,8 +76,8 @@ An example task:
 
 All endpoints bind only `http://127.0.0.1:<port>/mcp`. Provider login and model billing
 belong to the selected client. A tokenless persistent listener accepts local processes;
-client-reported names are not authentication. Launch/Allow permits proposals, vehicle
-read requests and opening log views. Passive diagnostics are available in read-only
+client-reported names are not authentication. Launch/Allow grants full control of the
+application and the connected vehicle. Passive diagnostics are available in read-only
 sessions. Revocation removes both passive and elevated access from that session;
 reinitialization cannot restore it. A new independent connection to an open persistent
 port starts read-only after **Revoke all**. Close the port to prevent all new access.
@@ -102,9 +125,10 @@ real local HTTP requests and fake CLI processes; it does not invoke paid models 
 change the developer's client registrations. Codex CLI arguments were checked against
 0.154.0; Claude support is implemented without invoking Claude during development.
 
-## UI and mission draft API
+## UI, mission and vehicle API
 
-The server now exposes **46 tools**: the original 29 diagnostics plus 17 UI/draft tools.
+The server now exposes **55 tools**: 29 diagnostics, 22 UI/draft/mission tools and 4
+vehicle tools (`write_parameters`, `vehicle_modes`, `vehicle_command`, `terrain_elevation`).
 The current X-Office `main` implementation was rechecked at `54b1ea3c` and its subsequent `176877f7` (GUI actions,
 inspection, operation journal and documentation resources). MP adopts connection-local
 receipts and snapshots while routing actions through explicit native adapters. X-Office
@@ -117,18 +141,21 @@ and `resources/read` at `missionplanner://documentation/AI_START.md`, `UI_API.md
 `DIAGNOSTICS.md`. Initialize instructions point to the starting resource. Unknown URIs
 cannot read files. `tools/list` remains the authoritative machine-readable schema.
 
-New capabilities include DATA/PLAN/HELP navigation; state and diagnostic widget inspection;
-map centering/zoom; PNG map/plot captures; live tuning field selection; opening, plotting
-and closing catalogue-backed native log views; and structural validation, replacement and
-Undo of the local Mission draft. Mission editing uses a current content revision and one
-native Undo group. No upload occurs. Fence/Rally drafts remain read-only through this API.
+Capabilities: navigation to every screen and Setup/Config page; generic inspection of all
+visible controls and menu items in every open window with native click/toggle/select and
+typed value entry; whole-window and map/plot PNG captures; closing dialogs; map
+centering/zoom; live tuning field selection; catalogue-backed native log views and graphs;
+Mission draft validation/replacement/Undo with revision checks; terrain elevation and a
+mission elevation profile; Mission/Fence/Rally upload and download through the planner's
+native transfer; direct verified parameter writes; flight-mode, arming, takeoff, guided,
+RTL/land/loiter, speed, servo/relay, motor-test, calibration, storage, reboot and generic
+MAV_CMD commands.
 
-UI tools require the connection's Allow, including inspection/capture. Every mutation
-uses operationId for replay recovery; graph/draft edits also check revisions. Close/revoke
-cancels pending work before subsequent UI dispatch. Completed changes are not rolled back.
-The API does not expose flight-command widgets, consent/password controls, scripts,
-arbitrary property writes or desktop-global keyboard/mouse input. Native operator review
-for aircraft parameter writes remains mandatory. See UI_API for limits and recovery.
+UI/vehicle tools require the connection's Allow (automatic for launched sessions). Every
+mutation uses operationId for replay recovery; graph/draft edits also check revisions.
+Stop/revoke cancels pending work before subsequent UI dispatch. Completed changes are not
+rolled back. Consent controls in the AI window, password boxes and desktop-global input are
+never exposed. See UI_API for limits and recovery.
 
 ## Available tools
 
@@ -155,6 +182,11 @@ for aircraft parameter writes remains mandatory. See UI_API for limits and recov
 | `log_batch_spectrum` | Raw ISBH/ISBD IMU batch PSD with actual sample rate, scaling and sequence validation |
 | `log_response` | Target/actual RMS error and cross-correlation lag in the same message/instance |
 | `propose_parameter_changes`, `parameter_proposals` | Evidence-backed changes and operator review/application status |
+| `write_parameters` | Direct verified writes (1..100), before-snapshot and audit files, disarmed unless `allowArmed`, rebootRequired report |
+| `vehicle_modes`, `vehicle_command` | Firmware mode list; set_mode/arm/disarm/takeoff/guided_goto/rtl/land/loiter/mission_start/change_speed/set_servo/set_relay/motor_test/calibrate/save_parameters/reboot/mavlink_command |
+| `terrain_elevation`, `mission_elevation_profile` | Configured elevation source lookups and a 100 m sampled terrain/planned/clearance profile of the Mission draft |
+| `mission_upload`, `mission_download` | Planner-native Mission/Fence/Rally transfer with explicit absolute-altitude and low-altitude acknowledgements |
+| `ui_navigate`, `ui_select_page`, `ui_inspect`, `ui_invoke`, `ui_set_value`, `ui_close_window`, `ui_capture` | Full native UI operation of every window |
 
 PIDR/PIDP/PIDY, RATE, VIBE, IMU, ESC, RCOU, XKF/NKF, PARM, MSG and other available
 messages are discoverable through the log schema. The interface is not restricted to a
@@ -253,18 +285,20 @@ consult the field descriptions returned by `log_schema` before interpreting them
 - Correlation lag is an observation, not causal radio/control latency, a settling-time
   measurement or an automatic PID design. Weak/constant signals and a search-boundary
   peak produce no lag estimate. Inspect angular wrap, modes, excitation and saturation.
-- Proposals validate expected values, finite numbers, MAVLink type limits and available
-  parameter ranges. They do not write through MCP. The UI verifies connection generation,
-  fresh telemetry and a fresh disarmed heartbeat (read directly from the packet cache),
-  plus writability. Each parameter is read again under the
-  shared write gate, compared to its reviewed value, written and checked against its typed
+- `write_parameters` and proposals validate expected values, finite numbers, MAVLink type
+  limits, read-only metadata and available parameter ranges. Writes verify connection
+  generation, fresh telemetry and (unless `allowArmed`) a fresh disarmed heartbeat read
+  directly from the packet cache, plus writability. Each parameter is read again under the
+  shared write gate, compared to its expected value, written and checked against its typed
   acknowledgement. State and cancellation are rechecked before sending/retrying a write.
 - A JSON review, nonsecret `-before.param` snapshot and incremental `-result.txt` audit are
   saved under the application's state directory in `agent-parameter-audit`. Partial failure
   stops the batch. A lost acknowledgement may mean the value was applied; read it again.
   There is no automatic rollback, reboot or claim that a batch is atomic.
-- Aircraft control/arming, arbitrary filesystem access, code execution and credential APIs
-  are not exposed. Live parameters with KEY/PASS/SECRET/TOKEN in their names are omitted.
+- Arbitrary filesystem access, code execution and credential APIs are not exposed. Live
+  parameters with KEY/PASS/SECRET/TOKEN in their names are omitted. Vehicle commands are
+  serialized and re-resolve the target immediately before sending; motor tests, calibration
+  triggers and reboots require a disarmed vehicle.
   Attached flight logs are shared as data, including their messages and PARM history;
   do not attach logs containing information you do not want the chosen agent to receive.
 
@@ -310,8 +344,9 @@ They are read-only and available through both CLI and desktop connections withou
   are omitted. Results are paginated to 200 entries; snapshots are bounded to 16,384 names.
 
 Parameter reads, log download/analysis, vibration/PSD/response analysis and operator-reviewed
-parameter proposals were already present. Automated flight commands, calibration, mission upload,
-firmware flashing and arbitrary file/code access are outside this diagnostic extension.
+parameter proposals were already present. Flight commands, calibration triggers, mission upload
+and direct parameter writes were added with the full-access model; firmware flashing and
+arbitrary file/code access remain outside MCP (firmware pages are reachable through UI tools).
 
 ## Limits and validation
 

@@ -43,6 +43,23 @@ public partial class MainWindowViewModel : ViewModelBase, System.IDisposable {
   [ObservableProperty]
   private bool _showMenuAutoHideOption = true;
 
+  /// <summary>An AI agent session currently holds a grant; the AI button turns green.</summary>
+  [ObservableProperty]
+  [NotifyPropertyChangedFor(nameof(AiButtonTip))]
+  private bool _aiConnected;
+
+  /// <summary>Briefly true around each MCP request/response so the AI button can flash.</summary>
+  [ObservableProperty]
+  private bool _aiActive;
+
+  [ObservableProperty]
+  [NotifyPropertyChangedFor(nameof(AiButtonTip))]
+  private int _aiSessions;
+
+  public string AiButtonTip => AiConnected
+      ? $"AI agent connected ({AiSessions} session{(AiSessions == 1 ? "" : "s")}); click to manage"
+      : AiSessions > 0 ? $"{AiSessions} AI session(s) waiting for Allow" : "AI agents / MCP";
+
   public double HeaderHeight => HeaderHeightFor(MenuAutoHide, HeaderHovered);
 
   public MainWindowViewModel() {

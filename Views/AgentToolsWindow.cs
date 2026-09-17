@@ -1,6 +1,5 @@
 using System;
 using System.Globalization;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -15,38 +14,30 @@ using Avalonia.Threading;
 using MissionPlanner.Services;
 using MissionPlanner.Services.Mcp;
 using MissionPlanner.Utilities;
-using MissionPlanner.ViewModels;
 
 namespace MissionPlanner.Views;
 
+/// <summary>
+/// View over the application-wide <see cref="McpAgentHub"/>. Closing this window hides it only;
+/// listeners, launched agents and their grants continue until Stop all connections or application exit.
+/// </summary>
 internal sealed class AgentToolsWindow : Window {
-  private readonly MainWindowViewModel _main;
-  private readonly McpUiHost _ui;
-  private readonly Func<CancellationToken, Task<McpAgent[]>> _discover;
-  private MissionPlannerMcpServer? _server;
-  private MissionPlannerMcpServer? _desktopServer;
-  private readonly McpVehicleAccess _vehicles = new(() => AppState.Connections.Snapshot());
-  private readonly McpLogCatalog _logs = new();
-  private readonly CancellationTokenSource _windowStop = new();
+  internal McpAgentHub Hub { get; }
   private readonly ComboBox _detectedAgents = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
   private readonly ComboBox _agentKind = new() { ItemsSource = new[] { "Codex CLI", "Claude Code" }, SelectedIndex = 0 };
   private readonly ListBox _sessions = new() { MinHeight = 100 };
   private readonly TextBlock _registration = new() { TextWrapping = TextWrapping.Wrap };
-  private readonly List<McpTerminalLaunch> _terminalLaunches = new();
-  private CancellationTokenSource _localOperationsStop = new();
-  private int _accessGeneration;
   private sealed record SessionRow(MissionPlannerMcpServer Server, McpConnectionInfo Info) {
     public override string ToString() => Info.ToString();
   }
   private readonly NumericUpDown _desktopPort = new() { Minimum = 1024, Maximum = 65535, Increment = 1,
     Value = McpDesktopRegistration.DefaultPort, FormatString = "0", Width = 150 };
-  private readonly TextBlock _desktopState = new() { TextWrapping = TextWrapping.Wrap, Text = "Desktop MCP stopped." };
+  private readonly TextBlock _desktopState = new() { TextWrapping = TextWrapping.Wrap, Text = "Persistent port closed." };
   private readonly TextBox _desktopEndpoint = new() { IsReadOnly = true };
   private readonly TabItem _desktopTab = new() { Header = "Connections" };
-  private bool _closingStarted;
   private readonly TabControl _tabs = new();
   private readonly TextBox _workingDirectory = new() { Text = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) };
-  private readonly TextBox _endpoint = new() { IsReadOnly = true, Watermark = "Server stopped" };
+  private readonly TextBox _endpoint = new() { IsReadOnly = true, Watermark = "Session port closed" };
   private readonly TextBox _executable = new() { Watermark = "Agent executable; detect or select a file" };
   private readonly TextBox _task = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 90,
     Text = "Analyze the connected drone and its flight logs. Identify firmware, frame and tuning parameters. "
@@ -59,19 +50,20 @@ internal sealed class AgentToolsWindow : Window {
   private readonly ListBox _localLogs = new() { MinHeight = 70 };
   private string? _onboardTargetId;
   private readonly TextBox _details = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap };
-  private readonly TextBlock _status = new() { Text = "Choose an installed agent and Launch, or open the persistent MCP port in Connections.", TextWrapping = TextWrapping.Wrap };
+  private readonly TextBlock _status = new() { Text = "Choose an installed agent and Launch. Closing this window keeps agents connected.", TextWrapping = TextWrapping.Wrap };
   private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
   private readonly System.Text.StringBuilder _pendingOutput = new();
   private readonly object _outputSync = new();
-  private bool _closing;
+  private readonly Action<string> _onOutput;
+  private bool _closed;
   private int _activeOperations;
 
-  internal AgentToolsWindow(MainWindowViewModel main, Func<CancellationToken, Task<McpAgent[]>>? discover = null) {
-    _main = main; _ui = new(main, _logs, () => Owner as Window); _discover = discover ?? McpAgentDiscovery.DiscoverAsync;
-    Title = "AI diagnostics / MCP"; Width = 960; Height = 780; MinWidth = 680; MinHeight = 560;
+  internal AgentToolsWindow(McpAgentHub hub) {
+    Hub = hub;
+    Title = "AI agents / MCP"; Width = 960; Height = 780; MinWidth = 680; MinHeight = 560;
     WindowStartupLocation = WindowStartupLocation.CenterOwner;
     var start = Button("Open session port", StartAsync);
-    var stop = Button("Close all connections", StopAsync, true);
+    var stop = Button("Stop all connections", StopAsync, true);
     var attach = Button("Attach flight log…", AttachAsync);
     var copy = Button("Copy connection settings", CopyAsync);
     var launch = Button("Launch selected agent", LaunchAsync);
@@ -79,9 +71,9 @@ internal sealed class AgentToolsWindow : Window {
     var review = Button("Review / apply selected proposal", ApplyAsync);
     var export = Button("Export proposal…", ExportAsync);
     var top = new StackPanel { Spacing = 8, Children = {
-      new TextBlock { Text = "Flight diagnostics and tuning", FontSize = 20 },
-      new TextBlock { Text = "Agent tools: diagnostics, maps, graphs and local mission drafts. Aircraft parameter changes require review here. "
-          + "Model-provider authentication is handled by the installed agent.", TextWrapping = TextWrapping.Wrap },
+      new TextBlock { Text = "AI agent connection", FontSize = 20 },
+      new TextBlock { Text = "Launch grants the agent full access to Mission Planner: navigation, controls, missions, parameters, logs and vehicle commands. "
+          + "Close this window at any time; the agent keeps working until Stop all connections. Model-provider login belongs to the agent.", TextWrapping = TextWrapping.Wrap },
       new WrapPanel { Orientation = Orientation.Horizontal, Children = { stop, attach } },
       _detectedAgents, _registration,
     } };
@@ -99,7 +91,7 @@ internal sealed class AgentToolsWindow : Window {
       new TextBlock { Text = "Terminal working directory" }, _workingDirectory,
       new TextBlock { Text = "Initial task (optional for terminal agents)" }, _task,
       new WrapPanel { Children = { Button("Register selected desktop", RegisterDesktopAsync), Button("Remove registration", UnregisterDesktopAsync) } },
-      new TextBlock { Text = "Launch opens the external agent with its existing login and settings. Desktop Launch registers MCP automatically. Closing access leaves the external app open.", TextWrapping = TextWrapping.Wrap },
+      new TextBlock { Text = "Terminal agents receive a free port and a one-use token. Desktop applications are registered if needed, the fixed port opens without a token and the application is activated. Either way the session is allowed immediately.", TextWrapping = TextWrapping.Wrap },
       _output,
     } } };
     _output.MinHeight = 140;
@@ -120,19 +112,20 @@ internal sealed class AgentToolsWindow : Window {
     Content = new Avalonia.Controls.Grid { Margin = new Thickness(12), RowDefinitions = new RowDefinitions("Auto,*,Auto"), RowSpacing = 10,
       Children = { top, _tabs, _status } };
     Avalonia.Controls.Grid.SetRow(_tabs, 1); Avalonia.Controls.Grid.SetRow(_status, 2);
+    _output.Text = hub.RecentOutput;
+    _onOutput = Output; hub.Output += _onOutput;
     _timer.Tick += (_, _) => Refresh(); _timer.Start();
     Opened += async (_, _) => {
+      Refresh();
       try { await FindAgentsAsync(); } catch (OperationCanceledException) { }
       catch (Exception e) { _status.Text = "Agent discovery: " + e.Message; }
     };
-    Closing += (_, e) => {
-      if (!_closing) { e.Cancel = true; _ = CloseAsync(); }
-    };
+    Closed += (_, _) => { _closed = true; _timer.Stop(); hub.Output -= _onOutput; };
   }
 
   internal async Task FindAgentsAsync() {
-    var agents = await Task.Run(() => _discover(_windowStop.Token), _windowStop.Token);
-    if (_closingStarted) { return; }
+    var agents = await Hub.DiscoverAsync();
+    if (_closed) { return; }
     var selected = _detectedAgents.SelectedItem as McpAgent;
     _detectedAgents.ItemsSource = agents;
     _detectedAgents.SelectedItem = agents.FirstOrDefault(a => a.Kind == selected?.Kind && a.Executable == selected.Executable) ?? agents.FirstOrDefault();
@@ -141,14 +134,18 @@ internal sealed class AgentToolsWindow : Window {
   }
 
   private Control BuildDesktopPanel(Button start, Button copy) {
-    if (int.TryParse(Settings.Instance["mcpDesktopPort"], out int saved) && saved is >= 1024 and <= 65535) { _desktopPort.Value = saved; }
-    _desktopPort.ValueChanged += (_, _) => RefreshRegistration();
+    _desktopPort.Value = Hub.DesktopPort;
+    _desktopPort.ValueChanged += (_, _) => {
+      try { Hub.DesktopPort = (int)(_desktopPort.Value ?? McpDesktopRegistration.DefaultPort); }
+      catch (Exception e) when (e is ArgumentOutOfRangeException or InvalidOperationException) { _status.Text = e.Message; _desktopPort.Value = Hub.DesktopPort; }
+      RefreshRegistration();
+    };
     return new ScrollViewer { Content = new StackPanel { Spacing = 8, Children = {
       new TextBlock { Text = "Persistent local MCP port", FontWeight = FontWeight.Bold },
       _desktopPort,
       new WrapPanel { Children = { Button("Open port", OpenDesktopAsync), Button("Close port", StopDesktopAsync, true) } },
       _desktopEndpoint, _desktopState,
-      new TextBlock { Text = "Opening this port permits local clients to read diagnostics. Launch or Allow also permits UI inspection/capture, navigation, graphs, local mission draft edits, proposals and vehicle read requests. Mission upload and aircraft parameter writes require operator action.", TextWrapping = TextWrapping.Wrap },
+      new TextBlock { Text = "Opening this port lets local clients read diagnostics. Launch or Allow grants full control: UI actions, mission upload, parameter writes and vehicle commands.", TextWrapping = TextWrapping.Wrap },
       new TextBlock { Text = "Temporary session port (bearer token)", FontWeight = FontWeight.Bold },
       new WrapPanel { Children = { start, copy } }, _endpoint,
       new TextBlock { Text = "Connected sessions — names are reported by clients", FontWeight = FontWeight.Bold },
@@ -158,82 +155,36 @@ internal sealed class AgentToolsWindow : Window {
     } } };
   }
 
-  private IEnumerable<MissionPlannerMcpServer> Servers => new[] { _server, _desktopServer }.OfType<MissionPlannerMcpServer>();
-  private int DesktopPort => (int)(_desktopPort.Value ?? McpDesktopRegistration.DefaultPort);
   private McpAgent SelectedDesktop() => _detectedAgents.SelectedItem is McpAgent { IsDesktop: true } agent ? agent
       : throw new InvalidOperationException("Select a desktop application in the agent list.");
   private void RefreshRegistration() {
     _registration.Text = _detectedAgents.SelectedItem is McpAgent { IsDesktop: true } agent
-        ? McpDesktopRegistration.RegistrationState(agent.Kind, DesktopPort) : "Terminal launch uses this session without permanent registration.";
+        ? McpDesktopRegistration.RegistrationState(agent.Kind, Hub.DesktopPort) : "Terminal launch uses this session without permanent registration.";
   }
   private Task SessionAction(int action) {
     var row = _sessions.SelectedItem as SessionRow ?? throw new InvalidOperationException("Select a connected session.");
-    if (action == 0) { row.Server.AllowSession(row.Info.Id); }
-    else if (action == 1) { row.Server.RevokeSession(row.Info.Id); }
-    else { row.Server.DisconnectSession(row.Info.Id); }
+    if (action == 0) { Hub.AllowSession(row.Info.Id); }
+    else if (action == 1) { Hub.RevokeSession(row.Info.Id); }
+    else { Hub.DisconnectSession(row.Info.Id); }
     Refresh(); return Task.CompletedTask;
   }
-  private Task AllowAllAsync() {
-    foreach (var server in Servers) { foreach (var session in server.Sessions) { server.AllowSession(session.Id); } }
-    Refresh(); return Task.CompletedTask;
-  }
-  private Task RevokeAllAsync() {
-    foreach (var server in Servers) { server.RevokeSessions(); }
-    Refresh(); return Task.CompletedTask;
-  }
+  private Task AllowAllAsync() { Hub.AllowAll(); Refresh(); return Task.CompletedTask; }
+  private Task RevokeAllAsync() { Hub.RevokeAll(); Refresh(); return Task.CompletedTask; }
   private async Task RegisterDesktopAsync() {
-    var agent = SelectedDesktop(); int port = DesktopPort;
-    string? backup = await Task.Run(() => McpDesktopRegistration.Update(agent.Kind, port));
-    Settings.Instance["mcpDesktopPort"] = port.ToString(CultureInfo.InvariantCulture);
+    await Hub.RegisterDesktopAsync(SelectedDesktop());
     RefreshRegistration();
     _status.Text = "Registered. Restart or reconnect the desktop client to load MCP settings.";
-    if (backup != null) { Output("Client configuration backup: " + backup + "\n"); }
   }
   private async Task UnregisterDesktopAsync() {
-    var agent = SelectedDesktop(); await StopDesktopAsync();
-    string? backup = await Task.Run(() => McpDesktopRegistration.Update(agent.Kind, null));
+    await Hub.UnregisterDesktopAsync(SelectedDesktop());
     RefreshRegistration();
     _status.Text = "Registration removed. Restart the client to reload its settings.";
-    if (backup != null) { Output("Client configuration backup: " + backup + "\n"); }
   }
   private async Task OpenDesktopAsync() {
-    if (_desktopServer != null) { return; }
-    int generation = _accessGeneration, port = DesktopPort;
-    var server = CreateServer(port, false);
-    _desktopServer = server; _desktopPort.IsEnabled = false;
-    try {
-      await server.StartAsync(ReadMissionAsync, _windowStop.Token);
-      if (_desktopServer != server || generation != _accessGeneration) { return; }
-      Settings.Instance["mcpDesktopPort"] = port.ToString(CultureInfo.InvariantCulture);
-      _desktopEndpoint.Text = server.Endpoint!.AbsoluteUri;
-      _desktopState.Text = "Port open. Waiting for clients; self-connected sessions start read only.";
-    } catch {
-      if (_desktopServer == server) { _desktopServer = null; _desktopPort.IsEnabled = true; }
-      await server.DisposeAsync(); throw;
-    }
+    await Hub.OpenDesktopPortAsync();
+    _status.Text = "Persistent port open. Self-connected sessions wait for Allow.";
   }
-  private async Task LaunchDesktopAsync() {
-    var agent = SelectedDesktop(); int generation = _accessGeneration;
-    await RegisterDesktopAsync();
-    if (_closingStarted || generation != _accessGeneration) { return; }
-    await OpenDesktopAsync();
-    var server = _desktopServer;
-    if (server == null || generation != _accessGeneration) { return; }
-    server.GrantDesktopLaunch();
-    try {
-      await McpAgentDiscovery.LaunchDesktopAsync(agent, server.Stopping);
-      if (_desktopServer == server) { _desktopState.Text = "Launch requested. Its sessions are allowed until Revoke or Close. Waiting for MCP requests."; }
-    } catch { server.RevokeSessions(); throw; }
-  }
-
-  private async Task StopDesktopAsync() {
-    _accessGeneration++;
-    var server = _desktopServer; _desktopServer = null;
-    server?.RevokeAccess();
-    _desktopEndpoint.Text = ""; _desktopPort.IsEnabled = true;
-    if (server != null) { await server.DisposeAsync(); }
-    _desktopState.Text = "Desktop MCP stopped. Registration retained; desktop app remains open.";
-  }
+  private async Task StopDesktopAsync() { await Hub.CloseDesktopPortAsync(); Refresh(); }
 
   private Control BuildLogPanel() {
     _logTarget.SelectionChanged += (_, _) => { _onboardLogs.ItemsSource = null; _onboardTargetId = null; };
@@ -251,17 +202,17 @@ internal sealed class AgentToolsWindow : Window {
   }
 
   private Task RefreshLogTargetsAsync() {
-    _logTarget.ItemsSource = _vehicles.ListTargets();
+    _logTarget.ItemsSource = Hub.Vehicles.ListTargets();
     _logTarget.SelectedIndex = 0;
     return Task.CompletedTask;
   }
 
   private async Task ListOnboardLogsAsync() {
-    var cancellation = LocalOperationToken;
+    var cancellation = Hub.LocalOperationToken;
     var target = _logTarget.SelectedItem as McpTarget ?? throw new InvalidOperationException("Refresh vehicles and select a target.");
     _onboardLogs.ItemsSource = null; _onboardTargetId = null;
     _status.Text = "Requesting onboard log directory…";
-    var result = (McpOnboardLogs)await _vehicles.OnboardLogs(target.Id, cancellation);
+    var result = (McpOnboardLogs)await Hub.Vehicles.OnboardLogs(target.Id, cancellation);
     if (cancellation.IsCancellationRequested || !ReferenceEquals(_logTarget.SelectedItem, target)) { return; }
     _onboardTargetId = target.Id; _onboardLogs.ItemsSource = result.Logs;
     _onboardLogs.SelectedIndex = 0;
@@ -269,12 +220,12 @@ internal sealed class AgentToolsWindow : Window {
   }
 
   private async Task DownloadSelectedLogAsync() {
-    var cancellation = LocalOperationToken;
+    var cancellation = Hub.LocalOperationToken;
     var target = _logTarget.SelectedItem as McpTarget ?? throw new InvalidOperationException("Select a vehicle.");
     var log = _onboardLogs.SelectedItem as McpOnboardLog ?? throw new InvalidOperationException("List and select an onboard log.");
     if (target.Id != _onboardTargetId) { throw new InvalidOperationException("Target changed; list onboard logs again."); }
-    _status.Text = $"Downloading log {log.Id} from {target.State.sysid}:{target.State.compid}… Close all connections cancels.";
-    var info = await McpFlightLogWorkflow.DownloadAsync(ct => _vehicles.Download(target.Id, log.Id, ct), _logs,
+    _status.Text = $"Downloading log {log.Id} from {target.State.sysid}:{target.State.compid}… Stop all connections cancels.";
+    var info = await McpFlightLogWorkflow.DownloadAsync(ct => Hub.Vehicles.Download(target.Id, log.Id, ct), Hub.Logs,
         Path.Combine(Settings.Instance.LogDir, "agent-downloads"), log.Id, cancellation);
     if (cancellation.IsCancellationRequested) { return; }
     Refresh(); _localLogs.SelectedItem = info;
@@ -282,28 +233,29 @@ internal sealed class AgentToolsWindow : Window {
   }
 
   private async Task DiscoverLogsAsync() {
-    await Task.Run(() => _logs.Discover(Settings.Instance.LogDir), _windowStop.Token);
-    if (!_closingStarted) { Refresh(); _status.Text = "Local BIN/LOG/TLOG catalogue refreshed."; }
+    await Task.Run(() => Hub.Logs.Discover(Settings.Instance.LogDir), Hub.Stopping);
+    if (!_closed) { Refresh(); _status.Text = "Local BIN/LOG/TLOG catalogue refreshed."; }
   }
 
   private async Task OpenSelectedLogAsync() {
     var log = _localLogs.SelectedItem as McpLogInfo ?? throw new InvalidOperationException("Select a local or downloaded log.");
-    await LogBrowseWindow.OpenWith(_logs.PathFor(log.Id));
+    await LogBrowseWindow.OpenWith(Hub.Logs.PathFor(log.Id));
   }
 
   private Button Button(string label, Func<Task> action, bool interrupt = false) {
     var button = new Button { Content = label, Margin = new Thickness(0, 0, 6, 4) };
     button.Click += async (_, _) => {
-      if (_closingStarted || (_activeOperations != 0 && !interrupt)) { return; }
+      if (_closed || (_activeOperations != 0 && !interrupt)) { return; }
       _activeOperations++;
-      try { await action(); } catch (Exception e) { _status.Text = e.Message; }
+      try { await action(); } catch (OperationCanceledException) { _status.Text = "Cancelled."; }
+      catch (Exception e) { _status.Text = e.Message; }
       finally { _activeOperations--; }
     };
     return button;
   }
 
   private void Refresh() {
-    var rows = Servers.SelectMany(server => server.Sessions.Select(info => new SessionRow(server, info))).ToArray();
+    var rows = Hub.SessionRows().Select(pair => new SessionRow(pair.Server, pair.Info)).ToArray();
     if (_sessions.ItemsSource is not SessionRow[] currentRows || !currentRows.SequenceEqual(rows)) {
       string? selected = (_sessions.SelectedItem as SessionRow)?.Info.Id;
       _sessions.ItemsSource = rows;
@@ -316,12 +268,16 @@ internal sealed class AgentToolsWindow : Window {
         _pendingOutput.Clear();
       }
     }
-    var logs = _logs.List();
+    _endpoint.Text = Hub.SessionServer?.Endpoint?.AbsoluteUri ?? "";
+    _desktopEndpoint.Text = Hub.DesktopServer?.Endpoint?.AbsoluteUri ?? "";
+    _desktopState.Text = Hub.DesktopState;
+    _desktopPort.IsEnabled = Hub.DesktopServer == null;
+    var logs = Hub.Logs.List();
     if (_localLogs.ItemsSource is not McpLogInfo[] displayed || !displayed.SequenceEqual(logs)) {
       object? selected = _localLogs.SelectedItem;
       _localLogs.ItemsSource = logs; _localLogs.SelectedItem = selected;
     }
-    var proposals = _vehicles.Proposals();
+    var proposals = Hub.Vehicles.Proposals();
     var current = _proposals.ItemsSource as ParameterProposal[];
     if (current == null || !current.SequenceEqual(proposals)) {
       object? selected = _proposals.SelectedItem;
@@ -337,83 +293,28 @@ internal sealed class AgentToolsWindow : Window {
     }
   }
 
-  private MissionPlannerMcpServer CreateServer(int port = 0, bool requiresToken = true) {
-    var server = new MissionPlannerMcpServer(_vehicles, _logs, port, requiresToken) {
-      UiHost = _ui, OpenLogAnalyzer = _ui.OpenPath,
-    };
-    server.Activity += text => {
-      Output((requiresToken ? "CLI: " : "Desktop: ") + text + Environment.NewLine);
-      if (!requiresToken) { Dispatcher.UIThread.Post(() => {
-        if (_desktopServer == server) { _desktopState.Text = "Desktop MCP received a request: " + text; }
-      }); }
-    };
-    return server;
-  }
-
-  private async Task<object> ReadMissionAsync(CancellationToken ct) => await Dispatcher.UIThread.InvokeAsync(() => {
-    ct.ThrowIfCancellationRequested();
-    return (object)new { source = "Mission Planner UI draft", activeSystemId = AppState.comPort.MAV.sysid,
-      activeComponentId = AppState.comPort.MAV.compid, homeLatitude = _main.FlightPlanner.HomeLat,
-      homeLongitude = _main.FlightPlanner.HomeLng, homeAltitude = _main.FlightPlanner.HomeAlt,
-      waypoints = _main.FlightPlanner.Waypoints.Take(10000).Select(w => new {
-        sequence = w.Seq, command = w.Command, frame = w.Frame, latitude = w.Lat, longitude = w.Lng,
-        altitude = w.Alt, p1 = w.P1, p2 = w.P2, p3 = w.P3, p4 = w.P4,
-      }).ToArray() };
-  });
-
   private async Task StartAsync() {
-    if (_server != null) { return; }
-    var server = CreateServer(); _server = server;
-    try {
-      await server.StartAsync(ReadMissionAsync, _windowStop.Token);
-      if (_server != server) { return; }
-      _endpoint.Text = server.Endpoint!.AbsoluteUri;
-      _status.Text = "Session MCP listening on loopback with a temporary token.";
-    } catch { if (_server == server) { _server = null; } await server.DisposeAsync(); throw; }
+    var server = await Hub.OpenSessionPortAsync();
+    _endpoint.Text = server.Endpoint!.AbsoluteUri;
+    _status.Text = "Session MCP listening on loopback with a temporary token.";
   }
 
-  private CancellationToken LocalOperationToken {
-    get {
-      if (_localOperationsStop.IsCancellationRequested) { _localOperationsStop = CancellationTokenSource.CreateLinkedTokenSource(_windowStop.Token); }
-      return _localOperationsStop.Token;
-    }
-  }
   private async Task StopAsync() {
-    _accessGeneration++;
-    var servers = Servers.ToArray();
-    // Revoke every listener synchronously BEFORE the first await, including blocked requests/startup.
-    foreach (var server in servers) { server.RevokeAccess(); }
-    _localOperationsStop.Cancel();
-    _server = _desktopServer = null;
-    _endpoint.Text = _desktopEndpoint.Text = ""; _desktopPort.IsEnabled = true;
-    _desktopState.Text = "MCP access closed. Registration retained; external agents remain open.";
-    foreach (var launch in _terminalLaunches) { launch.Dispose(); }
-    _terminalLaunches.Clear();
-    await Task.WhenAll(servers.Select(server => server.DisposeAsync().AsTask()));
+    await Hub.StopAllAsync();
     _status.Text = "All MCP connections closed; session credentials revoked.";
     Refresh();
   }
-
-  private async Task CloseAsync() {
-    if (_closingStarted) { return; }
-    _closingStarted = true; _windowStop.Cancel();
-    try { await StopAsync(); await Task.Run(_logs.Dispose); }
-    catch (Exception e) { Output(e.Message); }
-    finally { _timer.Stop(); _closing = true; Close(); }
-  }
-
-  internal void BeginShutdown() { _ = CloseAsync(); }
 
   private async Task AttachAsync() {
     var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions {
       Title = "Attach flight logs", AllowMultiple = true,
       FileTypeFilter = [new FilePickerFileType("Flight logs") { Patterns = ["*.bin", "*.log", "*.tlog"] }],
     });
-    if (_closingStarted) { return; }
+    if (_closed) { return; }
     foreach (var file in files) {
       string? path = file.TryGetLocalPath();
       if (path != null) {
-        var info = _logs.Attach(path);
+        var info = Hub.Logs.Attach(path);
         Refresh(); _localLogs.SelectedItem = info;
         Output($"Attached {info.Name}; log ID {info.Id}\n");
       }
@@ -421,12 +322,12 @@ internal sealed class AgentToolsWindow : Window {
   }
 
   private async Task CopyAsync() {
-    var server = _server ?? _desktopServer ?? throw new InvalidOperationException("Open a port first in Connections.");
+    var server = Hub.SessionServer ?? Hub.DesktopServer ?? throw new InvalidOperationException("Open a port first in Connections.");
     if (Clipboard != null) {
       string configuration = "[mcp_servers.missionplanner]\nurl = " + JsonSerializer.Serialize(server.Endpoint!.AbsoluteUri)
           + (server.RequiresToken ? "\nhttp_headers = { Authorization = \"Bearer " + server.Token + "\" }" : "") + "\ntool_timeout_sec = 720\n";
       await Clipboard.SetTextAsync(configuration);
-      _status.Text = "Copied connection settings. Close all connections revokes current access.";
+      _status.Text = "Copied connection settings. Stop all connections revokes current access.";
     }
   }
 
@@ -439,27 +340,20 @@ internal sealed class AgentToolsWindow : Window {
   }
 
   private async Task LaunchAsync() {
-    if (_detectedAgents.SelectedItem is McpAgent { IsDesktop: true }) { await LaunchDesktopAsync(); return; }
-    string executable = _executable.Text?.Trim() ?? "";
-    if (!File.Exists(executable)) { throw new InvalidOperationException("Find agents or select an installed executable first."); }
-    int generation = _accessGeneration;
-    await StartAsync();
-    var server = _server;
-    if (server?.Endpoint == null || generation != _accessGeneration) { return; }
-    string token = server.IssueLaunchToken();
-    McpTerminalLaunch? launch = null;
-    try {
-      if (_terminalLaunches.Count >= 64) { throw new InvalidOperationException("Close connections before launching more agents."); }
-      var agent = new McpAgent(_agentKind.SelectedIndex == 1 ? McpAgentKind.ClaudeCode : McpAgentKind.CodexCli, "Terminal agent", executable, []);
-      launch = new(agent, server.Endpoint, token, _workingDirectory.Text ?? "", _task.Text ?? "");
-      _terminalLaunches.Add(launch);
-      await launch.LaunchAsync(server.Stopping);
-      if (generation == _accessGeneration) { _status.Text = "Terminal launch requested. Connected clients appear in Connections."; }
-    } catch {
-      server.CancelLaunch(token);
-      if (launch != null) { _terminalLaunches.Remove(launch); launch.Dispose(); }
-      throw;
+    McpAgent agent;
+    if (_detectedAgents.SelectedItem is McpAgent { IsDesktop: true } desktop) { agent = desktop; }
+    else {
+      string executable = _executable.Text?.Trim() ?? "";
+      if (!File.Exists(executable)) { throw new InvalidOperationException("Find agents or select an installed executable first."); }
+      agent = new McpAgent(_agentKind.SelectedIndex == 1 ? McpAgentKind.ClaudeCode : McpAgentKind.CodexCli,
+          (_detectedAgents.SelectedItem as McpAgent)?.Name ?? "Terminal agent", executable, []);
     }
+    _status.Text = $"Launching {agent.Name}…";
+    await Hub.LaunchAsync(agent, _workingDirectory.Text ?? "", _task.Text ?? "");
+    Refresh(); RefreshRegistration();
+    _status.Text = agent.IsDesktop
+        ? $"{agent.Name} launched; its sessions on port {Hub.DesktopPort} are allowed. You can close this window."
+        : $"{agent.Name} launched in a terminal with full access. You can close this window.";
   }
 
   private ParameterProposal Selected() => _proposals.SelectedItem as ParameterProposal
@@ -482,8 +376,8 @@ internal sealed class AgentToolsWindow : Window {
 
   private async Task ApplyAsync() {
     var proposal = Selected();
-    var cancellation = LocalOperationToken;
-    var target = _vehicles.Resolve(proposal.TargetId, true);
+    var cancellation = Hub.LocalOperationToken;
+    var target = Hub.Vehicles.Resolve(proposal.TargetId, true);
     McpVehicleAccess.RequireDisarmed(target);
     if (target.Connection.Link.ReadOnly) {
       throw new InvalidOperationException("Applying proposals requires a disarmed vehicle and a writable connection.");
@@ -507,7 +401,7 @@ internal sealed class AgentToolsWindow : Window {
     apply.Click += async (_, _) => {
       applying = true; apply.IsEnabled = false; cancel.IsEnabled = false;
       progress.Text = "Applying and verifying. Wait for completion before disconnecting or arming.";
-      try { _status.Text = await McpProposalWriter.ApplyAsync(_vehicles, proposal, cancellation); }
+      try { _status.Text = await McpProposalWriter.ApplyAsync(Hub.Vehicles, proposal, cancellation); }
       catch (Exception e) { _status.Text = e.Message; }
       finally { applying = false; review.Close(); }
     };

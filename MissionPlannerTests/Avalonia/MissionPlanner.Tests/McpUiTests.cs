@@ -112,44 +112,154 @@ public sealed class McpUiTests {
       Assert.Equal(2, plotted.GetProperty("samples")[0].GetInt32());
       await Assert.ThrowsAsync<InvalidOperationException>(() => host.PlotLog(viewId, revision, [new("PARM", "Value")], 0, 3, default));
       Dispatcher.UIThread.RunJobs();
-      var inspected = Data(await host.Inspect(session, default));
+      var inspected = Data(await host.Inspect(session, null, null, false, default));
       var targets = session.UiSnapshot!.Targets;
-      Assert.All(targets, t => Assert.Contains(t.Name, new[] { "ClearBtn", "ScaleBox", "OffsetBox", "MapToggle" }));
+      foreach (string name in new[] { "ClearBtn", "ScaleBox", "OffsetBox", "MapToggle" }) { Assert.Contains(targets, t => t.Name == name && t.WindowId == viewId); }
+      Assert.Contains(inspected.GetProperty("windows").EnumerateArray(), w => w.GetProperty("windowId").GetString() == viewId);
       var scale = Assert.Single(targets, t => t.Name == "ScaleBox");
+      Assert.Equal("number", scale.Kind); Assert.Contains("set_value", scale.Actions);
       string snapshot = session.UiSnapshot.Id;
       var otherSession = new McpConnectionSession(null!, "", "test", true, true);
       await Assert.ThrowsAsync<InvalidOperationException>(() => host.SetValue(otherSession, snapshot, scale.Id, Data(2), default));
       await host.Mutate(() => host.SetValue(session, snapshot, scale.Id, Data(2), default), default);
       Assert.Equal(2, ((NumericUpDown)scale.Control).Value);
-      await Assert.ThrowsAsync<InvalidOperationException>(() => host.SetValue(session, snapshot, scale.Id, Data(3), default));
-      await host.Inspect(session, default); snapshot = session.UiSnapshot!.Id;
+      // Snapshots stay valid for several actions while the layout is unchanged.
+      await host.Mutate(() => host.SetValue(session, snapshot, scale.Id, Data(3), default), default);
+      Assert.Equal(3, ((NumericUpDown)scale.Control).Value);
       var clear = session.UiSnapshot.Targets.Single(t => t.Name == "ClearBtn");
       clear.Control.IsEnabled = false;
       await Assert.ThrowsAsync<InvalidOperationException>(() => host.Invoke(session, snapshot, clear.Id, default));
       clear.Control.IsEnabled = true;
-      await host.Inspect(session, default); snapshot = session.UiSnapshot!.Id;
-      clear = session.UiSnapshot.Targets.Single(t => t.Name == "ClearBtn");
+      await host.Inspect(session, null, null, false, default); snapshot = session.UiSnapshot!.Id;
+      var again = session.UiSnapshot.Targets.Single(t => t.Name == "ClearBtn");
+      Assert.Equal(clear.Id, again.Id);
       session.Revoke();
       await Assert.ThrowsAsync<InvalidOperationException>(() => host.Invoke(session, snapshot, clear.Id, default));
       var fresh = new McpConnectionSession(null!, "", "test", true, true);
-      await host.Inspect(fresh, default); snapshot = fresh.UiSnapshot!.Id;
-      clear = fresh.UiSnapshot.Targets.Single(t => t.Name == "ClearBtn");
+      await host.Inspect(fresh, viewId, "clear", false, default); snapshot = fresh.UiSnapshot!.Id;
+      clear = Assert.Single(fresh.UiSnapshot.Targets, t => t.Name == "ClearBtn");
       await host.Mutate(() => host.Invoke(fresh, snapshot, clear.Id, default), default);
       var window = (LogBrowseWindow)TopLevel.GetTopLevel(clear.Control)!;
       var plot = ((LogBrowseView)window.Content!).FindControl<LivePlot>("Plot")!;
       Assert.Empty(plot.SeriesLabels);
+      await host.Inspect(fresh, viewId, "MapToggle", false, default); snapshot = fresh.UiSnapshot!.Id;
+      var toggle = Assert.Single(fresh.UiSnapshot.Targets, t => t.Name == "MapToggle");
+      await host.Mutate(() => host.SetValue(fresh, snapshot, toggle.Id, Data(true), default), default);
+      Assert.True(((ToggleButton)toggle.Control).IsChecked);
+      await host.Mutate(() => host.Invoke(fresh, snapshot, toggle.Id, default), default);
+      Assert.False(((ToggleButton)toggle.Control).IsChecked);
       await Assert.ThrowsAsync<ArgumentException>(() => host.Capture(viewId + "/plot", 2000, 800, default));
       await Assert.ThrowsAsync<ArgumentException>(() => host.Capture("consent", 800, 600, default));
-      await host.Inspect(fresh, default); snapshot = fresh.UiSnapshot!.Id;
-      clear = fresh.UiSnapshot.Targets.Single(t => t.Name == "ClearBtn");
-      await ((LogBrowseViewModel)window.DataContext!).LoadFileAsync(path);
-      await Assert.ThrowsAsync<InvalidOperationException>(() => host.Invoke(fresh, snapshot, clear.Id, default));
+      var image = await host.Capture("window:" + viewId, 400, 300, default);
+      // The headless renderer produces empty PNG streams; real pixels are checked in the Xvfb acceptance run.
+      Assert.True(image.Width <= 400 && image.Height <= 300, $"capture {image.Width}x{image.Height}");
+      await Assert.ThrowsAsync<ArgumentException>(() => host.Inspect(fresh, "window-missing", null, false, default));
       string other = McpServerTests.TemporaryLog();
       try {
         await ((LogBrowseViewModel)window.DataContext!).LoadFileAsync(other);
         await Assert.ThrowsAsync<InvalidOperationException>(() => host.Capture(viewId + "/plot", 800, 600, default));
       } finally { window.Close(); viewId = null; File.Delete(other); }
+      Dispatcher.UIThread.RunJobs();
+      await Assert.ThrowsAsync<InvalidOperationException>(() => host.Invoke(fresh, snapshot, toggle.Id, default));
     } finally { if (viewId != null) { await host.CloseLog(viewId, default); } File.Delete(path); }
+  }
+
+  private sealed class CountingCommand : System.Windows.Input.ICommand {
+    public int Calls; public object? Parameter;
+    public event EventHandler? CanExecuteChanged { add { } remove { } }
+    public bool CanExecute(object? parameter) => true;
+    public void Execute(object? parameter) { Calls++; Parameter = parameter; }
+  }
+
+  [AvaloniaFact]
+  public async Task Generic_inspection_reads_labels_clicks_buttons_sets_values_and_lists_menus() {
+    var command = new CountingCommand(); int clicks = 0, menuClicks = 0;
+    var button = new Button { Name = "GoBtn", Content = "Go", Command = command, CommandParameter = "p" };
+    button.Click += (_, _) => clicks++;
+    var speed = new NumericUpDown { Name = "SpeedBox", Minimum = 0, Maximum = 100, Value = 5 };
+    var text = new TextBox { Name = "NameBox", Watermark = "Vehicle name" };
+    var secret = new TextBox { Name = "Secret", PasswordChar = '*' };
+    var check = new CheckBox { Name = "Check", Content = "Enable" };
+    var combo = new ComboBox { Name = "Frame", ItemsSource = new[] { "Quad", "Hexa", "Octo" }, SelectedIndex = 0 };
+    var tabs = new TabControl { Name = "Tabs", Items = { new TabItem { Header = "First", Content = new TextBlock { Text = "one" } }, new TabItem { Header = "Second", Content = new TextBlock { Text = "two" } } } };
+    var item = new MenuItem { Header = "Do thing" }; item.Click += (_, _) => menuClicks++;
+    var menu = new Menu { Items = { new MenuItem { Header = "Tools", Items = { item } } } };
+    var window = new Window { Title = "Form", Width = 400, Height = 400, Content = new StackPanel { Children = {
+      menu, new TextBlock { Text = "Speed" }, speed, text, secret, check, combo, tabs, button, new TextBlock { Text = "Status: idle" } } } };
+    using var logs = new McpLogCatalog(); var host = new McpUiHost(null!, logs, () => window);
+    var session = new McpConnectionSession(null!, "", "test", true, true);
+    try {
+      window.Show(); Dispatcher.UIThread.RunJobs();
+      var inspected = Data(await host.Inspect(session, "main", null, true, default));
+      var controls = inspected.GetProperty("controls").EnumerateArray().ToArray();
+      Assert.DoesNotContain(controls, c => c.GetProperty("name").GetString() == "Secret");
+      Assert.Contains(controls, c => c.GetProperty("kind").GetString() == "static" && c.GetProperty("value").GetString() == "Status: idle");
+      var targets = session.UiSnapshot!.Targets; string snapshot = session.UiSnapshot.Id;
+      Assert.Equal("Speed", targets.Single(t => t.Name == "SpeedBox").Label);
+      Assert.Equal("Vehicle name", targets.Single(t => t.Name == "NameBox").Label);
+      Assert.Equal("Go", targets.Single(t => t.Name == "GoBtn").Label);
+      var menuTarget = Assert.Single(targets, t => t.Kind == "menu");
+      Assert.Equal("Tools > Do thing", menuTarget.Label);
+      await host.Mutate(() => host.Invoke(session, snapshot, targets.Single(t => t.Name == "GoBtn").Id, default), default);
+      Assert.Equal(1, clicks); Assert.Equal(1, command.Calls); Assert.Equal("p", command.Parameter);
+      await host.Mutate(() => host.Invoke(session, snapshot, menuTarget.Id, default), default);
+      Assert.Equal(1, menuClicks);
+      await host.Mutate(() => host.SetValue(session, snapshot, targets.Single(t => t.Name == "SpeedBox").Id, Data(250), default), default);
+      Assert.Equal(100, speed.Value);
+      await host.Mutate(() => host.SetValue(session, snapshot, targets.Single(t => t.Name == "NameBox").Id, Data("Bravo"), default), default);
+      Assert.Equal("Bravo", text.Text);
+      await host.Mutate(() => host.SetValue(session, snapshot, targets.Single(t => t.Name == "Check").Id, Data(true), default), default);
+      Assert.True(check.IsChecked);
+      await host.Mutate(() => host.SetValue(session, snapshot, targets.Single(t => t.Name == "Frame").Id, Data("Octo"), default), default);
+      Assert.Equal(2, combo.SelectedIndex);
+      await host.Mutate(() => host.SetValue(session, snapshot, targets.Single(t => t.Name == "Tabs").Id, Data("Second"), default), default);
+      Assert.Equal(1, tabs.SelectedIndex);
+      await Assert.ThrowsAsync<ArgumentException>(() => host.SetValue(session, snapshot, targets.Single(t => t.Name == "Frame").Id, Data("Tricopter"), default));
+      await Assert.ThrowsAsync<ArgumentException>(() => host.SetValue(session, snapshot, targets.Single(t => t.Name == "GoBtn").Id, Data(1), default));
+      await Assert.ThrowsAsync<ArgumentException>(() => host.CloseWindow("main", default));
+      var state = Data(await host.State(default).ContinueWith(t => t.IsFaulted ? (object)new { } : t.Result));
+      _ = state;
+    } finally { window.Close(); Dispatcher.UIThread.RunJobs(); }
+  }
+
+  [AvaloniaFact]
+  public async Task Navigation_reaches_every_screen_and_selects_backstage_pages() {
+    var main = new MainWindowViewModel();
+    using var logs = new McpLogCatalog(); var host = new McpUiHost(main, logs, () => null);
+    bool protect = MissionPlanner.Utilities.Settings.Instance.GetBoolean("password_protect", false);
+    MissionPlanner.Utilities.Settings.Instance["password_protect"] = false.ToString();
+    try {
+      foreach (string route in new[] { "PLAN", "SETUP", "CONFIG", "DATA" }) {
+        var result = Data(await host.Navigate(route, default));
+        Assert.True(result.GetProperty("completed").GetBoolean(), route); Assert.Equal(route, main.ActiveTab);
+      }
+      await Assert.ThrowsAsync<ArgumentException>(() => host.Navigate("SECRET", default));
+      var state = Data(await host.State(default));
+      var pages = state.GetProperty("setupPages").GetProperty("pages").EnumerateArray().Select(p => p.GetProperty("header").GetString()!).ToArray();
+      Assert.NotEmpty(pages);
+      var selected = Data(await host.SelectPage("SETUP", pages[0], default));
+      Assert.True(selected.GetProperty("completed").GetBoolean()); Assert.Equal("SETUP", main.ActiveTab);
+      await Assert.ThrowsAsync<ArgumentException>(() => host.SelectPage("CONFIG", "No such page", default));
+      await Assert.ThrowsAsync<ArgumentException>(() => host.UploadMission("orbit", false, false, default));
+      await Assert.ThrowsAsync<InvalidOperationException>(() => host.ElevationProfile(default));
+    } finally { MissionPlanner.Utilities.Settings.Instance["password_protect"] = protect.ToString(); main.Dispose(); }
+  }
+
+  [Fact]
+  public async Task Vehicle_control_validates_arguments_and_targets_before_touching_a_link() {
+    var vehicles = new McpVehicleAccess(() => []);
+    await Assert.ThrowsAsync<ArgumentException>(() => vehicles.WriteParameters("t", [], "reason text", false, default));
+    await Assert.ThrowsAsync<ArgumentException>(() => vehicles.WriteParameters("t", [new("A", 1), new("A", 2)], "reason text", false, default));
+    await Assert.ThrowsAsync<ArgumentException>(() => vehicles.WriteParameters("t", [new("A", 1)], "why", false, default));
+    await Assert.ThrowsAsync<ArgumentException>(() => vehicles.WriteParameters("missing", [new("A", 1)], "reason text", false, default));
+    await Assert.ThrowsAsync<ArgumentException>(() => vehicles.Command("missing", "rtl", null, default));
+    await Assert.ThrowsAsync<ArgumentException>(() => vehicles.Command("missing", "explode", null, default));
+    Assert.Throws<ArgumentException>(() => vehicles.Modes("missing"));
+    Assert.Contains("set_mode", McpVehicleAccess.Commands); Assert.Contains("mavlink_command", McpVehicleAccess.Commands);
+    Assert.Throws<ArgumentException>(() => McpVehicleAccess.Terrain([], default));
+    Assert.Throws<ArgumentException>(() => McpVehicleAccess.Terrain([new(91, 0)], default));
+    foreach (string name in new[] { "write_parameters", "vehicle_command", "mission_upload", "mission_download", "ui_select_page", "ui_close_window" }) { Assert.False(MissionPlannerMcpServer.IsPassiveTool(name)); }
+    foreach (string name in new[] { "vehicle_modes", "terrain_elevation" }) { Assert.True(MissionPlannerMcpServer.IsPassiveTool(name)); }
   }
 
   [AvaloniaFact]
@@ -197,7 +307,7 @@ public sealed class McpUiTests {
     using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
     await using var client = await McpClient.CreateAsync(transport, cancellationToken: timeout.Token);
     var tools = await client.ListToolsAsync(cancellationToken: timeout.Token);
-    Assert.Equal(46, tools.Count);
+    Assert.Equal(55, tools.Count);
     var mutation = tools.Single(t => t.Name == "mission_draft_replace");
     Assert.DoesNotContain("server", mutation.JsonSchema.ToString());
     Assert.Contains("expectedRevision", mutation.JsonSchema.ToString());

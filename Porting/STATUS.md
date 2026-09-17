@@ -2,6 +2,56 @@
 
 Updated: **2026-09-17**.
 
+## X-Office-style full-access AI agent connection — 2026-09-17
+
+- Continued `feat/mcp-flight-context` / PR #39 on top of `70813c26a`. Fixed the Linux
+  "terminal flashes and closes" agent launch: Codex received
+  `-c mcp_servers.missionplanner10_desktop.enabled=false` even when that table was absent
+  from `config.toml`, which Codex rejects as "invalid transport". The override is now added
+  only when the entry exists, and a failed agent start keeps the terminal open with the exit
+  code. Verified with the real Codex CLI 0.154.0 in a pty (stays running) and Claude Code.
+- Moved listener/launch/session ownership out of the AI window into an application-wide
+  `McpAgentHub` (like X-Office's ApplicationController-owned McpController). Closing the
+  window keeps every port, launch and grant alive; **Stop all connections** or application
+  exit ends them. The window is now a view over the hub and reopens with recent activity.
+- Main-window **AI** navigation button (robot icon) turns green while a session holds a
+  grant, brightens for ~220 ms on every MCP exchange (BrushTransition), and its tooltip
+  shows the session count.
+- Launch grants full control: desktop launch registers if needed, opens the fixed port
+  without a token, allows its sessions and activates the app; terminal launch opens a free
+  port with a one-use token and the session is allowed on connection.
+- MCP grew from 46 to **55 tools**. UI: navigation to all six screens, Setup/Config page
+  selection, generic inspection of every visible control and logical menu item in every
+  open window (stable control IDs, labels via content/header/watermark/preceding TextBlock,
+  options, bounds), native click/toggle/select via automation peers and routed Click,
+  typed value entry, window capture and dialog closing. Mission: terrain elevation, 100 m
+  elevation profile with clearance, Mission/Fence/Rally upload and download through the
+  planner's native transfer with explicit absolute/low-altitude acknowledgements. Vehicle:
+  direct verified `write_parameters` with before-snapshot/audit files, `vehicle_modes`,
+  `vehicle_command` (set_mode, arm/disarm, takeoff, guided_goto, rtl/land/loiter,
+  mission_start, change_speed, servo/relay, motor_test, calibrate, save_parameters, reboot,
+  generic MAV_CMD/COMMAND_INT). Motor tests, calibration triggers, reboots and parameter
+  writes (unless `allowArmed`) require a disarmed vehicle; commands are serialized and
+  re-resolve the target before sending.
+- Embedded AI_START/UI_API and this guide describe the full-access model, safety
+  conventions and recovery. The AI consent window and password boxes are never targets.
+- Local validation: Release solution **0 warnings / 0 errors**; **1687 passed / 0 failed /
+  0 skipped** (100 MCP-focused); six migration/source/artifact audits and `git diff --check`.
+  New tests: hub survives window close, Codex override gating, generic inspection
+  (labels, password exclusion, static text, button Command+Click, menu Click, number
+  clamping, text, checkbox, combo/tab by text), navigation to every screen and backstage
+  page selection, vehicle-control argument/target validation and tool gating.
+- Isolated Linux Xvfb acceptance with real button presses: AI window found 3 agents; Open
+  port; a self-connected client was read-only (`permission_required`); Allow all; then over
+  HTTP: `ui_get_state` (6 routes, 19 Setup pages), `ui_navigate SETUP`, `ui_select_page`,
+  `ui_inspect main` (80 controls, 25 menu items), `ui_invoke` of the PLAN nav button,
+  `mission_draft_replace`, `mission_elevation_profile`, `mission_upload`/`write_parameters`/
+  `vehicle_command` rejected without a vehicle, and a real 123 KB `window:main` PNG showing
+  the green/busy AI button and the agent-built mission. No model invocation, aircraft
+  transfer or user client-registration change.
+- Commit, package paths and CI outcomes are recorded in the workspace's newest
+  MONOREPO_MIGRATION_HANDOFF.md checkpoint after completion.
+
 ## MCP UI and mission draft API — 2026-09-17
 
 - Continued `feat/mcp-flight-context` / PR #39; fetched origin/master again and confirmed

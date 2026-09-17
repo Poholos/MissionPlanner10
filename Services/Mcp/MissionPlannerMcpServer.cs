@@ -82,7 +82,8 @@ internal sealed class MissionPlannerMcpServer : IAsyncDisposable {
       or "list_local_logs" or "log_schema" or "read_log_records" or "log_field_statistics" or "log_spectrum"
       or "log_batch_spectrum" or "log_response" or "parameter_proposals" or "read_vehicle_messages"
       or "telemetry_packet_inventory" or "log_events" or "log_time_series" or "compare_log_parameters"
-      or "compare_vehicle_parameters_to_log" or "mission_draft_get" or "mission_command_schema" or "mission_draft_validate";
+      or "compare_vehicle_parameters_to_log" or "mission_draft_get" or "mission_command_schema" or "mission_draft_validate"
+      or "vehicle_modes" or "terrain_elevation";
   private McpConnectionSession SessionFor(McpServer server) => server.SessionId is string id && _sessions.TryGetValue(id, out var session)
       ? session : throw new McpException("Unknown or disconnected session.");
 
@@ -137,7 +138,7 @@ internal sealed class MissionPlannerMcpServer : IAsyncDisposable {
       });
       var toolInstance = new MissionPlannerMcpTools(Vehicles, Logs, mission, OpenLogAnalyzer);
       builder.Services.AddMcpServer(options => { options.ServerInstructions =
-          "A session launched by Mission Planner is already allowed. If a tool returns permission_required, ask the operator once to Allow this session in AI → Connections. "
+          "A session launched by Mission Planner is already allowed with full control of the application and the connected vehicle. If a tool returns permission_required, ask the operator once to Allow this session in AI → Connections. "
           + "Read resources/read at " + McpDocumentation.StartUri + " first, then tools/list for exact schemas. UI changes require operationId; draft/graph changes also require current revisions. "
           + MissionPlannerMcpTools.Instructions; })
           .WithHttpTransport(options => {
@@ -163,6 +164,7 @@ internal sealed class MissionPlannerMcpServer : IAsyncDisposable {
             return result;
           }))
           .WithTools(toolInstance)
+          .WithTools(new McpVehicleTools(Vehicles))
           .WithTools(new McpUiTools(UiHost, SessionFor))
           .WithResources<McpDocumentation>();
       var app = builder.Build();

@@ -108,12 +108,12 @@ public sealed class McpSessionLifecycleTests {
     using var wire = new Wire(first.Endpoint!, first.IssueLaunchToken()); await wire.Initialize("Blocked");
     Task<string> pending = wire.Call("read_mission_draft");
     await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
-    var window = new AgentToolsWindow(null!, _ => Task.FromResult<McpAgent[]>([]));
-    var flags = BindingFlags.NonPublic | BindingFlags.Instance;
-    typeof(AgentToolsWindow).GetField("_server", flags)!.SetValue(window, first);
-    typeof(AgentToolsWindow).GetField("_desktopServer", flags)!.SetValue(window, second);
+    var hub = new McpAgentHub(null!, () => null, _ => Task.FromResult<McpAgent[]>([]));
+    var flags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
+    typeof(McpAgentHub).GetProperty("SessionServer", flags)!.SetValue(hub, first);
+    typeof(McpAgentHub).GetProperty("DesktopServer", flags)!.SetValue(hub, second);
     var secondEndpoint = second.Endpoint!;
-    Task stop = (Task)typeof(AgentToolsWindow).GetMethod("StopAsync", flags)!.Invoke(window, null)!;
+    Task stop = hub.StopAllAsync();
     try {
       Assert.True(first.Stopping.IsCancellationRequested);
       Assert.True(second.Stopping.IsCancellationRequested);
@@ -123,7 +123,7 @@ public sealed class McpSessionLifecycleTests {
     } finally {
       release.TrySetResult(); await stop.WaitAsync(TimeSpan.FromSeconds(10));
       try { await pending; } catch (HttpRequestException) { }
-      await McpLayoutTests.CloseWindowAsync(window);
+      await hub.DisposeAsync();
     }
   }
 

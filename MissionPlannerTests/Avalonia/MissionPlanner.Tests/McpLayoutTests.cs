@@ -9,16 +9,33 @@ using MissionPlanner.Services.Mcp;
 namespace MissionPlanner.Tests;
 
 public sealed class McpLayoutTests {
+  internal static AgentToolsWindow Window(Func<CancellationToken, Task<McpAgent[]>> discover) =>
+      new(new McpAgentHub(null!, () => null, discover));
   internal static async Task CloseWindowAsync(AgentToolsWindow window) {
-    // Closing initiates asynchronous listener/catalogue teardown. Finish it before the
-    // per-test headless application resets its process-wide dispatcher.
-    var close = typeof(AgentToolsWindow).GetMethod("CloseAsync", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
-    await (Task)close.Invoke(window, null)!;
+    // Closing the window keeps the hub alive by design; tests dispose the hub explicitly so
+    // listener/catalogue teardown finishes before the headless dispatcher is reset.
+    window.Close();
+    await window.Hub.DisposeAsync();
     Dispatcher.UIThread.RunJobs();
   }
   [AvaloniaFact]
+  public async Task Closing_the_agent_window_keeps_the_hub_and_its_listeners_alive() {
+    var window = Window(_ => Task.FromResult<McpAgent[]>([]));
+    try {
+      window.Show(); Dispatcher.UIThread.RunJobs();
+      var server = await window.Hub.OpenSessionPortAsync();
+      window.Close(); Dispatcher.UIThread.RunJobs();
+      Assert.False(server.Stopping.IsCancellationRequested);
+      Assert.Same(server, window.Hub.SessionServer);
+      Assert.NotNull(server.Endpoint);
+      await window.Hub.StopAllAsync();
+      Assert.Null(window.Hub.SessionServer);
+      Assert.True(server.Stopping.IsCancellationRequested);
+    } finally { await CloseWindowAsync(window); }
+  }
+  [AvaloniaFact]
   public async Task Agent_window_buttons_fit_at_minimum_size_in_all_tabs() {
-    var window = new AgentToolsWindow(null!, _ => Task.FromResult<McpAgent[]>([
+    var window = Window(_ => Task.FromResult<McpAgent[]>([
       new(McpAgentKind.CodexCli, "Codex CLI", "/fake/codex", []),
       new(McpAgentKind.ClaudeCode, "Claude Code", "/fake/claude", []),
       new(McpAgentKind.OpenAiDesktop, "Codex Desktop", "/fake/desktop", []),
@@ -44,7 +61,7 @@ public sealed class McpLayoutTests {
   }
   [AvaloniaFact]
   public async Task Connections_are_available_when_only_cli_agents_are_found() {
-    var window = new AgentToolsWindow(null!, _ => Task.FromResult<McpAgent[]>([
+    var window = Window(_ => Task.FromResult<McpAgent[]>([
       new(McpAgentKind.ClaudeCode, "Claude Code", "/fake/claude", []),
     ]));
     try {
@@ -57,7 +74,7 @@ public sealed class McpLayoutTests {
   [AvaloniaFact]
   public async Task Connections_remain_available_if_all_agents_disappear() {
     McpAgent[] found = [new(McpAgentKind.OpenAiDesktop, "Codex Desktop", "/fake/app", [])];
-    var window = new AgentToolsWindow(null!, _ => Task.FromResult(found));
+    var window = Window(_ => Task.FromResult(found));
     try {
       window.Show(); await window.FindAgentsAsync(); Dispatcher.UIThread.RunJobs();
       var tabs = window.GetVisualDescendants().OfType<TabControl>().Single();

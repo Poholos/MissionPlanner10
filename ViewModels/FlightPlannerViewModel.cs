@@ -1084,6 +1084,52 @@ public partial class FlightPlannerViewModel : ViewModelBase, IActivationAware, I
     }
   }
 
+  /// <summary>
+  /// Agent upload of the current draft (Mission, Fence or Rally per <see cref="MissionType"/>) using the
+  /// same native transfer path as the Write button, with the operator dialogs replaced by explicit
+  /// arguments so a remote agent can neither block on nor silently bypass them.
+  /// </summary>
+  internal async Task<string> UploadAgentDraftAsync(bool acceptAbsoluteAltitude, bool ignoreLowAltitude) {
+    if (!IsConnected) { throw new InvalidOperationException("Not connected — cannot write."); }
+    var rows = Waypoints.ToList();
+    var type = CurrentMissionType;
+    if (rows.Count == 0 && type == MAVLink.MAV_MISSION_TYPE.MISSION) { throw new InvalidOperationException("No waypoints to write."); }
+    if (type == MAVLink.MAV_MISSION_TYPE.MISSION) {
+      if (ContainsAbsoluteAltitude(rows) && !acceptAbsoluteAltitude) {
+        throw new InvalidOperationException("absolute_altitude: the draft contains GLOBAL (AMSL) frames; pass acceptAbsoluteAltitude=true after checking them.");
+      }
+      for (int a = 0; a < rows.Count && !ignoreLowAltitude; a++) {
+        var cmd = (MAVLink.MAV_CMD)rows[a].Command;
+        if (rows[a].Command < (ushort)MAVLink.MAV_CMD.LAST && cmd != MAVLink.MAV_CMD.TAKEOFF && cmd != MAVLink.MAV_CMD.LAND
+            && cmd != MAVLink.MAV_CMD.RETURN_TO_LAUNCH && rows[a].Alt < AltWarn) {
+          throw new InvalidOperationException($"low_altitude: WP#{a + 1} altitude {rows[a].Alt} m is below the planner warning {AltWarn} m; raise it or pass ignoreLowAltitude=true.");
+        }
+      }
+    }
+    string typeName = MissionType.ToLowerInvariant();
+    Status = $"Agent writing {rows.Count} {typeName} point(s)…";
+    if (!await WriteRowsToVehicleAsync(type, rows)) { throw new InvalidOperationException(Status); }
+    Status = $"Wrote {rows.Count} {typeName} point(s).";
+    return Status;
+  }
+
+  /// <summary>Agent download of the vehicle's Mission/Fence/Rally into the draft, like the Read button.</summary>
+  internal async Task<int> DownloadAgentDraftAsync() {
+    if (!IsConnected) { throw new InvalidOperationException("Not connected."); }
+    var type = CurrentMissionType;
+    Status = $"Agent reading {MissionType.ToLowerInvariant()}…";
+    var rows = await DownloadRowsAsync(type, _comPort.MAV.sysid, _comPort.MAV.compid);
+    if (type == MAVLink.MAV_MISSION_TYPE.MISSION && rows.Count > 0) {
+      var home = rows[0];
+      HomeLat = home.Lat; HomeLng = home.Lng; HomeAlt = home.Alt;
+      rows.RemoveAt(0);
+      for (int index = 0; index < rows.Count; index++) { rows[index].Seq = index; }
+    }
+    Replace(rows);
+    Status = $"Read {rows.Count} {MissionType.ToLowerInvariant()} point(s).";
+    return rows.Count;
+  }
+
 #pragma warning disable CS0612 // Mission Planner's legacy upload APIs are still required here.
   private async Task<bool> WriteRowsToVehicleAsync(
       MAVLink.MAV_MISSION_TYPE type, IReadOnlyList<WpRow> rows) {
