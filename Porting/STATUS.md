@@ -34,6 +34,11 @@ Updated: **2026-09-17**.
 - Platform packages and CI are being produced for this branch. Actual provider login,
   model sessions and installed Windows/macOS client activation remain manual acceptance.
   See [MCP_DIAGNOSTICS.md](MCP_DIAGNOSTICS.md) for the revised workflow and access semantics.
+- The first CI attempt exposed a headless dispatcher failure in `ShellSmokeTests`.
+  MCP window fixtures now await their asynchronous close/catalogue teardown before
+  Avalonia resets the per-test dispatcher. The full **1669-test** local suite passed
+  again; platform CI is repeated for this test-only follow-up. The application code
+  and manually verified Linux behavior are unchanged.
 
 ## MCP flight-context extension — 2026-09-17
 

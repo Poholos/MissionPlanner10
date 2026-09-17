@@ -123,7 +123,7 @@ public sealed class McpSessionLifecycleTests {
     } finally {
       release.TrySetResult(); await stop.WaitAsync(TimeSpan.FromSeconds(10));
       try { await pending; } catch (HttpRequestException) { }
-      window.Close();
+      await McpLayoutTests.CloseWindowAsync(window);
     }
   }
 

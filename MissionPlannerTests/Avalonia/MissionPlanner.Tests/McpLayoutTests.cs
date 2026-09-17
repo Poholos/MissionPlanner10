@@ -9,6 +9,13 @@ using MissionPlanner.Services.Mcp;
 namespace MissionPlanner.Tests;
 
 public sealed class McpLayoutTests {
+  internal static async Task CloseWindowAsync(AgentToolsWindow window) {
+    // Closing initiates asynchronous listener/catalogue teardown. Finish it before the
+    // per-test headless application resets its process-wide dispatcher.
+    var close = typeof(AgentToolsWindow).GetMethod("CloseAsync", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+    await (Task)close.Invoke(window, null)!;
+    Dispatcher.UIThread.RunJobs();
+  }
   [AvaloniaFact]
   public async Task Agent_window_buttons_fit_at_minimum_size_in_all_tabs() {
     var window = new AgentToolsWindow(null!, _ => Task.FromResult<McpAgent[]>([
@@ -33,7 +40,7 @@ public sealed class McpLayoutTests {
           if (tab == 1) { Assert.True(start.Y + button.Bounds.Height <= window.ClientSize.Height + 1, $"{button.Content} overflows height."); }
         }
       }
-    } finally { window.Close(); Dispatcher.UIThread.RunJobs(); }
+    } finally { await CloseWindowAsync(window); }
   }
   [AvaloniaFact]
   public async Task Connections_are_available_when_only_cli_agents_are_found() {
@@ -44,7 +51,7 @@ public sealed class McpLayoutTests {
       window.Show(); await window.FindAgentsAsync(); Dispatcher.UIThread.RunJobs();
       var tabs = window.GetVisualDescendants().OfType<TabControl>().Single();
       Assert.True(tabs.Items.OfType<TabItem>().Single(t => (string?)t.Header == "Connections").IsVisible);
-    } finally { window.Close(); Dispatcher.UIThread.RunJobs(); }
+    } finally { await CloseWindowAsync(window); }
   }
 
   [AvaloniaFact]
@@ -58,7 +65,7 @@ public sealed class McpLayoutTests {
       found = []; await window.FindAgentsAsync(); Dispatcher.UIThread.RunJobs();
       Assert.Equal(3, tabs.SelectedIndex);
       Assert.True(tabs.Items.OfType<TabItem>().Single(t => (string?)t.Header == "Connections").IsVisible);
-    } finally { window.Close(); Dispatcher.UIThread.RunJobs(); }
+    } finally { await CloseWindowAsync(window); }
   }
 
 }
