@@ -1,6 +1,55 @@
 # Avalonia in-place migration status
 
-Updated: **2026-09-17**.
+Updated: **2026-09-20**.
+
+## MAVLink Mirror TCP-host write-back — 2026-09-19
+
+- Branch `fix/mavlink-mirror-writeback` is based on `origin/master` at
+  `2aefdf98a` (`v1.3.83.4-2aefdf98`). The TCP-host mirror now owns a dedicated
+  asynchronous client receive loop instead of polling client input only while vehicle data is
+  being mirrored. A per-mirror input-ownership flag prevents the legacy polling path from racing
+  that loop, and write-back still uses `MAVLinkInterface`'s vehicle-write lock and raw log.
+- The listener test exercises client input without any outbound mirror traffic. The initial
+  `--no-restore` run used stale package assets and failed to resolve MCP/Tomlyn references.
+  A normal test-project restore on 2026-09-20 built and ran successfully; this was not a
+  source/test-project blocker. The review follow-up below records the full passing suite.
+  The original `dotnet build MissionPlanner.csproj --no-restore -m:1` passed with
+  **0 warnings / 0 errors**.
+- Live Linux verification used Obriy's coupled ArduCopter on TCP 5760, Mission Planner's TCP Host
+  mirror on 14550 with write-back enabled, and Hermes 3.9.14 as the mirror client. Before the fix,
+  the Mission Planner receive queue grew while mirror Rx stayed at zero. With the fix, mirror Tx/Rx
+  counters both advance, the Mission Planner receive queue stays drained, and SITL reports neutral
+  `RC_CHANNELS` values `1500,1500,1000,1500` with RSSI 255. Physical stick deflection still needs a
+  separate Hermes mapping check; the vendor `RXLOSS` overlay alone is not transport evidence.
+- Pre-existing user changes in five driver/MAVLink graph `.bat` files are deliberately preserved
+  outside this change. No vehicle parameters, Mission Planner joystick settings, Obriy files, or
+  licence data are modified by this fix.
+
+## Mirror review follow-up — 2026-09-20
+
+- Reviewed all five GitHub discussion comments on PR #40 and its complete diff against
+  fresh `origin/master` at `2aefdf98a4e0fdcb14af3399db80fc258884f51c`. Work remains on the
+  requested `fix/mavlink-mirror-writeback` branch, rather than the historical migration branch.
+- Implementation commits: `497a61af0e248c8520e41cc831fe5d1636a8dd0a` moves receive callbacks
+  outside the lifecycle lock, dispatches reads to the thread pool, prevents synchronous
+  callback self-waits and seeds write-back from the current checkbox state;
+  `99b83e93903b6e3451e1706dcc66318448cec25a` fixes an existing Linux video-device classifier
+  defect exposed by the full suite on a host with `/dev/video0` present.
+- Four added lifecycle cases failed against the original listener (blocked stop, blocked
+  replacement acceptance, and self-wait from receive/connection callbacks). All **7/7**
+  focused listener cases pass after the fix. The complete application test suite passes
+  **1699/1699**, zero skipped, with .NET SDK 10.0.112 and normal package restore.
+- Verification ran in a detached temporary worktree with the exact patched C# source bytes,
+  not over the running application's binaries. Full-suite application paths were redirected
+  to temporary XDG directories. TRX reports are under
+  `/tmp/missionplanner-pr40-review-KSDK7gJp/results-{before,after,full,full-fixed}/`.
+  Native-surface validation passes: **1623 rows, 0 blockers**. No GUI/simulator/vehicle
+  session was launched; these are offline lifecycle and application tests, not flight evidence.
+- Pre-existing edits in the five driver/MAVLink `.bat` files and the separate uncommitted
+  MCP architecture note in this file are preserved and excluded from these commits.
+- Next executable step: wait for PR CI, squash-merge PR #40 into `master` as requested,
+  then rebuild the local application without starting it. Package release publication is
+  a separate later action; no MissionPlanner10 tag or release is created by this follow-up.
 
 ## Release 1.3.83.4 — merge of feat/mcp-flight-context — 2026-09-17
 
