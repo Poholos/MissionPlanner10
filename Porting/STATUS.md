@@ -1,6 +1,31 @@
 # Avalonia in-place migration status
 
-Updated: **2026-09-28**.
+Updated: **2026-09-29**.
+
+## Release 1.3.83.5 — native DataFlash parser — 2026-09-29
+
+- PR #34 merged on `origin/master` as `c644eb4964e8a89dfa1a81e1c371173044782472`.
+  The single-purpose `build: bump local build number` commit
+  `2c1c1f5fa9cf1345e4c7a3d6e8d99f82e53edc5a` changed only
+  `build/local-build-number.txt` from `4` to `5` and was pushed to `origin/master`.
+  Annotated tag `v1.3.83.5-2c1c1f5f` resolves to that exact commit.
+- CI/package run `36603198987` passed all four platform jobs; its Linux job ran the full
+  application suite with `DFLOG_REQUIRE_NATIVE=1`: **1787/1787 passed, zero skipped**.
+  CodeQL run `36603199091` passed. Tagged release run `36604494331` passed version
+  validation, Linux, Windows, both macOS builds and the publishing job.
+- The non-prerelease GitHub Release is
+  `https://github.com/Rouniy/MissionPlanner10/releases/tag/v1.3.83.5-2c1c1f5f`.
+  It has 19 assets: eight human packages (Linux TAR/DEB, Windows ZIP/MSI, and macOS
+  ZIP/DMG for both architectures), two additional Linux/Windows updater ZIPs, four
+  manifests, four signatures and `SHA256SUMS` (18 entries). No local application
+  build or GUI, simulator or hardware qualification was run during this release operation.
+- The original `/home/obazna/dev/skycomm/MissionPlanner10` checkout was left on local
+  `master` at `f65fc96e8` with its uncommitted `Porting/STATUS.md` addition and five
+  `.bat` line-ending differences preserved; it was not used to build or tag the release.
+  This release record is a post-tag documentation commit, so it does not change released
+  binaries. Remaining release blocker: none. Next executable step: reconcile those local
+  changes before updating that checkout, then qualify the published package on its target
+  platform.
 
 ## Mavlink Mirror windows keep their own mirror — 2026-09-28
 
